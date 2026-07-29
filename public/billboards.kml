@@ -1,0 +1,3983 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<kml xmlns="http://www.opengis.net/kml/2.2">
+  <Document>
+    <name>KMK Festival OOH</name>
+    <description/>
+    <Style id="icon-1799-0288D1-normal">
+      <IconStyle>
+        <color>ffd18802</color>
+        <scale>1</scale>
+        <Icon>
+          <href>https://www.gstatic.com/mapspro/images/stock/503-wht-blank_maps.png</href>
+        </Icon>
+      </IconStyle>
+      <LabelStyle>
+        <scale>0</scale>
+      </LabelStyle>
+    </Style>
+    <Style id="icon-1799-0288D1-highlight">
+      <IconStyle>
+        <color>ffd18802</color>
+        <scale>1</scale>
+        <Icon>
+          <href>https://www.gstatic.com/mapspro/images/stock/503-wht-blank_maps.png</href>
+        </Icon>
+      </IconStyle>
+      <LabelStyle>
+        <scale>1</scale>
+      </LabelStyle>
+    </Style>
+    <StyleMap id="icon-1799-0288D1">
+      <Pair>
+        <key>normal</key>
+        <styleUrl>#icon-1799-0288D1-normal</styleUrl>
+      </Pair>
+      <Pair>
+        <key>highlight</key>
+        <styleUrl>#icon-1799-0288D1-highlight</styleUrl>
+      </Pair>
+    </StyleMap>
+    <Style id="icon-1899-9C27B0-normal">
+      <IconStyle>
+        <color>ffb0279c</color>
+        <scale>1</scale>
+        <Icon>
+          <href>https://www.gstatic.com/mapspro/images/stock/503-wht-blank_maps.png</href>
+        </Icon>
+        <hotSpot x="32" xunits="pixels" y="64" yunits="insetPixels"/>
+      </IconStyle>
+      <LabelStyle>
+        <scale>0</scale>
+      </LabelStyle>
+    </Style>
+    <Style id="icon-1899-9C27B0-highlight">
+      <IconStyle>
+        <color>ffb0279c</color>
+        <scale>1</scale>
+        <Icon>
+          <href>https://www.gstatic.com/mapspro/images/stock/503-wht-blank_maps.png</href>
+        </Icon>
+        <hotSpot x="32" xunits="pixels" y="64" yunits="insetPixels"/>
+      </IconStyle>
+      <LabelStyle>
+        <scale>1</scale>
+      </LabelStyle>
+    </Style>
+    <StyleMap id="icon-1899-9C27B0">
+      <Pair>
+        <key>normal</key>
+        <styleUrl>#icon-1899-9C27B0-normal</styleUrl>
+      </Pair>
+      <Pair>
+        <key>highlight</key>
+        <styleUrl>#icon-1899-9C27B0-highlight</styleUrl>
+      </Pair>
+    </StyleMap>
+    <Folder>
+      <name>LAMPOSTS</name>
+      <Placemark>
+        <name>Karioako</name>
+        <description><![CDATA[parent_index: 1<br>Jina la Eneo/Mtaa: Vunjabei<br>Jina la Mmiliki: Unknown<br>Kutoka: Kariakooo<br>Kwenda: Gaden<br>Brackets: Ndio<br>Urefu (M): 1<br>Upana (M): 1<br>Kunatangazo kwenye Lampost: Ndio<br>Tangazo gani lipo kwenye Lampost?: Fungua ukurasa wafuraha<br>Faces: 2<br>Mpangililo: Katikati ya Barabara<br>Idadi ya Lampost kwenye Mtaa/Barabara: 36<br>latitude: -6.1657356<br>longitude: 39.2029446<br>index: 1]]></description>
+        <styleUrl>#icon-1799-0288D1</styleUrl>
+        <ExtendedData>
+          <Data name="parent_index">
+            <value>1.0</value>
+          </Data>
+          <Data name="Jina la Eneo/Mtaa">
+            <value>Vunjabei</value>
+          </Data>
+          <Data name="Jina la Mmiliki">
+            <value>Unknown</value>
+          </Data>
+          <Data name="Kutoka">
+            <value>Kariakooo</value>
+          </Data>
+          <Data name="Kwenda">
+            <value>Gaden</value>
+          </Data>
+          <Data name="Brackets">
+            <value>Ndio</value>
+          </Data>
+          <Data name="Urefu (M)">
+            <value>1.0</value>
+          </Data>
+          <Data name="Upana (M)">
+            <value>1.0</value>
+          </Data>
+          <Data name="Kunatangazo kwenye Lampost">
+            <value>Ndio</value>
+          </Data>
+          <Data name="Tangazo gani lipo kwenye Lampost?">
+            <value>Fungua ukurasa wafuraha</value>
+          </Data>
+          <Data name="Faces">
+            <value>2.0</value>
+          </Data>
+          <Data name="Mpangililo">
+            <value>Katikati ya Barabara</value>
+          </Data>
+          <Data name="Idadi ya Lampost kwenye Mtaa/Barabara">
+            <value>36.0</value>
+          </Data>
+          <Data name="latitude">
+            <value>-6.1657356</value>
+          </Data>
+          <Data name="longitude">
+            <value>39.2029446</value>
+          </Data>
+          <Data name="index">
+            <value>1.0</value>
+          </Data>
+        </ExtendedData>
+        <Point>
+          <coordinates>
+            39.2029446,-6.1657356,0
+          </coordinates>
+        </Point>
+      </Placemark>
+      <Placemark>
+        <name>Karioako</name>
+        <description><![CDATA[parent_index: 1<br>Jina la Eneo/Mtaa: Vunjabei<br>Jina la Mmiliki: Unknown<br>Kutoka: Kariakooo<br>Kwenda: Gaden<br>Brackets: Ndio<br>Urefu (M): 1<br>Upana (M): 1<br>Kunatangazo kwenye Lampost: Ndio<br>Tangazo gani lipo kwenye Lampost?: Fungua ukurasa wafuraha<br>Faces: 2<br>Mpangililo: Katikati ya Barabara<br>Idadi ya Lampost kwenye Mtaa/Barabara: 36<br>latitude: -6.1655668<br>longitude: 39.2021586<br>index: 2]]></description>
+        <styleUrl>#icon-1799-0288D1</styleUrl>
+        <ExtendedData>
+          <Data name="parent_index">
+            <value>1.0</value>
+          </Data>
+          <Data name="Jina la Eneo/Mtaa">
+            <value>Vunjabei</value>
+          </Data>
+          <Data name="Jina la Mmiliki">
+            <value>Unknown</value>
+          </Data>
+          <Data name="Kutoka">
+            <value>Kariakooo</value>
+          </Data>
+          <Data name="Kwenda">
+            <value>Gaden</value>
+          </Data>
+          <Data name="Brackets">
+            <value>Ndio</value>
+          </Data>
+          <Data name="Urefu (M)">
+            <value>1.0</value>
+          </Data>
+          <Data name="Upana (M)">
+            <value>1.0</value>
+          </Data>
+          <Data name="Kunatangazo kwenye Lampost">
+            <value>Ndio</value>
+          </Data>
+          <Data name="Tangazo gani lipo kwenye Lampost?">
+            <value>Fungua ukurasa wafuraha</value>
+          </Data>
+          <Data name="Faces">
+            <value>2.0</value>
+          </Data>
+          <Data name="Mpangililo">
+            <value>Katikati ya Barabara</value>
+          </Data>
+          <Data name="Idadi ya Lampost kwenye Mtaa/Barabara">
+            <value>36.0</value>
+          </Data>
+          <Data name="latitude">
+            <value>-6.1655668</value>
+          </Data>
+          <Data name="longitude">
+            <value>39.2021586</value>
+          </Data>
+          <Data name="index">
+            <value>2.0</value>
+          </Data>
+        </ExtendedData>
+        <Point>
+          <coordinates>
+            39.2021586,-6.1655668,0
+          </coordinates>
+        </Point>
+      </Placemark>
+      <Placemark>
+        <name>Karioako</name>
+        <description><![CDATA[parent_index: 1<br>Jina la Eneo/Mtaa: Vunjabei<br>Jina la Mmiliki: Unknown<br>Kutoka: Kariakooo<br>Kwenda: Gaden<br>Brackets: Ndio<br>Urefu (M): 1<br>Upana (M): 1<br>Kunatangazo kwenye Lampost: Ndio<br>Tangazo gani lipo kwenye Lampost?: Fungua ukurasa wafuraha<br>Faces: 2<br>Mpangililo: Katikati ya Barabara<br>Idadi ya Lampost kwenye Mtaa/Barabara: 36<br>latitude: -6.1654898<br>longitude: 39.2002699<br>index: 3]]></description>
+        <styleUrl>#icon-1799-0288D1</styleUrl>
+        <ExtendedData>
+          <Data name="parent_index">
+            <value>1.0</value>
+          </Data>
+          <Data name="Jina la Eneo/Mtaa">
+            <value>Vunjabei</value>
+          </Data>
+          <Data name="Jina la Mmiliki">
+            <value>Unknown</value>
+          </Data>
+          <Data name="Kutoka">
+            <value>Kariakooo</value>
+          </Data>
+          <Data name="Kwenda">
+            <value>Gaden</value>
+          </Data>
+          <Data name="Brackets">
+            <value>Ndio</value>
+          </Data>
+          <Data name="Urefu (M)">
+            <value>1.0</value>
+          </Data>
+          <Data name="Upana (M)">
+            <value>1.0</value>
+          </Data>
+          <Data name="Kunatangazo kwenye Lampost">
+            <value>Ndio</value>
+          </Data>
+          <Data name="Tangazo gani lipo kwenye Lampost?">
+            <value>Fungua ukurasa wafuraha</value>
+          </Data>
+          <Data name="Faces">
+            <value>2.0</value>
+          </Data>
+          <Data name="Mpangililo">
+            <value>Katikati ya Barabara</value>
+          </Data>
+          <Data name="Idadi ya Lampost kwenye Mtaa/Barabara">
+            <value>36.0</value>
+          </Data>
+          <Data name="latitude">
+            <value>-6.1654898</value>
+          </Data>
+          <Data name="longitude">
+            <value>39.2002699</value>
+          </Data>
+          <Data name="index">
+            <value>3.0</value>
+          </Data>
+        </ExtendedData>
+        <Point>
+          <coordinates>
+            39.2002699,-6.1654898,0
+          </coordinates>
+        </Point>
+      </Placemark>
+      <Placemark>
+        <name>Karioako</name>
+        <description><![CDATA[parent_index: 1<br>Jina la Eneo/Mtaa: Vunjabei<br>Jina la Mmiliki: Unknown<br>Kutoka: Kariakooo<br>Kwenda: Gaden<br>Brackets: Ndio<br>Urefu (M): 1<br>Upana (M): 1<br>Kunatangazo kwenye Lampost: Ndio<br>Tangazo gani lipo kwenye Lampost?: Fungua ukurasa wafuraha<br>Faces: 2<br>Mpangililo: Katikati ya Barabara<br>Idadi ya Lampost kwenye Mtaa/Barabara: 36<br>latitude: -6.1654055<br>longitude: 39.1989662<br>index: 4]]></description>
+        <styleUrl>#icon-1799-0288D1</styleUrl>
+        <ExtendedData>
+          <Data name="parent_index">
+            <value>1.0</value>
+          </Data>
+          <Data name="Jina la Eneo/Mtaa">
+            <value>Vunjabei</value>
+          </Data>
+          <Data name="Jina la Mmiliki">
+            <value>Unknown</value>
+          </Data>
+          <Data name="Kutoka">
+            <value>Kariakooo</value>
+          </Data>
+          <Data name="Kwenda">
+            <value>Gaden</value>
+          </Data>
+          <Data name="Brackets">
+            <value>Ndio</value>
+          </Data>
+          <Data name="Urefu (M)">
+            <value>1.0</value>
+          </Data>
+          <Data name="Upana (M)">
+            <value>1.0</value>
+          </Data>
+          <Data name="Kunatangazo kwenye Lampost">
+            <value>Ndio</value>
+          </Data>
+          <Data name="Tangazo gani lipo kwenye Lampost?">
+            <value>Fungua ukurasa wafuraha</value>
+          </Data>
+          <Data name="Faces">
+            <value>2.0</value>
+          </Data>
+          <Data name="Mpangililo">
+            <value>Katikati ya Barabara</value>
+          </Data>
+          <Data name="Idadi ya Lampost kwenye Mtaa/Barabara">
+            <value>36.0</value>
+          </Data>
+          <Data name="latitude">
+            <value>-6.1654055</value>
+          </Data>
+          <Data name="longitude">
+            <value>39.1989662</value>
+          </Data>
+          <Data name="index">
+            <value>4.0</value>
+          </Data>
+        </ExtendedData>
+        <Point>
+          <coordinates>
+            39.1989662,-6.1654055,0
+          </coordinates>
+        </Point>
+      </Placemark>
+      <Placemark>
+        <name>Karioako</name>
+        <description><![CDATA[parent_index: 1<br>Jina la Eneo/Mtaa: Vunjabei<br>Jina la Mmiliki: Unknown<br>Kutoka: Kariakooo<br>Kwenda: Gaden<br>Brackets: Ndio<br>Urefu (M): 1<br>Upana (M): 1<br>Kunatangazo kwenye Lampost: Ndio<br>Tangazo gani lipo kwenye Lampost?: Fungua ukurasa wafuraha<br>Faces: 2<br>Mpangililo: Katikati ya Barabara<br>Idadi ya Lampost kwenye Mtaa/Barabara: 36<br>latitude: -6.1649712<br>longitude: 39.1977519<br>index: 5]]></description>
+        <styleUrl>#icon-1799-0288D1</styleUrl>
+        <ExtendedData>
+          <Data name="parent_index">
+            <value>1.0</value>
+          </Data>
+          <Data name="Jina la Eneo/Mtaa">
+            <value>Vunjabei</value>
+          </Data>
+          <Data name="Jina la Mmiliki">
+            <value>Unknown</value>
+          </Data>
+          <Data name="Kutoka">
+            <value>Kariakooo</value>
+          </Data>
+          <Data name="Kwenda">
+            <value>Gaden</value>
+          </Data>
+          <Data name="Brackets">
+            <value>Ndio</value>
+          </Data>
+          <Data name="Urefu (M)">
+            <value>1.0</value>
+          </Data>
+          <Data name="Upana (M)">
+            <value>1.0</value>
+          </Data>
+          <Data name="Kunatangazo kwenye Lampost">
+            <value>Ndio</value>
+          </Data>
+          <Data name="Tangazo gani lipo kwenye Lampost?">
+            <value>Fungua ukurasa wafuraha</value>
+          </Data>
+          <Data name="Faces">
+            <value>2.0</value>
+          </Data>
+          <Data name="Mpangililo">
+            <value>Katikati ya Barabara</value>
+          </Data>
+          <Data name="Idadi ya Lampost kwenye Mtaa/Barabara">
+            <value>36.0</value>
+          </Data>
+          <Data name="latitude">
+            <value>-6.1649712</value>
+          </Data>
+          <Data name="longitude">
+            <value>39.1977519</value>
+          </Data>
+          <Data name="index">
+            <value>5.0</value>
+          </Data>
+        </ExtendedData>
+        <Point>
+          <coordinates>
+            39.1977519,-6.1649712,0
+          </coordinates>
+        </Point>
+      </Placemark>
+      <Placemark>
+        <name>Karioako</name>
+        <description><![CDATA[parent_index: 1<br>Jina la Eneo/Mtaa: Vunjabei<br>Jina la Mmiliki: Unknown<br>Kutoka: Kariakooo<br>Kwenda: Gaden<br>Brackets: Ndio<br>Urefu (M): 1<br>Upana (M): 1<br>Kunatangazo kwenye Lampost: Ndio<br>Tangazo gani lipo kwenye Lampost?: Fungua ukurasa wafuraha<br>Faces: 2<br>Mpangililo: Katikati ya Barabara<br>Idadi ya Lampost kwenye Mtaa/Barabara: 36<br>latitude: -6.1648263<br>longitude: 39.195509<br>index: 6]]></description>
+        <styleUrl>#icon-1799-0288D1</styleUrl>
+        <ExtendedData>
+          <Data name="parent_index">
+            <value>1.0</value>
+          </Data>
+          <Data name="Jina la Eneo/Mtaa">
+            <value>Vunjabei</value>
+          </Data>
+          <Data name="Jina la Mmiliki">
+            <value>Unknown</value>
+          </Data>
+          <Data name="Kutoka">
+            <value>Kariakooo</value>
+          </Data>
+          <Data name="Kwenda">
+            <value>Gaden</value>
+          </Data>
+          <Data name="Brackets">
+            <value>Ndio</value>
+          </Data>
+          <Data name="Urefu (M)">
+            <value>1.0</value>
+          </Data>
+          <Data name="Upana (M)">
+            <value>1.0</value>
+          </Data>
+          <Data name="Kunatangazo kwenye Lampost">
+            <value>Ndio</value>
+          </Data>
+          <Data name="Tangazo gani lipo kwenye Lampost?">
+            <value>Fungua ukurasa wafuraha</value>
+          </Data>
+          <Data name="Faces">
+            <value>2.0</value>
+          </Data>
+          <Data name="Mpangililo">
+            <value>Katikati ya Barabara</value>
+          </Data>
+          <Data name="Idadi ya Lampost kwenye Mtaa/Barabara">
+            <value>36.0</value>
+          </Data>
+          <Data name="latitude">
+            <value>-6.1648263</value>
+          </Data>
+          <Data name="longitude">
+            <value>39.195509</value>
+          </Data>
+          <Data name="index">
+            <value>6.0</value>
+          </Data>
+        </ExtendedData>
+        <Point>
+          <coordinates>
+            39.195509,-6.1648263,0
+          </coordinates>
+        </Point>
+      </Placemark>
+      <Placemark>
+        <name>Karioako</name>
+        <description><![CDATA[parent_index: 1<br>Jina la Eneo/Mtaa: Vunjabei<br>Jina la Mmiliki: Unknown<br>Kutoka: Kariakooo<br>Kwenda: Gaden<br>Brackets: Ndio<br>Urefu (M): 1<br>Upana (M): 1<br>Kunatangazo kwenye Lampost: Ndio<br>Tangazo gani lipo kwenye Lampost?: Fungua ukurasa wafuraha<br>Faces: 2<br>Mpangililo: Katikati ya Barabara<br>Idadi ya Lampost kwenye Mtaa/Barabara: 36<br>latitude: -6.1642862<br>longitude: 39.1931692<br>index: 7]]></description>
+        <styleUrl>#icon-1799-0288D1</styleUrl>
+        <ExtendedData>
+          <Data name="parent_index">
+            <value>1.0</value>
+          </Data>
+          <Data name="Jina la Eneo/Mtaa">
+            <value>Vunjabei</value>
+          </Data>
+          <Data name="Jina la Mmiliki">
+            <value>Unknown</value>
+          </Data>
+          <Data name="Kutoka">
+            <value>Kariakooo</value>
+          </Data>
+          <Data name="Kwenda">
+            <value>Gaden</value>
+          </Data>
+          <Data name="Brackets">
+            <value>Ndio</value>
+          </Data>
+          <Data name="Urefu (M)">
+            <value>1.0</value>
+          </Data>
+          <Data name="Upana (M)">
+            <value>1.0</value>
+          </Data>
+          <Data name="Kunatangazo kwenye Lampost">
+            <value>Ndio</value>
+          </Data>
+          <Data name="Tangazo gani lipo kwenye Lampost?">
+            <value>Fungua ukurasa wafuraha</value>
+          </Data>
+          <Data name="Faces">
+            <value>2.0</value>
+          </Data>
+          <Data name="Mpangililo">
+            <value>Katikati ya Barabara</value>
+          </Data>
+          <Data name="Idadi ya Lampost kwenye Mtaa/Barabara">
+            <value>36.0</value>
+          </Data>
+          <Data name="latitude">
+            <value>-6.1642862</value>
+          </Data>
+          <Data name="longitude">
+            <value>39.1931692</value>
+          </Data>
+          <Data name="index">
+            <value>7.0</value>
+          </Data>
+        </ExtendedData>
+        <Point>
+          <coordinates>
+            39.1931692,-6.1642862,0
+          </coordinates>
+        </Point>
+      </Placemark>
+      <Placemark>
+        <name>Amani</name>
+        <description><![CDATA[parent_index: 38<br>Jina la Eneo/Mtaa: Amani uwanjani<br>Jina la Mmiliki: Unknown <br>Kutoka: Amani raund<br>Kwenda: Mjin<br>Brackets: Ndio<br>Urefu (M): 2<br>Upana (M): 1<br>Kunatangazo kwenye Lampost: Ndio<br>Tangazo gani lipo kwenye Lampost?: Ondoa shaka sisi bdio tupo<br>Faces: 2<br>Mpangililo: Katikati ya Barabara<br>Idadi ya Lampost kwenye Mtaa/Barabara: 45<br>latitude: -6.1651481<br>longitude: 39.2264604<br>index: 8]]></description>
+        <styleUrl>#icon-1799-0288D1</styleUrl>
+        <ExtendedData>
+          <Data name="parent_index">
+            <value>38.0</value>
+          </Data>
+          <Data name="Jina la Eneo/Mtaa">
+            <value>Amani uwanjani</value>
+          </Data>
+          <Data name="Jina la Mmiliki">
+            <value>Unknown </value>
+          </Data>
+          <Data name="Kutoka">
+            <value>Amani raund</value>
+          </Data>
+          <Data name="Kwenda">
+            <value>Mjin</value>
+          </Data>
+          <Data name="Brackets">
+            <value>Ndio</value>
+          </Data>
+          <Data name="Urefu (M)">
+            <value>2.0</value>
+          </Data>
+          <Data name="Upana (M)">
+            <value>1.0</value>
+          </Data>
+          <Data name="Kunatangazo kwenye Lampost">
+            <value>Ndio</value>
+          </Data>
+          <Data name="Tangazo gani lipo kwenye Lampost?">
+            <value>Ondoa shaka sisi bdio tupo</value>
+          </Data>
+          <Data name="Faces">
+            <value>2.0</value>
+          </Data>
+          <Data name="Mpangililo">
+            <value>Katikati ya Barabara</value>
+          </Data>
+          <Data name="Idadi ya Lampost kwenye Mtaa/Barabara">
+            <value>45.0</value>
+          </Data>
+          <Data name="latitude">
+            <value>-6.1651481</value>
+          </Data>
+          <Data name="longitude">
+            <value>39.2264604</value>
+          </Data>
+          <Data name="index">
+            <value>8.0</value>
+          </Data>
+        </ExtendedData>
+        <Point>
+          <coordinates>
+            39.2264604,-6.1651481,0
+          </coordinates>
+        </Point>
+      </Placemark>
+      <Placemark>
+        <name>Amani</name>
+        <description><![CDATA[parent_index: 38<br>Jina la Eneo/Mtaa: Amani uwanjani<br>Jina la Mmiliki: Unknown <br>Kutoka: Amani raund<br>Kwenda: Mjin<br>Brackets: Ndio<br>Urefu (M): 2<br>Upana (M): 1<br>Kunatangazo kwenye Lampost: Ndio<br>Tangazo gani lipo kwenye Lampost?: Ondoa shaka sisi bdio tupo<br>Faces: 2<br>Mpangililo: Katikati ya Barabara<br>Idadi ya Lampost kwenye Mtaa/Barabara: 45<br>latitude: -6.164383<br>longitude: 39.2222558<br>index: 9]]></description>
+        <styleUrl>#icon-1799-0288D1</styleUrl>
+        <ExtendedData>
+          <Data name="parent_index">
+            <value>38.0</value>
+          </Data>
+          <Data name="Jina la Eneo/Mtaa">
+            <value>Amani uwanjani</value>
+          </Data>
+          <Data name="Jina la Mmiliki">
+            <value>Unknown </value>
+          </Data>
+          <Data name="Kutoka">
+            <value>Amani raund</value>
+          </Data>
+          <Data name="Kwenda">
+            <value>Mjin</value>
+          </Data>
+          <Data name="Brackets">
+            <value>Ndio</value>
+          </Data>
+          <Data name="Urefu (M)">
+            <value>2.0</value>
+          </Data>
+          <Data name="Upana (M)">
+            <value>1.0</value>
+          </Data>
+          <Data name="Kunatangazo kwenye Lampost">
+            <value>Ndio</value>
+          </Data>
+          <Data name="Tangazo gani lipo kwenye Lampost?">
+            <value>Ondoa shaka sisi bdio tupo</value>
+          </Data>
+          <Data name="Faces">
+            <value>2.0</value>
+          </Data>
+          <Data name="Mpangililo">
+            <value>Katikati ya Barabara</value>
+          </Data>
+          <Data name="Idadi ya Lampost kwenye Mtaa/Barabara">
+            <value>45.0</value>
+          </Data>
+          <Data name="latitude">
+            <value>-6.164383</value>
+          </Data>
+          <Data name="longitude">
+            <value>39.2222558</value>
+          </Data>
+          <Data name="index">
+            <value>9.0</value>
+          </Data>
+        </ExtendedData>
+        <Point>
+          <coordinates>
+            39.2222558,-6.164383,0
+          </coordinates>
+        </Point>
+      </Placemark>
+      <Placemark>
+        <name>Amani</name>
+        <description><![CDATA[parent_index: 38<br>Jina la Eneo/Mtaa: Amani uwanjani<br>Jina la Mmiliki: Unknown <br>Kutoka: Amani raund<br>Kwenda: Mjin<br>Brackets: Ndio<br>Urefu (M): 2<br>Upana (M): 1<br>Kunatangazo kwenye Lampost: Ndio<br>Tangazo gani lipo kwenye Lampost?: Ondoa shaka sisi bdio tupo<br>Faces: 2<br>Mpangililo: Katikati ya Barabara<br>Idadi ya Lampost kwenye Mtaa/Barabara: 45<br>latitude: -6.1635678<br>longitude: 39.2185052<br>index: 10]]></description>
+        <styleUrl>#icon-1799-0288D1</styleUrl>
+        <ExtendedData>
+          <Data name="parent_index">
+            <value>38.0</value>
+          </Data>
+          <Data name="Jina la Eneo/Mtaa">
+            <value>Amani uwanjani</value>
+          </Data>
+          <Data name="Jina la Mmiliki">
+            <value>Unknown </value>
+          </Data>
+          <Data name="Kutoka">
+            <value>Amani raund</value>
+          </Data>
+          <Data name="Kwenda">
+            <value>Mjin</value>
+          </Data>
+          <Data name="Brackets">
+            <value>Ndio</value>
+          </Data>
+          <Data name="Urefu (M)">
+            <value>2.0</value>
+          </Data>
+          <Data name="Upana (M)">
+            <value>1.0</value>
+          </Data>
+          <Data name="Kunatangazo kwenye Lampost">
+            <value>Ndio</value>
+          </Data>
+          <Data name="Tangazo gani lipo kwenye Lampost?">
+            <value>Ondoa shaka sisi bdio tupo</value>
+          </Data>
+          <Data name="Faces">
+            <value>2.0</value>
+          </Data>
+          <Data name="Mpangililo">
+            <value>Katikati ya Barabara</value>
+          </Data>
+          <Data name="Idadi ya Lampost kwenye Mtaa/Barabara">
+            <value>45.0</value>
+          </Data>
+          <Data name="latitude">
+            <value>-6.1635678</value>
+          </Data>
+          <Data name="longitude">
+            <value>39.2185052</value>
+          </Data>
+          <Data name="index">
+            <value>10.0</value>
+          </Data>
+        </ExtendedData>
+        <Point>
+          <coordinates>
+            39.2185052,-6.1635678,0
+          </coordinates>
+        </Point>
+      </Placemark>
+      <Placemark>
+        <name>Amani</name>
+        <description><![CDATA[parent_index: 38<br>Jina la Eneo/Mtaa: Amani uwanjani<br>Jina la Mmiliki: Unknown <br>Kutoka: Amani raund<br>Kwenda: Mjin<br>Brackets: Ndio<br>Urefu (M): 2<br>Upana (M): 1<br>Kunatangazo kwenye Lampost: Ndio<br>Tangazo gani lipo kwenye Lampost?: Ondoa shaka sisi bdio tupo<br>Faces: 2<br>Mpangililo: Katikati ya Barabara<br>Idadi ya Lampost kwenye Mtaa/Barabara: 45<br>latitude: -6.1639479<br>longitude: 39.220472<br>index: 11]]></description>
+        <styleUrl>#icon-1799-0288D1</styleUrl>
+        <ExtendedData>
+          <Data name="parent_index">
+            <value>38.0</value>
+          </Data>
+          <Data name="Jina la Eneo/Mtaa">
+            <value>Amani uwanjani</value>
+          </Data>
+          <Data name="Jina la Mmiliki">
+            <value>Unknown </value>
+          </Data>
+          <Data name="Kutoka">
+            <value>Amani raund</value>
+          </Data>
+          <Data name="Kwenda">
+            <value>Mjin</value>
+          </Data>
+          <Data name="Brackets">
+            <value>Ndio</value>
+          </Data>
+          <Data name="Urefu (M)">
+            <value>2.0</value>
+          </Data>
+          <Data name="Upana (M)">
+            <value>1.0</value>
+          </Data>
+          <Data name="Kunatangazo kwenye Lampost">
+            <value>Ndio</value>
+          </Data>
+          <Data name="Tangazo gani lipo kwenye Lampost?">
+            <value>Ondoa shaka sisi bdio tupo</value>
+          </Data>
+          <Data name="Faces">
+            <value>2.0</value>
+          </Data>
+          <Data name="Mpangililo">
+            <value>Katikati ya Barabara</value>
+          </Data>
+          <Data name="Idadi ya Lampost kwenye Mtaa/Barabara">
+            <value>45.0</value>
+          </Data>
+          <Data name="latitude">
+            <value>-6.1639479</value>
+          </Data>
+          <Data name="longitude">
+            <value>39.220472</value>
+          </Data>
+          <Data name="index">
+            <value>11.0</value>
+          </Data>
+        </ExtendedData>
+        <Point>
+          <coordinates>
+            39.220472,-6.1639479,0
+          </coordinates>
+        </Point>
+      </Placemark>
+      <Placemark>
+        <name>Amani</name>
+        <description><![CDATA[parent_index: 38<br>Jina la Eneo/Mtaa: Amani uwanjani<br>Jina la Mmiliki: Unknown <br>Kutoka: Amani raund<br>Kwenda: Mjin<br>Brackets: Ndio<br>Urefu (M): 2<br>Upana (M): 1<br>Kunatangazo kwenye Lampost: Ndio<br>Tangazo gani lipo kwenye Lampost?: Ondoa shaka sisi bdio tupo<br>Faces: 2<br>Mpangililo: Katikati ya Barabara<br>Idadi ya Lampost kwenye Mtaa/Barabara: 45<br>latitude: -6.1633033<br>longitude: 39.2168852<br>index: 12]]></description>
+        <styleUrl>#icon-1799-0288D1</styleUrl>
+        <ExtendedData>
+          <Data name="parent_index">
+            <value>38.0</value>
+          </Data>
+          <Data name="Jina la Eneo/Mtaa">
+            <value>Amani uwanjani</value>
+          </Data>
+          <Data name="Jina la Mmiliki">
+            <value>Unknown </value>
+          </Data>
+          <Data name="Kutoka">
+            <value>Amani raund</value>
+          </Data>
+          <Data name="Kwenda">
+            <value>Mjin</value>
+          </Data>
+          <Data name="Brackets">
+            <value>Ndio</value>
+          </Data>
+          <Data name="Urefu (M)">
+            <value>2.0</value>
+          </Data>
+          <Data name="Upana (M)">
+            <value>1.0</value>
+          </Data>
+          <Data name="Kunatangazo kwenye Lampost">
+            <value>Ndio</value>
+          </Data>
+          <Data name="Tangazo gani lipo kwenye Lampost?">
+            <value>Ondoa shaka sisi bdio tupo</value>
+          </Data>
+          <Data name="Faces">
+            <value>2.0</value>
+          </Data>
+          <Data name="Mpangililo">
+            <value>Katikati ya Barabara</value>
+          </Data>
+          <Data name="Idadi ya Lampost kwenye Mtaa/Barabara">
+            <value>45.0</value>
+          </Data>
+          <Data name="latitude">
+            <value>-6.1633033</value>
+          </Data>
+          <Data name="longitude">
+            <value>39.2168852</value>
+          </Data>
+          <Data name="index">
+            <value>12.0</value>
+          </Data>
+        </ExtendedData>
+        <Point>
+          <coordinates>
+            39.2168852,-6.1633033,0
+          </coordinates>
+        </Point>
+      </Placemark>
+      <Placemark>
+        <name>Amani</name>
+        <description><![CDATA[parent_index: 38<br>Jina la Eneo/Mtaa: Amani uwanjani<br>Jina la Mmiliki: Unknown <br>Kutoka: Amani raund<br>Kwenda: Mjin<br>Brackets: Ndio<br>Urefu (M): 2<br>Upana (M): 1<br>Kunatangazo kwenye Lampost: Ndio<br>Tangazo gani lipo kwenye Lampost?: Ondoa shaka sisi bdio tupo<br>Faces: 2<br>Mpangililo: Katikati ya Barabara<br>Idadi ya Lampost kwenye Mtaa/Barabara: 45<br>latitude: -6.1633344<br>longitude: 39.2158382<br>index: 13]]></description>
+        <styleUrl>#icon-1799-0288D1</styleUrl>
+        <ExtendedData>
+          <Data name="parent_index">
+            <value>38.0</value>
+          </Data>
+          <Data name="Jina la Eneo/Mtaa">
+            <value>Amani uwanjani</value>
+          </Data>
+          <Data name="Jina la Mmiliki">
+            <value>Unknown </value>
+          </Data>
+          <Data name="Kutoka">
+            <value>Amani raund</value>
+          </Data>
+          <Data name="Kwenda">
+            <value>Mjin</value>
+          </Data>
+          <Data name="Brackets">
+            <value>Ndio</value>
+          </Data>
+          <Data name="Urefu (M)">
+            <value>2.0</value>
+          </Data>
+          <Data name="Upana (M)">
+            <value>1.0</value>
+          </Data>
+          <Data name="Kunatangazo kwenye Lampost">
+            <value>Ndio</value>
+          </Data>
+          <Data name="Tangazo gani lipo kwenye Lampost?">
+            <value>Ondoa shaka sisi bdio tupo</value>
+          </Data>
+          <Data name="Faces">
+            <value>2.0</value>
+          </Data>
+          <Data name="Mpangililo">
+            <value>Katikati ya Barabara</value>
+          </Data>
+          <Data name="Idadi ya Lampost kwenye Mtaa/Barabara">
+            <value>45.0</value>
+          </Data>
+          <Data name="latitude">
+            <value>-6.1633344</value>
+          </Data>
+          <Data name="longitude">
+            <value>39.2158382</value>
+          </Data>
+          <Data name="index">
+            <value>13.0</value>
+          </Data>
+        </ExtendedData>
+        <Point>
+          <coordinates>
+            39.2158382,-6.1633344,0
+          </coordinates>
+        </Point>
+      </Placemark>
+      <Placemark>
+        <name>Amani</name>
+        <description><![CDATA[parent_index: 38<br>Jina la Eneo/Mtaa: Amani uwanjani<br>Jina la Mmiliki: Unknown <br>Kutoka: Amani raund<br>Kwenda: Mjin<br>Brackets: Ndio<br>Urefu (M): 2<br>Upana (M): 1<br>Kunatangazo kwenye Lampost: Ndio<br>Tangazo gani lipo kwenye Lampost?: Ondoa shaka sisi bdio tupo<br>Faces: 2<br>Mpangililo: Katikati ya Barabara<br>Idadi ya Lampost kwenye Mtaa/Barabara: 45<br>latitude: -6.1634789<br>longitude: 39.214891<br>index: 14]]></description>
+        <styleUrl>#icon-1799-0288D1</styleUrl>
+        <ExtendedData>
+          <Data name="parent_index">
+            <value>38.0</value>
+          </Data>
+          <Data name="Jina la Eneo/Mtaa">
+            <value>Amani uwanjani</value>
+          </Data>
+          <Data name="Jina la Mmiliki">
+            <value>Unknown </value>
+          </Data>
+          <Data name="Kutoka">
+            <value>Amani raund</value>
+          </Data>
+          <Data name="Kwenda">
+            <value>Mjin</value>
+          </Data>
+          <Data name="Brackets">
+            <value>Ndio</value>
+          </Data>
+          <Data name="Urefu (M)">
+            <value>2.0</value>
+          </Data>
+          <Data name="Upana (M)">
+            <value>1.0</value>
+          </Data>
+          <Data name="Kunatangazo kwenye Lampost">
+            <value>Ndio</value>
+          </Data>
+          <Data name="Tangazo gani lipo kwenye Lampost?">
+            <value>Ondoa shaka sisi bdio tupo</value>
+          </Data>
+          <Data name="Faces">
+            <value>2.0</value>
+          </Data>
+          <Data name="Mpangililo">
+            <value>Katikati ya Barabara</value>
+          </Data>
+          <Data name="Idadi ya Lampost kwenye Mtaa/Barabara">
+            <value>45.0</value>
+          </Data>
+          <Data name="latitude">
+            <value>-6.1634789</value>
+          </Data>
+          <Data name="longitude">
+            <value>39.214891</value>
+          </Data>
+          <Data name="index">
+            <value>14.0</value>
+          </Data>
+        </ExtendedData>
+        <Point>
+          <coordinates>
+            39.214891,-6.1634789,0
+          </coordinates>
+        </Point>
+      </Placemark>
+      <Placemark>
+        <name>Amani</name>
+        <description><![CDATA[parent_index: 38<br>Jina la Eneo/Mtaa: Amani uwanjani<br>Jina la Mmiliki: Unknown <br>Kutoka: Amani raund<br>Kwenda: Mjin<br>Brackets: Ndio<br>Urefu (M): 2<br>Upana (M): 1<br>Kunatangazo kwenye Lampost: Ndio<br>Tangazo gani lipo kwenye Lampost?: Ondoa shaka sisi bdio tupo<br>Faces: 2<br>Mpangililo: Katikati ya Barabara<br>Idadi ya Lampost kwenye Mtaa/Barabara: 45<br>latitude: -6.1635075<br>longitude: 39.2136257<br>index: 15]]></description>
+        <styleUrl>#icon-1799-0288D1</styleUrl>
+        <ExtendedData>
+          <Data name="parent_index">
+            <value>38.0</value>
+          </Data>
+          <Data name="Jina la Eneo/Mtaa">
+            <value>Amani uwanjani</value>
+          </Data>
+          <Data name="Jina la Mmiliki">
+            <value>Unknown </value>
+          </Data>
+          <Data name="Kutoka">
+            <value>Amani raund</value>
+          </Data>
+          <Data name="Kwenda">
+            <value>Mjin</value>
+          </Data>
+          <Data name="Brackets">
+            <value>Ndio</value>
+          </Data>
+          <Data name="Urefu (M)">
+            <value>2.0</value>
+          </Data>
+          <Data name="Upana (M)">
+            <value>1.0</value>
+          </Data>
+          <Data name="Kunatangazo kwenye Lampost">
+            <value>Ndio</value>
+          </Data>
+          <Data name="Tangazo gani lipo kwenye Lampost?">
+            <value>Ondoa shaka sisi bdio tupo</value>
+          </Data>
+          <Data name="Faces">
+            <value>2.0</value>
+          </Data>
+          <Data name="Mpangililo">
+            <value>Katikati ya Barabara</value>
+          </Data>
+          <Data name="Idadi ya Lampost kwenye Mtaa/Barabara">
+            <value>45.0</value>
+          </Data>
+          <Data name="latitude">
+            <value>-6.1635075</value>
+          </Data>
+          <Data name="longitude">
+            <value>39.2136257</value>
+          </Data>
+          <Data name="index">
+            <value>15.0</value>
+          </Data>
+        </ExtendedData>
+        <Point>
+          <coordinates>
+            39.2136257,-6.1635075,0
+          </coordinates>
+        </Point>
+      </Placemark>
+      <Placemark>
+        <name>Amani</name>
+        <description><![CDATA[parent_index: 38<br>Jina la Eneo/Mtaa: Amani uwanjani<br>Jina la Mmiliki: Unknown <br>Kutoka: Amani raund<br>Kwenda: Mjin<br>Brackets: Ndio<br>Urefu (M): 2<br>Upana (M): 1<br>Kunatangazo kwenye Lampost: Ndio<br>Tangazo gani lipo kwenye Lampost?: Ondoa shaka sisi bdio tupo<br>Faces: 2<br>Mpangililo: Katikati ya Barabara<br>Idadi ya Lampost kwenye Mtaa/Barabara: 45<br>latitude: -6.1634423<br>longitude: 39.2121993<br>index: 16]]></description>
+        <styleUrl>#icon-1799-0288D1</styleUrl>
+        <ExtendedData>
+          <Data name="parent_index">
+            <value>38.0</value>
+          </Data>
+          <Data name="Jina la Eneo/Mtaa">
+            <value>Amani uwanjani</value>
+          </Data>
+          <Data name="Jina la Mmiliki">
+            <value>Unknown </value>
+          </Data>
+          <Data name="Kutoka">
+            <value>Amani raund</value>
+          </Data>
+          <Data name="Kwenda">
+            <value>Mjin</value>
+          </Data>
+          <Data name="Brackets">
+            <value>Ndio</value>
+          </Data>
+          <Data name="Urefu (M)">
+            <value>2.0</value>
+          </Data>
+          <Data name="Upana (M)">
+            <value>1.0</value>
+          </Data>
+          <Data name="Kunatangazo kwenye Lampost">
+            <value>Ndio</value>
+          </Data>
+          <Data name="Tangazo gani lipo kwenye Lampost?">
+            <value>Ondoa shaka sisi bdio tupo</value>
+          </Data>
+          <Data name="Faces">
+            <value>2.0</value>
+          </Data>
+          <Data name="Mpangililo">
+            <value>Katikati ya Barabara</value>
+          </Data>
+          <Data name="Idadi ya Lampost kwenye Mtaa/Barabara">
+            <value>45.0</value>
+          </Data>
+          <Data name="latitude">
+            <value>-6.1634423</value>
+          </Data>
+          <Data name="longitude">
+            <value>39.2121993</value>
+          </Data>
+          <Data name="index">
+            <value>16.0</value>
+          </Data>
+        </ExtendedData>
+        <Point>
+          <coordinates>
+            39.2121993,-6.1634423,0
+          </coordinates>
+        </Point>
+      </Placemark>
+      <Placemark>
+        <name>Kinazini shel</name>
+        <description><![CDATA[parent_index: 39<br>Jina la Eneo/Mtaa: Kinazin<br>Jina la Mmiliki: Unknown<br>Kutoka: Saateni<br>Kwenda: Kariako<br>Brackets: Ndio<br>Urefu (M): 2<br>Upana (M): 1<br>Kunatangazo kwenye Lampost: Ndio<br>Tangazo gani lipo kwenye Lampost?: Gift Dabo Dabo<br>Faces: 2<br>Mpangililo: Katikati ya Barabara<br>Idadi ya Lampost kwenye Mtaa/Barabara: 37<br>latitude: -6.1576643<br>longitude: 39.2042242<br>index: 17]]></description>
+        <styleUrl>#icon-1799-0288D1</styleUrl>
+        <ExtendedData>
+          <Data name="parent_index">
+            <value>39.0</value>
+          </Data>
+          <Data name="Jina la Eneo/Mtaa">
+            <value>Kinazin</value>
+          </Data>
+          <Data name="Jina la Mmiliki">
+            <value>Unknown</value>
+          </Data>
+          <Data name="Kutoka">
+            <value>Saateni</value>
+          </Data>
+          <Data name="Kwenda">
+            <value>Kariako</value>
+          </Data>
+          <Data name="Brackets">
+            <value>Ndio</value>
+          </Data>
+          <Data name="Urefu (M)">
+            <value>2.0</value>
+          </Data>
+          <Data name="Upana (M)">
+            <value>1.0</value>
+          </Data>
+          <Data name="Kunatangazo kwenye Lampost">
+            <value>Ndio</value>
+          </Data>
+          <Data name="Tangazo gani lipo kwenye Lampost?">
+            <value>Gift Dabo Dabo</value>
+          </Data>
+          <Data name="Faces">
+            <value>2.0</value>
+          </Data>
+          <Data name="Mpangililo">
+            <value>Katikati ya Barabara</value>
+          </Data>
+          <Data name="Idadi ya Lampost kwenye Mtaa/Barabara">
+            <value>37.0</value>
+          </Data>
+          <Data name="latitude">
+            <value>-6.1576643</value>
+          </Data>
+          <Data name="longitude">
+            <value>39.2042242</value>
+          </Data>
+          <Data name="index">
+            <value>17.0</value>
+          </Data>
+        </ExtendedData>
+        <Point>
+          <coordinates>
+            39.2042242,-6.1576643,0
+          </coordinates>
+        </Point>
+      </Placemark>
+      <Placemark>
+        <name>Kinazini shel</name>
+        <description><![CDATA[parent_index: 39<br>Jina la Eneo/Mtaa: Kinazin<br>Jina la Mmiliki: Unknown<br>Kutoka: Saateni<br>Kwenda: Kariako<br>Brackets: Ndio<br>Urefu (M): 2<br>Upana (M): 1<br>Kunatangazo kwenye Lampost: Ndio<br>Tangazo gani lipo kwenye Lampost?: Gift Dabo Dabo<br>Faces: 2<br>Mpangililo: Katikati ya Barabara<br>Idadi ya Lampost kwenye Mtaa/Barabara: 37<br>latitude: -6.15768<br>longitude: 39.20421<br>index: 18]]></description>
+        <styleUrl>#icon-1799-0288D1</styleUrl>
+        <ExtendedData>
+          <Data name="parent_index">
+            <value>39.0</value>
+          </Data>
+          <Data name="Jina la Eneo/Mtaa">
+            <value>Kinazin</value>
+          </Data>
+          <Data name="Jina la Mmiliki">
+            <value>Unknown</value>
+          </Data>
+          <Data name="Kutoka">
+            <value>Saateni</value>
+          </Data>
+          <Data name="Kwenda">
+            <value>Kariako</value>
+          </Data>
+          <Data name="Brackets">
+            <value>Ndio</value>
+          </Data>
+          <Data name="Urefu (M)">
+            <value>2.0</value>
+          </Data>
+          <Data name="Upana (M)">
+            <value>1.0</value>
+          </Data>
+          <Data name="Kunatangazo kwenye Lampost">
+            <value>Ndio</value>
+          </Data>
+          <Data name="Tangazo gani lipo kwenye Lampost?">
+            <value>Gift Dabo Dabo</value>
+          </Data>
+          <Data name="Faces">
+            <value>2.0</value>
+          </Data>
+          <Data name="Mpangililo">
+            <value>Katikati ya Barabara</value>
+          </Data>
+          <Data name="Idadi ya Lampost kwenye Mtaa/Barabara">
+            <value>37.0</value>
+          </Data>
+          <Data name="latitude">
+            <value>-6.15768</value>
+          </Data>
+          <Data name="longitude">
+            <value>39.20421</value>
+          </Data>
+          <Data name="index">
+            <value>18.0</value>
+          </Data>
+        </ExtendedData>
+        <Point>
+          <coordinates>
+            39.20421,-6.15768,0
+          </coordinates>
+        </Point>
+      </Placemark>
+      <Placemark>
+        <name>Kinazini shel</name>
+        <description><![CDATA[parent_index: 39<br>Jina la Eneo/Mtaa: Kinazin<br>Jina la Mmiliki: Unknown<br>Kutoka: Saateni<br>Kwenda: Kariako<br>Brackets: Ndio<br>Urefu (M): 2<br>Upana (M): 1<br>Kunatangazo kwenye Lampost: Ndio<br>Tangazo gani lipo kwenye Lampost?: Gift Dabo Dabo<br>Faces: 2<br>Mpangililo: Katikati ya Barabara<br>Idadi ya Lampost kwenye Mtaa/Barabara: 37<br>latitude: -6.1610739<br>longitude: 39.2041916<br>index: 19]]></description>
+        <styleUrl>#icon-1799-0288D1</styleUrl>
+        <ExtendedData>
+          <Data name="parent_index">
+            <value>39.0</value>
+          </Data>
+          <Data name="Jina la Eneo/Mtaa">
+            <value>Kinazin</value>
+          </Data>
+          <Data name="Jina la Mmiliki">
+            <value>Unknown</value>
+          </Data>
+          <Data name="Kutoka">
+            <value>Saateni</value>
+          </Data>
+          <Data name="Kwenda">
+            <value>Kariako</value>
+          </Data>
+          <Data name="Brackets">
+            <value>Ndio</value>
+          </Data>
+          <Data name="Urefu (M)">
+            <value>2.0</value>
+          </Data>
+          <Data name="Upana (M)">
+            <value>1.0</value>
+          </Data>
+          <Data name="Kunatangazo kwenye Lampost">
+            <value>Ndio</value>
+          </Data>
+          <Data name="Tangazo gani lipo kwenye Lampost?">
+            <value>Gift Dabo Dabo</value>
+          </Data>
+          <Data name="Faces">
+            <value>2.0</value>
+          </Data>
+          <Data name="Mpangililo">
+            <value>Katikati ya Barabara</value>
+          </Data>
+          <Data name="Idadi ya Lampost kwenye Mtaa/Barabara">
+            <value>37.0</value>
+          </Data>
+          <Data name="latitude">
+            <value>-6.1610739</value>
+          </Data>
+          <Data name="longitude">
+            <value>39.2041916</value>
+          </Data>
+          <Data name="index">
+            <value>19.0</value>
+          </Data>
+        </ExtendedData>
+        <Point>
+          <coordinates>
+            39.2041916,-6.1610739,0
+          </coordinates>
+        </Point>
+      </Placemark>
+      <Placemark>
+        <name>Kinazini shel</name>
+        <description><![CDATA[parent_index: 39<br>Jina la Eneo/Mtaa: Kinazin<br>Jina la Mmiliki: Unknown<br>Kutoka: Saateni<br>Kwenda: Kariako<br>Brackets: Ndio<br>Urefu (M): 2<br>Upana (M): 1<br>Kunatangazo kwenye Lampost: Ndio<br>Tangazo gani lipo kwenye Lampost?: Gift Dabo Dabo<br>Faces: 2<br>Mpangililo: Katikati ya Barabara<br>Idadi ya Lampost kwenye Mtaa/Barabara: 37<br>latitude: -6.1623853<br>longitude: 39.2040849<br>index: 20]]></description>
+        <styleUrl>#icon-1799-0288D1</styleUrl>
+        <ExtendedData>
+          <Data name="parent_index">
+            <value>39.0</value>
+          </Data>
+          <Data name="Jina la Eneo/Mtaa">
+            <value>Kinazin</value>
+          </Data>
+          <Data name="Jina la Mmiliki">
+            <value>Unknown</value>
+          </Data>
+          <Data name="Kutoka">
+            <value>Saateni</value>
+          </Data>
+          <Data name="Kwenda">
+            <value>Kariako</value>
+          </Data>
+          <Data name="Brackets">
+            <value>Ndio</value>
+          </Data>
+          <Data name="Urefu (M)">
+            <value>2.0</value>
+          </Data>
+          <Data name="Upana (M)">
+            <value>1.0</value>
+          </Data>
+          <Data name="Kunatangazo kwenye Lampost">
+            <value>Ndio</value>
+          </Data>
+          <Data name="Tangazo gani lipo kwenye Lampost?">
+            <value>Gift Dabo Dabo</value>
+          </Data>
+          <Data name="Faces">
+            <value>2.0</value>
+          </Data>
+          <Data name="Mpangililo">
+            <value>Katikati ya Barabara</value>
+          </Data>
+          <Data name="Idadi ya Lampost kwenye Mtaa/Barabara">
+            <value>37.0</value>
+          </Data>
+          <Data name="latitude">
+            <value>-6.1623853</value>
+          </Data>
+          <Data name="longitude">
+            <value>39.2040849</value>
+          </Data>
+          <Data name="index">
+            <value>20.0</value>
+          </Data>
+        </ExtendedData>
+        <Point>
+          <coordinates>
+            39.2040849,-6.1623853,0
+          </coordinates>
+        </Point>
+      </Placemark>
+      <Placemark>
+        <name>Kinazini shel</name>
+        <description><![CDATA[parent_index: 39<br>Jina la Eneo/Mtaa: Kinazin<br>Jina la Mmiliki: Unknown<br>Kutoka: Saateni<br>Kwenda: Kariako<br>Brackets: Ndio<br>Urefu (M): 2<br>Upana (M): 1<br>Kunatangazo kwenye Lampost: Ndio<br>Tangazo gani lipo kwenye Lampost?: Gift Dabo Dabo<br>Faces: 2<br>Mpangililo: Katikati ya Barabara<br>Idadi ya Lampost kwenye Mtaa/Barabara: 37<br>latitude: -6.1634517<br>longitude: 39.204505<br>index: 21]]></description>
+        <styleUrl>#icon-1799-0288D1</styleUrl>
+        <ExtendedData>
+          <Data name="parent_index">
+            <value>39.0</value>
+          </Data>
+          <Data name="Jina la Eneo/Mtaa">
+            <value>Kinazin</value>
+          </Data>
+          <Data name="Jina la Mmiliki">
+            <value>Unknown</value>
+          </Data>
+          <Data name="Kutoka">
+            <value>Saateni</value>
+          </Data>
+          <Data name="Kwenda">
+            <value>Kariako</value>
+          </Data>
+          <Data name="Brackets">
+            <value>Ndio</value>
+          </Data>
+          <Data name="Urefu (M)">
+            <value>2.0</value>
+          </Data>
+          <Data name="Upana (M)">
+            <value>1.0</value>
+          </Data>
+          <Data name="Kunatangazo kwenye Lampost">
+            <value>Ndio</value>
+          </Data>
+          <Data name="Tangazo gani lipo kwenye Lampost?">
+            <value>Gift Dabo Dabo</value>
+          </Data>
+          <Data name="Faces">
+            <value>2.0</value>
+          </Data>
+          <Data name="Mpangililo">
+            <value>Katikati ya Barabara</value>
+          </Data>
+          <Data name="Idadi ya Lampost kwenye Mtaa/Barabara">
+            <value>37.0</value>
+          </Data>
+          <Data name="latitude">
+            <value>-6.1634517</value>
+          </Data>
+          <Data name="longitude">
+            <value>39.204505</value>
+          </Data>
+          <Data name="index">
+            <value>21.0</value>
+          </Data>
+        </ExtendedData>
+        <Point>
+          <coordinates>
+            39.204505,-6.1634517,0
+          </coordinates>
+        </Point>
+      </Placemark>
+      <Placemark>
+        <name>Kinazini shel</name>
+        <description><![CDATA[parent_index: 39<br>Jina la Eneo/Mtaa: Kinazin<br>Jina la Mmiliki: Unknown<br>Kutoka: Saateni<br>Kwenda: Kariako<br>Brackets: Ndio<br>Urefu (M): 2<br>Upana (M): 1<br>Kunatangazo kwenye Lampost: Ndio<br>Tangazo gani lipo kwenye Lampost?: Gift Dabo Dabo<br>Faces: 2<br>Mpangililo: Katikati ya Barabara<br>Idadi ya Lampost kwenye Mtaa/Barabara: 37<br>latitude: -6.1655813<br>longitude: 39.2038143<br>index: 22]]></description>
+        <styleUrl>#icon-1799-0288D1</styleUrl>
+        <ExtendedData>
+          <Data name="parent_index">
+            <value>39.0</value>
+          </Data>
+          <Data name="Jina la Eneo/Mtaa">
+            <value>Kinazin</value>
+          </Data>
+          <Data name="Jina la Mmiliki">
+            <value>Unknown</value>
+          </Data>
+          <Data name="Kutoka">
+            <value>Saateni</value>
+          </Data>
+          <Data name="Kwenda">
+            <value>Kariako</value>
+          </Data>
+          <Data name="Brackets">
+            <value>Ndio</value>
+          </Data>
+          <Data name="Urefu (M)">
+            <value>2.0</value>
+          </Data>
+          <Data name="Upana (M)">
+            <value>1.0</value>
+          </Data>
+          <Data name="Kunatangazo kwenye Lampost">
+            <value>Ndio</value>
+          </Data>
+          <Data name="Tangazo gani lipo kwenye Lampost?">
+            <value>Gift Dabo Dabo</value>
+          </Data>
+          <Data name="Faces">
+            <value>2.0</value>
+          </Data>
+          <Data name="Mpangililo">
+            <value>Katikati ya Barabara</value>
+          </Data>
+          <Data name="Idadi ya Lampost kwenye Mtaa/Barabara">
+            <value>37.0</value>
+          </Data>
+          <Data name="latitude">
+            <value>-6.1655813</value>
+          </Data>
+          <Data name="longitude">
+            <value>39.2038143</value>
+          </Data>
+          <Data name="index">
+            <value>22.0</value>
+          </Data>
+        </ExtendedData>
+        <Point>
+          <coordinates>
+            39.2038143,-6.1655813,0
+          </coordinates>
+        </Point>
+      </Placemark>
+      <Placemark>
+        <name>Kisonge</name>
+        <description><![CDATA[parent_index: 40<br>Jina la Eneo/Mtaa: Kisonge<br>Jina la Mmiliki: Unknown <br>Kutoka: Kisonge<br>Kwenda: Madema polis<br>Brackets: Ndio<br>Urefu (M): 1<br>Upana (M): 1<br>Kunatangazo kwenye Lampost: Ndio<br>Tangazo gani lipo kwenye Lampost?: Fungua ukurasa wa furaha<br>Faces: 2<br>Mpangililo: Katikati ya Barabara<br>Idadi ya Lampost kwenye Mtaa/Barabara: 28<br>latitude: -6.1657417<br>longitude: 39.1989078<br>index: 23]]></description>
+        <styleUrl>#icon-1799-0288D1</styleUrl>
+        <ExtendedData>
+          <Data name="parent_index">
+            <value>40.0</value>
+          </Data>
+          <Data name="Jina la Eneo/Mtaa">
+            <value>Kisonge</value>
+          </Data>
+          <Data name="Jina la Mmiliki">
+            <value>Unknown </value>
+          </Data>
+          <Data name="Kutoka">
+            <value>Kisonge</value>
+          </Data>
+          <Data name="Kwenda">
+            <value>Madema polis</value>
+          </Data>
+          <Data name="Brackets">
+            <value>Ndio</value>
+          </Data>
+          <Data name="Urefu (M)">
+            <value>1.0</value>
+          </Data>
+          <Data name="Upana (M)">
+            <value>1.0</value>
+          </Data>
+          <Data name="Kunatangazo kwenye Lampost">
+            <value>Ndio</value>
+          </Data>
+          <Data name="Tangazo gani lipo kwenye Lampost?">
+            <value>Fungua ukurasa wa furaha</value>
+          </Data>
+          <Data name="Faces">
+            <value>2.0</value>
+          </Data>
+          <Data name="Mpangililo">
+            <value>Katikati ya Barabara</value>
+          </Data>
+          <Data name="Idadi ya Lampost kwenye Mtaa/Barabara">
+            <value>28.0</value>
+          </Data>
+          <Data name="latitude">
+            <value>-6.1657417</value>
+          </Data>
+          <Data name="longitude">
+            <value>39.1989078</value>
+          </Data>
+          <Data name="index">
+            <value>23.0</value>
+          </Data>
+        </ExtendedData>
+        <Point>
+          <coordinates>
+            39.1989078,-6.1657417,0
+          </coordinates>
+        </Point>
+      </Placemark>
+      <Placemark>
+        <name>Kisonge</name>
+        <description><![CDATA[parent_index: 40<br>Jina la Eneo/Mtaa: Kisonge<br>Jina la Mmiliki: Unknown <br>Kutoka: Kisonge<br>Kwenda: Madema polis<br>Brackets: Ndio<br>Urefu (M): 1<br>Upana (M): 1<br>Kunatangazo kwenye Lampost: Ndio<br>Tangazo gani lipo kwenye Lampost?: Fungua ukurasa wa furaha<br>Faces: 2<br>Mpangililo: Katikati ya Barabara<br>Idadi ya Lampost kwenye Mtaa/Barabara: 28<br>latitude: -6.1676891<br>longitude: 39.1988038<br>index: 24]]></description>
+        <styleUrl>#icon-1799-0288D1</styleUrl>
+        <ExtendedData>
+          <Data name="parent_index">
+            <value>40.0</value>
+          </Data>
+          <Data name="Jina la Eneo/Mtaa">
+            <value>Kisonge</value>
+          </Data>
+          <Data name="Jina la Mmiliki">
+            <value>Unknown </value>
+          </Data>
+          <Data name="Kutoka">
+            <value>Kisonge</value>
+          </Data>
+          <Data name="Kwenda">
+            <value>Madema polis</value>
+          </Data>
+          <Data name="Brackets">
+            <value>Ndio</value>
+          </Data>
+          <Data name="Urefu (M)">
+            <value>1.0</value>
+          </Data>
+          <Data name="Upana (M)">
+            <value>1.0</value>
+          </Data>
+          <Data name="Kunatangazo kwenye Lampost">
+            <value>Ndio</value>
+          </Data>
+          <Data name="Tangazo gani lipo kwenye Lampost?">
+            <value>Fungua ukurasa wa furaha</value>
+          </Data>
+          <Data name="Faces">
+            <value>2.0</value>
+          </Data>
+          <Data name="Mpangililo">
+            <value>Katikati ya Barabara</value>
+          </Data>
+          <Data name="Idadi ya Lampost kwenye Mtaa/Barabara">
+            <value>28.0</value>
+          </Data>
+          <Data name="latitude">
+            <value>-6.1676891</value>
+          </Data>
+          <Data name="longitude">
+            <value>39.1988038</value>
+          </Data>
+          <Data name="index">
+            <value>24.0</value>
+          </Data>
+        </ExtendedData>
+        <Point>
+          <coordinates>
+            39.1988038,-6.1676891,0
+          </coordinates>
+        </Point>
+      </Placemark>
+      <Placemark>
+        <name>Kisonge</name>
+        <description><![CDATA[parent_index: 40<br>Jina la Eneo/Mtaa: Kisonge<br>Jina la Mmiliki: Unknown <br>Kutoka: Kisonge<br>Kwenda: Madema polis<br>Brackets: Ndio<br>Urefu (M): 1<br>Upana (M): 1<br>Kunatangazo kwenye Lampost: Ndio<br>Tangazo gani lipo kwenye Lampost?: Fungua ukurasa wa furaha<br>Faces: 2<br>Mpangililo: Katikati ya Barabara<br>Idadi ya Lampost kwenye Mtaa/Barabara: 28<br>latitude: -6.1698375<br>longitude: 39.1985844<br>index: 25]]></description>
+        <styleUrl>#icon-1799-0288D1</styleUrl>
+        <ExtendedData>
+          <Data name="parent_index">
+            <value>40.0</value>
+          </Data>
+          <Data name="Jina la Eneo/Mtaa">
+            <value>Kisonge</value>
+          </Data>
+          <Data name="Jina la Mmiliki">
+            <value>Unknown </value>
+          </Data>
+          <Data name="Kutoka">
+            <value>Kisonge</value>
+          </Data>
+          <Data name="Kwenda">
+            <value>Madema polis</value>
+          </Data>
+          <Data name="Brackets">
+            <value>Ndio</value>
+          </Data>
+          <Data name="Urefu (M)">
+            <value>1.0</value>
+          </Data>
+          <Data name="Upana (M)">
+            <value>1.0</value>
+          </Data>
+          <Data name="Kunatangazo kwenye Lampost">
+            <value>Ndio</value>
+          </Data>
+          <Data name="Tangazo gani lipo kwenye Lampost?">
+            <value>Fungua ukurasa wa furaha</value>
+          </Data>
+          <Data name="Faces">
+            <value>2.0</value>
+          </Data>
+          <Data name="Mpangililo">
+            <value>Katikati ya Barabara</value>
+          </Data>
+          <Data name="Idadi ya Lampost kwenye Mtaa/Barabara">
+            <value>28.0</value>
+          </Data>
+          <Data name="latitude">
+            <value>-6.1698375</value>
+          </Data>
+          <Data name="longitude">
+            <value>39.1985844</value>
+          </Data>
+          <Data name="index">
+            <value>25.0</value>
+          </Data>
+        </ExtendedData>
+        <Point>
+          <coordinates>
+            39.1985844,-6.1698375,0
+          </coordinates>
+        </Point>
+      </Placemark>
+      <Placemark>
+        <name>Kisonge</name>
+        <description><![CDATA[parent_index: 40<br>Jina la Eneo/Mtaa: Kisonge<br>Jina la Mmiliki: Unknown <br>Kutoka: Kisonge<br>Kwenda: Madema polis<br>Brackets: Ndio<br>Urefu (M): 1<br>Upana (M): 1<br>Kunatangazo kwenye Lampost: Ndio<br>Tangazo gani lipo kwenye Lampost?: Fungua ukurasa wa furaha<br>Faces: 2<br>Mpangililo: Katikati ya Barabara<br>Idadi ya Lampost kwenye Mtaa/Barabara: 28<br>latitude: -6.1737459<br>longitude: 39.1985951<br>index: 26]]></description>
+        <styleUrl>#icon-1799-0288D1</styleUrl>
+        <ExtendedData>
+          <Data name="parent_index">
+            <value>40.0</value>
+          </Data>
+          <Data name="Jina la Eneo/Mtaa">
+            <value>Kisonge</value>
+          </Data>
+          <Data name="Jina la Mmiliki">
+            <value>Unknown </value>
+          </Data>
+          <Data name="Kutoka">
+            <value>Kisonge</value>
+          </Data>
+          <Data name="Kwenda">
+            <value>Madema polis</value>
+          </Data>
+          <Data name="Brackets">
+            <value>Ndio</value>
+          </Data>
+          <Data name="Urefu (M)">
+            <value>1.0</value>
+          </Data>
+          <Data name="Upana (M)">
+            <value>1.0</value>
+          </Data>
+          <Data name="Kunatangazo kwenye Lampost">
+            <value>Ndio</value>
+          </Data>
+          <Data name="Tangazo gani lipo kwenye Lampost?">
+            <value>Fungua ukurasa wa furaha</value>
+          </Data>
+          <Data name="Faces">
+            <value>2.0</value>
+          </Data>
+          <Data name="Mpangililo">
+            <value>Katikati ya Barabara</value>
+          </Data>
+          <Data name="Idadi ya Lampost kwenye Mtaa/Barabara">
+            <value>28.0</value>
+          </Data>
+          <Data name="latitude">
+            <value>-6.1737459</value>
+          </Data>
+          <Data name="longitude">
+            <value>39.1985951</value>
+          </Data>
+          <Data name="index">
+            <value>26.0</value>
+          </Data>
+        </ExtendedData>
+        <Point>
+          <coordinates>
+            39.1985951,-6.1737459,0
+          </coordinates>
+        </Point>
+      </Placemark>
+      <Placemark>
+        <name>Magereza</name>
+        <description><![CDATA[parent_index: 41<br>Jina la Eneo/Mtaa: Magereza<br>Jina la Mmiliki: Unknown <br>Kutoka: Kilimani<br>Kwenda: Kariakoo<br>Brackets: Ndio<br>Urefu (M): 2<br>Upana (M): 1<br>Kunatangazo kwenye Lampost: Ndio<br>Tangazo gani lipo kwenye Lampost?: Gift dabodabo<br>Faces: 2<br>Mpangililo: Katikati ya Barabara<br>Idadi ya Lampost kwenye Mtaa/Barabara: 36<br>latitude: -6.1746635<br>longitude: 39.2013649<br>index: 27]]></description>
+        <styleUrl>#icon-1799-0288D1</styleUrl>
+        <ExtendedData>
+          <Data name="parent_index">
+            <value>41.0</value>
+          </Data>
+          <Data name="Jina la Eneo/Mtaa">
+            <value>Magereza</value>
+          </Data>
+          <Data name="Jina la Mmiliki">
+            <value>Unknown </value>
+          </Data>
+          <Data name="Kutoka">
+            <value>Kilimani</value>
+          </Data>
+          <Data name="Kwenda">
+            <value>Kariakoo</value>
+          </Data>
+          <Data name="Brackets">
+            <value>Ndio</value>
+          </Data>
+          <Data name="Urefu (M)">
+            <value>2.0</value>
+          </Data>
+          <Data name="Upana (M)">
+            <value>1.0</value>
+          </Data>
+          <Data name="Kunatangazo kwenye Lampost">
+            <value>Ndio</value>
+          </Data>
+          <Data name="Tangazo gani lipo kwenye Lampost?">
+            <value>Gift dabodabo</value>
+          </Data>
+          <Data name="Faces">
+            <value>2.0</value>
+          </Data>
+          <Data name="Mpangililo">
+            <value>Katikati ya Barabara</value>
+          </Data>
+          <Data name="Idadi ya Lampost kwenye Mtaa/Barabara">
+            <value>36.0</value>
+          </Data>
+          <Data name="latitude">
+            <value>-6.1746635</value>
+          </Data>
+          <Data name="longitude">
+            <value>39.2013649</value>
+          </Data>
+          <Data name="index">
+            <value>27.0</value>
+          </Data>
+        </ExtendedData>
+        <Point>
+          <coordinates>
+            39.2013649,-6.1746635,0
+          </coordinates>
+        </Point>
+      </Placemark>
+      <Placemark>
+        <name>Magereza</name>
+        <description><![CDATA[parent_index: 41<br>Jina la Eneo/Mtaa: Magereza<br>Jina la Mmiliki: Unknown <br>Kutoka: Kilimani<br>Kwenda: Kariakoo<br>Brackets: Ndio<br>Urefu (M): 2<br>Upana (M): 1<br>Kunatangazo kwenye Lampost: Ndio<br>Tangazo gani lipo kwenye Lampost?: Gift dabodabo<br>Faces: 2<br>Mpangililo: Katikati ya Barabara<br>Idadi ya Lampost kwenye Mtaa/Barabara: 36<br>latitude: -6.172758<br>longitude: 39.2019081<br>index: 28]]></description>
+        <styleUrl>#icon-1799-0288D1</styleUrl>
+        <ExtendedData>
+          <Data name="parent_index">
+            <value>41.0</value>
+          </Data>
+          <Data name="Jina la Eneo/Mtaa">
+            <value>Magereza</value>
+          </Data>
+          <Data name="Jina la Mmiliki">
+            <value>Unknown </value>
+          </Data>
+          <Data name="Kutoka">
+            <value>Kilimani</value>
+          </Data>
+          <Data name="Kwenda">
+            <value>Kariakoo</value>
+          </Data>
+          <Data name="Brackets">
+            <value>Ndio</value>
+          </Data>
+          <Data name="Urefu (M)">
+            <value>2.0</value>
+          </Data>
+          <Data name="Upana (M)">
+            <value>1.0</value>
+          </Data>
+          <Data name="Kunatangazo kwenye Lampost">
+            <value>Ndio</value>
+          </Data>
+          <Data name="Tangazo gani lipo kwenye Lampost?">
+            <value>Gift dabodabo</value>
+          </Data>
+          <Data name="Faces">
+            <value>2.0</value>
+          </Data>
+          <Data name="Mpangililo">
+            <value>Katikati ya Barabara</value>
+          </Data>
+          <Data name="Idadi ya Lampost kwenye Mtaa/Barabara">
+            <value>36.0</value>
+          </Data>
+          <Data name="latitude">
+            <value>-6.172758</value>
+          </Data>
+          <Data name="longitude">
+            <value>39.2019081</value>
+          </Data>
+          <Data name="index">
+            <value>28.0</value>
+          </Data>
+        </ExtendedData>
+        <Point>
+          <coordinates>
+            39.2019081,-6.172758,0
+          </coordinates>
+        </Point>
+      </Placemark>
+      <Placemark>
+        <name>Magereza</name>
+        <description><![CDATA[parent_index: 41<br>Jina la Eneo/Mtaa: Magereza<br>Jina la Mmiliki: Unknown <br>Kutoka: Kilimani<br>Kwenda: Kariakoo<br>Brackets: Ndio<br>Urefu (M): 2<br>Upana (M): 1<br>Kunatangazo kwenye Lampost: Ndio<br>Tangazo gani lipo kwenye Lampost?: Gift dabodabo<br>Faces: 2<br>Mpangililo: Katikati ya Barabara<br>Idadi ya Lampost kwenye Mtaa/Barabara: 36<br>latitude: -6.1710541<br>longitude: 39.2023652<br>index: 29]]></description>
+        <styleUrl>#icon-1799-0288D1</styleUrl>
+        <ExtendedData>
+          <Data name="parent_index">
+            <value>41.0</value>
+          </Data>
+          <Data name="Jina la Eneo/Mtaa">
+            <value>Magereza</value>
+          </Data>
+          <Data name="Jina la Mmiliki">
+            <value>Unknown </value>
+          </Data>
+          <Data name="Kutoka">
+            <value>Kilimani</value>
+          </Data>
+          <Data name="Kwenda">
+            <value>Kariakoo</value>
+          </Data>
+          <Data name="Brackets">
+            <value>Ndio</value>
+          </Data>
+          <Data name="Urefu (M)">
+            <value>2.0</value>
+          </Data>
+          <Data name="Upana (M)">
+            <value>1.0</value>
+          </Data>
+          <Data name="Kunatangazo kwenye Lampost">
+            <value>Ndio</value>
+          </Data>
+          <Data name="Tangazo gani lipo kwenye Lampost?">
+            <value>Gift dabodabo</value>
+          </Data>
+          <Data name="Faces">
+            <value>2.0</value>
+          </Data>
+          <Data name="Mpangililo">
+            <value>Katikati ya Barabara</value>
+          </Data>
+          <Data name="Idadi ya Lampost kwenye Mtaa/Barabara">
+            <value>36.0</value>
+          </Data>
+          <Data name="latitude">
+            <value>-6.1710541</value>
+          </Data>
+          <Data name="longitude">
+            <value>39.2023652</value>
+          </Data>
+          <Data name="index">
+            <value>29.0</value>
+          </Data>
+        </ExtendedData>
+        <Point>
+          <coordinates>
+            39.2023652,-6.1710541,0
+          </coordinates>
+        </Point>
+      </Placemark>
+      <Placemark>
+        <name>Magereza</name>
+        <description><![CDATA[parent_index: 41<br>Jina la Eneo/Mtaa: Magereza<br>Jina la Mmiliki: Unknown <br>Kutoka: Kilimani<br>Kwenda: Kariakoo<br>Brackets: Ndio<br>Urefu (M): 2<br>Upana (M): 1<br>Kunatangazo kwenye Lampost: Ndio<br>Tangazo gani lipo kwenye Lampost?: Gift dabodabo<br>Faces: 2<br>Mpangililo: Katikati ya Barabara<br>Idadi ya Lampost kwenye Mtaa/Barabara: 36<br>latitude: -6.17102<br>longitude: 39.20238<br>index: 30]]></description>
+        <styleUrl>#icon-1799-0288D1</styleUrl>
+        <ExtendedData>
+          <Data name="parent_index">
+            <value>41.0</value>
+          </Data>
+          <Data name="Jina la Eneo/Mtaa">
+            <value>Magereza</value>
+          </Data>
+          <Data name="Jina la Mmiliki">
+            <value>Unknown </value>
+          </Data>
+          <Data name="Kutoka">
+            <value>Kilimani</value>
+          </Data>
+          <Data name="Kwenda">
+            <value>Kariakoo</value>
+          </Data>
+          <Data name="Brackets">
+            <value>Ndio</value>
+          </Data>
+          <Data name="Urefu (M)">
+            <value>2.0</value>
+          </Data>
+          <Data name="Upana (M)">
+            <value>1.0</value>
+          </Data>
+          <Data name="Kunatangazo kwenye Lampost">
+            <value>Ndio</value>
+          </Data>
+          <Data name="Tangazo gani lipo kwenye Lampost?">
+            <value>Gift dabodabo</value>
+          </Data>
+          <Data name="Faces">
+            <value>2.0</value>
+          </Data>
+          <Data name="Mpangililo">
+            <value>Katikati ya Barabara</value>
+          </Data>
+          <Data name="Idadi ya Lampost kwenye Mtaa/Barabara">
+            <value>36.0</value>
+          </Data>
+          <Data name="latitude">
+            <value>-6.17102</value>
+          </Data>
+          <Data name="longitude">
+            <value>39.20238</value>
+          </Data>
+          <Data name="index">
+            <value>30.0</value>
+          </Data>
+        </ExtendedData>
+        <Point>
+          <coordinates>
+            39.20238,-6.17102,0
+          </coordinates>
+        </Point>
+      </Placemark>
+      <Placemark>
+        <name>Magereza</name>
+        <description><![CDATA[parent_index: 41<br>Jina la Eneo/Mtaa: Magereza<br>Jina la Mmiliki: Unknown <br>Kutoka: Kilimani<br>Kwenda: Kariakoo<br>Brackets: Ndio<br>Urefu (M): 2<br>Upana (M): 1<br>Kunatangazo kwenye Lampost: Ndio<br>Tangazo gani lipo kwenye Lampost?: Gift dabodabo<br>Faces: 2<br>Mpangililo: Katikati ya Barabara<br>Idadi ya Lampost kwenye Mtaa/Barabara: 36<br>latitude: -6.168145<br>longitude: 39.2025583<br>index: 31]]></description>
+        <styleUrl>#icon-1799-0288D1</styleUrl>
+        <ExtendedData>
+          <Data name="parent_index">
+            <value>41.0</value>
+          </Data>
+          <Data name="Jina la Eneo/Mtaa">
+            <value>Magereza</value>
+          </Data>
+          <Data name="Jina la Mmiliki">
+            <value>Unknown </value>
+          </Data>
+          <Data name="Kutoka">
+            <value>Kilimani</value>
+          </Data>
+          <Data name="Kwenda">
+            <value>Kariakoo</value>
+          </Data>
+          <Data name="Brackets">
+            <value>Ndio</value>
+          </Data>
+          <Data name="Urefu (M)">
+            <value>2.0</value>
+          </Data>
+          <Data name="Upana (M)">
+            <value>1.0</value>
+          </Data>
+          <Data name="Kunatangazo kwenye Lampost">
+            <value>Ndio</value>
+          </Data>
+          <Data name="Tangazo gani lipo kwenye Lampost?">
+            <value>Gift dabodabo</value>
+          </Data>
+          <Data name="Faces">
+            <value>2.0</value>
+          </Data>
+          <Data name="Mpangililo">
+            <value>Katikati ya Barabara</value>
+          </Data>
+          <Data name="Idadi ya Lampost kwenye Mtaa/Barabara">
+            <value>36.0</value>
+          </Data>
+          <Data name="latitude">
+            <value>-6.168145</value>
+          </Data>
+          <Data name="longitude">
+            <value>39.2025583</value>
+          </Data>
+          <Data name="index">
+            <value>31.0</value>
+          </Data>
+        </ExtendedData>
+        <Point>
+          <coordinates>
+            39.2025583,-6.168145,0
+          </coordinates>
+        </Point>
+      </Placemark>
+      <Placemark>
+        <name>Magereza</name>
+        <description><![CDATA[parent_index: 41<br>Jina la Eneo/Mtaa: Magereza<br>Jina la Mmiliki: Unknown <br>Kutoka: Kilimani<br>Kwenda: Kariakoo<br>Brackets: Ndio<br>Urefu (M): 2<br>Upana (M): 1<br>Kunatangazo kwenye Lampost: Ndio<br>Tangazo gani lipo kwenye Lampost?: Gift dabodabo<br>Faces: 2<br>Mpangililo: Katikati ya Barabara<br>Idadi ya Lampost kwenye Mtaa/Barabara: 36<br>latitude: -6.1666498<br>longitude: 39.2031021<br>index: 32]]></description>
+        <styleUrl>#icon-1799-0288D1</styleUrl>
+        <ExtendedData>
+          <Data name="parent_index">
+            <value>41.0</value>
+          </Data>
+          <Data name="Jina la Eneo/Mtaa">
+            <value>Magereza</value>
+          </Data>
+          <Data name="Jina la Mmiliki">
+            <value>Unknown </value>
+          </Data>
+          <Data name="Kutoka">
+            <value>Kilimani</value>
+          </Data>
+          <Data name="Kwenda">
+            <value>Kariakoo</value>
+          </Data>
+          <Data name="Brackets">
+            <value>Ndio</value>
+          </Data>
+          <Data name="Urefu (M)">
+            <value>2.0</value>
+          </Data>
+          <Data name="Upana (M)">
+            <value>1.0</value>
+          </Data>
+          <Data name="Kunatangazo kwenye Lampost">
+            <value>Ndio</value>
+          </Data>
+          <Data name="Tangazo gani lipo kwenye Lampost?">
+            <value>Gift dabodabo</value>
+          </Data>
+          <Data name="Faces">
+            <value>2.0</value>
+          </Data>
+          <Data name="Mpangililo">
+            <value>Katikati ya Barabara</value>
+          </Data>
+          <Data name="Idadi ya Lampost kwenye Mtaa/Barabara">
+            <value>36.0</value>
+          </Data>
+          <Data name="latitude">
+            <value>-6.1666498</value>
+          </Data>
+          <Data name="longitude">
+            <value>39.2031021</value>
+          </Data>
+          <Data name="index">
+            <value>32.0</value>
+          </Data>
+        </ExtendedData>
+        <Point>
+          <coordinates>
+            39.2031021,-6.1666498,0
+          </coordinates>
+        </Point>
+      </Placemark>
+      <Placemark>
+        <name>Malindi</name>
+        <description><![CDATA[parent_index: 42<br>Jina la Eneo/Mtaa: Malindi<br>Jina la Mmiliki: Unknown<br>Kutoka: Bandarini<br>Kwenda: Saateni<br>Brackets: Ndio<br>Urefu (M): 2<br>Upana (M): 1<br>Kunatangazo kwenye Lampost: Ndio<br>Tangazo gani lipo kwenye Lampost?: Gift Dabo Dabo<br>Faces: 2<br>Mpangililo: Upande Mmoja wa Barabara<br>Idadi ya Lampost kwenye Mtaa/Barabara: 48<br>latitude: -6.1584298<br>longitude: 39.1962477<br>index: 33]]></description>
+        <styleUrl>#icon-1799-0288D1</styleUrl>
+        <ExtendedData>
+          <Data name="parent_index">
+            <value>42.0</value>
+          </Data>
+          <Data name="Jina la Eneo/Mtaa">
+            <value>Malindi</value>
+          </Data>
+          <Data name="Jina la Mmiliki">
+            <value>Unknown</value>
+          </Data>
+          <Data name="Kutoka">
+            <value>Bandarini</value>
+          </Data>
+          <Data name="Kwenda">
+            <value>Saateni</value>
+          </Data>
+          <Data name="Brackets">
+            <value>Ndio</value>
+          </Data>
+          <Data name="Urefu (M)">
+            <value>2.0</value>
+          </Data>
+          <Data name="Upana (M)">
+            <value>1.0</value>
+          </Data>
+          <Data name="Kunatangazo kwenye Lampost">
+            <value>Ndio</value>
+          </Data>
+          <Data name="Tangazo gani lipo kwenye Lampost?">
+            <value>Gift Dabo Dabo</value>
+          </Data>
+          <Data name="Faces">
+            <value>2.0</value>
+          </Data>
+          <Data name="Mpangililo">
+            <value>Upande Mmoja wa Barabara</value>
+          </Data>
+          <Data name="Idadi ya Lampost kwenye Mtaa/Barabara">
+            <value>48.0</value>
+          </Data>
+          <Data name="latitude">
+            <value>-6.1584298</value>
+          </Data>
+          <Data name="longitude">
+            <value>39.1962477</value>
+          </Data>
+          <Data name="index">
+            <value>33.0</value>
+          </Data>
+        </ExtendedData>
+        <Point>
+          <coordinates>
+            39.1962477,-6.1584298,0
+          </coordinates>
+        </Point>
+      </Placemark>
+      <Placemark>
+        <name>Malindi</name>
+        <description><![CDATA[parent_index: 42<br>Jina la Eneo/Mtaa: Malindi<br>Jina la Mmiliki: Unknown<br>Kutoka: Bandarini<br>Kwenda: Saateni<br>Brackets: Ndio<br>Urefu (M): 2<br>Upana (M): 1<br>Kunatangazo kwenye Lampost: Ndio<br>Tangazo gani lipo kwenye Lampost?: Gift Dabo Dabo<br>Faces: 2<br>Mpangililo: Upande Mmoja wa Barabara<br>Idadi ya Lampost kwenye Mtaa/Barabara: 48<br>latitude: -6.1589873<br>longitude: 39.1992546<br>index: 34]]></description>
+        <styleUrl>#icon-1799-0288D1</styleUrl>
+        <ExtendedData>
+          <Data name="parent_index">
+            <value>42.0</value>
+          </Data>
+          <Data name="Jina la Eneo/Mtaa">
+            <value>Malindi</value>
+          </Data>
+          <Data name="Jina la Mmiliki">
+            <value>Unknown</value>
+          </Data>
+          <Data name="Kutoka">
+            <value>Bandarini</value>
+          </Data>
+          <Data name="Kwenda">
+            <value>Saateni</value>
+          </Data>
+          <Data name="Brackets">
+            <value>Ndio</value>
+          </Data>
+          <Data name="Urefu (M)">
+            <value>2.0</value>
+          </Data>
+          <Data name="Upana (M)">
+            <value>1.0</value>
+          </Data>
+          <Data name="Kunatangazo kwenye Lampost">
+            <value>Ndio</value>
+          </Data>
+          <Data name="Tangazo gani lipo kwenye Lampost?">
+            <value>Gift Dabo Dabo</value>
+          </Data>
+          <Data name="Faces">
+            <value>2.0</value>
+          </Data>
+          <Data name="Mpangililo">
+            <value>Upande Mmoja wa Barabara</value>
+          </Data>
+          <Data name="Idadi ya Lampost kwenye Mtaa/Barabara">
+            <value>48.0</value>
+          </Data>
+          <Data name="latitude">
+            <value>-6.1589873</value>
+          </Data>
+          <Data name="longitude">
+            <value>39.1992546</value>
+          </Data>
+          <Data name="index">
+            <value>34.0</value>
+          </Data>
+        </ExtendedData>
+        <Point>
+          <coordinates>
+            39.1992546,-6.1589873,0
+          </coordinates>
+        </Point>
+      </Placemark>
+      <Placemark>
+        <name>Malindi</name>
+        <description><![CDATA[parent_index: 42<br>Jina la Eneo/Mtaa: Malindi<br>Jina la Mmiliki: Unknown<br>Kutoka: Bandarini<br>Kwenda: Saateni<br>Brackets: Ndio<br>Urefu (M): 2<br>Upana (M): 1<br>Kunatangazo kwenye Lampost: Ndio<br>Tangazo gani lipo kwenye Lampost?: Gift Dabo Dabo<br>Faces: 2<br>Mpangililo: Upande Mmoja wa Barabara<br>Idadi ya Lampost kwenye Mtaa/Barabara: 48<br>latitude: -6.1584115<br>longitude: 39.2016796<br>index: 35]]></description>
+        <styleUrl>#icon-1799-0288D1</styleUrl>
+        <ExtendedData>
+          <Data name="parent_index">
+            <value>42.0</value>
+          </Data>
+          <Data name="Jina la Eneo/Mtaa">
+            <value>Malindi</value>
+          </Data>
+          <Data name="Jina la Mmiliki">
+            <value>Unknown</value>
+          </Data>
+          <Data name="Kutoka">
+            <value>Bandarini</value>
+          </Data>
+          <Data name="Kwenda">
+            <value>Saateni</value>
+          </Data>
+          <Data name="Brackets">
+            <value>Ndio</value>
+          </Data>
+          <Data name="Urefu (M)">
+            <value>2.0</value>
+          </Data>
+          <Data name="Upana (M)">
+            <value>1.0</value>
+          </Data>
+          <Data name="Kunatangazo kwenye Lampost">
+            <value>Ndio</value>
+          </Data>
+          <Data name="Tangazo gani lipo kwenye Lampost?">
+            <value>Gift Dabo Dabo</value>
+          </Data>
+          <Data name="Faces">
+            <value>2.0</value>
+          </Data>
+          <Data name="Mpangililo">
+            <value>Upande Mmoja wa Barabara</value>
+          </Data>
+          <Data name="Idadi ya Lampost kwenye Mtaa/Barabara">
+            <value>48.0</value>
+          </Data>
+          <Data name="latitude">
+            <value>-6.1584115</value>
+          </Data>
+          <Data name="longitude">
+            <value>39.2016796</value>
+          </Data>
+          <Data name="index">
+            <value>35.0</value>
+          </Data>
+        </ExtendedData>
+        <Point>
+          <coordinates>
+            39.2016796,-6.1584115,0
+          </coordinates>
+        </Point>
+      </Placemark>
+      <Placemark>
+        <name>Malindi</name>
+        <description><![CDATA[parent_index: 42<br>Jina la Eneo/Mtaa: Malindi<br>Jina la Mmiliki: Unknown<br>Kutoka: Bandarini<br>Kwenda: Saateni<br>Brackets: Ndio<br>Urefu (M): 2<br>Upana (M): 1<br>Kunatangazo kwenye Lampost: Ndio<br>Tangazo gani lipo kwenye Lampost?: Gift Dabo Dabo<br>Faces: 2<br>Mpangililo: Upande Mmoja wa Barabara<br>Idadi ya Lampost kwenye Mtaa/Barabara: 48<br>latitude: -6.1574542<br>longitude: 39.2037881<br>index: 36]]></description>
+        <styleUrl>#icon-1799-0288D1</styleUrl>
+        <ExtendedData>
+          <Data name="parent_index">
+            <value>42.0</value>
+          </Data>
+          <Data name="Jina la Eneo/Mtaa">
+            <value>Malindi</value>
+          </Data>
+          <Data name="Jina la Mmiliki">
+            <value>Unknown</value>
+          </Data>
+          <Data name="Kutoka">
+            <value>Bandarini</value>
+          </Data>
+          <Data name="Kwenda">
+            <value>Saateni</value>
+          </Data>
+          <Data name="Brackets">
+            <value>Ndio</value>
+          </Data>
+          <Data name="Urefu (M)">
+            <value>2.0</value>
+          </Data>
+          <Data name="Upana (M)">
+            <value>1.0</value>
+          </Data>
+          <Data name="Kunatangazo kwenye Lampost">
+            <value>Ndio</value>
+          </Data>
+          <Data name="Tangazo gani lipo kwenye Lampost?">
+            <value>Gift Dabo Dabo</value>
+          </Data>
+          <Data name="Faces">
+            <value>2.0</value>
+          </Data>
+          <Data name="Mpangililo">
+            <value>Upande Mmoja wa Barabara</value>
+          </Data>
+          <Data name="Idadi ya Lampost kwenye Mtaa/Barabara">
+            <value>48.0</value>
+          </Data>
+          <Data name="latitude">
+            <value>-6.1574542</value>
+          </Data>
+          <Data name="longitude">
+            <value>39.2037881</value>
+          </Data>
+          <Data name="index">
+            <value>36.0</value>
+          </Data>
+        </ExtendedData>
+        <Point>
+          <coordinates>
+            39.2037881,-6.1574542,0
+          </coordinates>
+        </Point>
+      </Placemark>
+      <Placemark>
+        <name>Malindi</name>
+        <description><![CDATA[parent_index: 42<br>Jina la Eneo/Mtaa: Malindi<br>Jina la Mmiliki: Unknown<br>Kutoka: Bandarini<br>Kwenda: Saateni<br>Brackets: Ndio<br>Urefu (M): 2<br>Upana (M): 1<br>Kunatangazo kwenye Lampost: Ndio<br>Tangazo gani lipo kwenye Lampost?: Gift Dabo Dabo<br>Faces: 2<br>Mpangililo: Upande Mmoja wa Barabara<br>Idadi ya Lampost kwenye Mtaa/Barabara: 48<br>latitude: -6.1539882<br>longitude: 39.2079127<br>index: 37]]></description>
+        <styleUrl>#icon-1799-0288D1</styleUrl>
+        <ExtendedData>
+          <Data name="parent_index">
+            <value>42.0</value>
+          </Data>
+          <Data name="Jina la Eneo/Mtaa">
+            <value>Malindi</value>
+          </Data>
+          <Data name="Jina la Mmiliki">
+            <value>Unknown</value>
+          </Data>
+          <Data name="Kutoka">
+            <value>Bandarini</value>
+          </Data>
+          <Data name="Kwenda">
+            <value>Saateni</value>
+          </Data>
+          <Data name="Brackets">
+            <value>Ndio</value>
+          </Data>
+          <Data name="Urefu (M)">
+            <value>2.0</value>
+          </Data>
+          <Data name="Upana (M)">
+            <value>1.0</value>
+          </Data>
+          <Data name="Kunatangazo kwenye Lampost">
+            <value>Ndio</value>
+          </Data>
+          <Data name="Tangazo gani lipo kwenye Lampost?">
+            <value>Gift Dabo Dabo</value>
+          </Data>
+          <Data name="Faces">
+            <value>2.0</value>
+          </Data>
+          <Data name="Mpangililo">
+            <value>Upande Mmoja wa Barabara</value>
+          </Data>
+          <Data name="Idadi ya Lampost kwenye Mtaa/Barabara">
+            <value>48.0</value>
+          </Data>
+          <Data name="latitude">
+            <value>-6.1539882</value>
+          </Data>
+          <Data name="longitude">
+            <value>39.2079127</value>
+          </Data>
+          <Data name="index">
+            <value>37.0</value>
+          </Data>
+        </ExtendedData>
+        <Point>
+          <coordinates>
+            39.2079127,-6.1539882,0
+          </coordinates>
+        </Point>
+      </Placemark>
+      <Placemark>
+        <name>Malindi</name>
+        <description><![CDATA[parent_index: 42<br>Jina la Eneo/Mtaa: Malindi<br>Jina la Mmiliki: Unknown<br>Kutoka: Bandarini<br>Kwenda: Saateni<br>Brackets: Ndio<br>Urefu (M): 2<br>Upana (M): 1<br>Kunatangazo kwenye Lampost: Ndio<br>Tangazo gani lipo kwenye Lampost?: Gift Dabo Dabo<br>Faces: 2<br>Mpangililo: Upande Mmoja wa Barabara<br>Idadi ya Lampost kwenye Mtaa/Barabara: 48<br>latitude: -6.1549177<br>longitude: 39.2065661<br>index: 38]]></description>
+        <styleUrl>#icon-1799-0288D1</styleUrl>
+        <ExtendedData>
+          <Data name="parent_index">
+            <value>42.0</value>
+          </Data>
+          <Data name="Jina la Eneo/Mtaa">
+            <value>Malindi</value>
+          </Data>
+          <Data name="Jina la Mmiliki">
+            <value>Unknown</value>
+          </Data>
+          <Data name="Kutoka">
+            <value>Bandarini</value>
+          </Data>
+          <Data name="Kwenda">
+            <value>Saateni</value>
+          </Data>
+          <Data name="Brackets">
+            <value>Ndio</value>
+          </Data>
+          <Data name="Urefu (M)">
+            <value>2.0</value>
+          </Data>
+          <Data name="Upana (M)">
+            <value>1.0</value>
+          </Data>
+          <Data name="Kunatangazo kwenye Lampost">
+            <value>Ndio</value>
+          </Data>
+          <Data name="Tangazo gani lipo kwenye Lampost?">
+            <value>Gift Dabo Dabo</value>
+          </Data>
+          <Data name="Faces">
+            <value>2.0</value>
+          </Data>
+          <Data name="Mpangililo">
+            <value>Upande Mmoja wa Barabara</value>
+          </Data>
+          <Data name="Idadi ya Lampost kwenye Mtaa/Barabara">
+            <value>48.0</value>
+          </Data>
+          <Data name="latitude">
+            <value>-6.1549177</value>
+          </Data>
+          <Data name="longitude">
+            <value>39.2065661</value>
+          </Data>
+          <Data name="index">
+            <value>38.0</value>
+          </Data>
+        </ExtendedData>
+        <Point>
+          <coordinates>
+            39.2065661,-6.1549177,0
+          </coordinates>
+        </Point>
+      </Placemark>
+      <Placemark>
+        <name>Kisonge</name>
+        <description><![CDATA[parent_index: 43<br>Jina la Eneo/Mtaa: Mlandege<br>Jina la Mmiliki: Unknown <br>Kutoka: Kisonge<br>Kwenda: Mlandege<br>Brackets: Ndio<br>Urefu (M): 1<br>Upana (M): 1<br>Kunatangazo kwenye Lampost: Ndio<br>Tangazo gani lipo kwenye Lampost?: Kendwa Rocks Full Moon Party<br>Faces: 2<br>Mpangililo: Katikati ya Barabara<br>Idadi ya Lampost kwenye Mtaa/Barabara: 26<br>latitude: -6.1647236<br>longitude: 39.1988652<br>index: 39]]></description>
+        <styleUrl>#icon-1799-0288D1</styleUrl>
+        <ExtendedData>
+          <Data name="parent_index">
+            <value>43.0</value>
+          </Data>
+          <Data name="Jina la Eneo/Mtaa">
+            <value>Mlandege</value>
+          </Data>
+          <Data name="Jina la Mmiliki">
+            <value>Unknown </value>
+          </Data>
+          <Data name="Kutoka">
+            <value>Kisonge</value>
+          </Data>
+          <Data name="Kwenda">
+            <value>Mlandege</value>
+          </Data>
+          <Data name="Brackets">
+            <value>Ndio</value>
+          </Data>
+          <Data name="Urefu (M)">
+            <value>1.0</value>
+          </Data>
+          <Data name="Upana (M)">
+            <value>1.0</value>
+          </Data>
+          <Data name="Kunatangazo kwenye Lampost">
+            <value>Ndio</value>
+          </Data>
+          <Data name="Tangazo gani lipo kwenye Lampost?">
+            <value>Kendwa Rocks Full Moon Party</value>
+          </Data>
+          <Data name="Faces">
+            <value>2.0</value>
+          </Data>
+          <Data name="Mpangililo">
+            <value>Katikati ya Barabara</value>
+          </Data>
+          <Data name="Idadi ya Lampost kwenye Mtaa/Barabara">
+            <value>26.0</value>
+          </Data>
+          <Data name="latitude">
+            <value>-6.1647236</value>
+          </Data>
+          <Data name="longitude">
+            <value>39.1988652</value>
+          </Data>
+          <Data name="index">
+            <value>39.0</value>
+          </Data>
+        </ExtendedData>
+        <Point>
+          <coordinates>
+            39.1988652,-6.1647236,0
+          </coordinates>
+        </Point>
+      </Placemark>
+      <Placemark>
+        <name>Kisonge</name>
+        <description><![CDATA[parent_index: 43<br>Jina la Eneo/Mtaa: Mlandege<br>Jina la Mmiliki: Unknown <br>Kutoka: Kisonge<br>Kwenda: Mlandege<br>Brackets: Ndio<br>Urefu (M): 1<br>Upana (M): 1<br>Kunatangazo kwenye Lampost: Ndio<br>Tangazo gani lipo kwenye Lampost?: Kendwa Rocks Full Moon Party<br>Faces: 2<br>Mpangililo: Katikati ya Barabara<br>Idadi ya Lampost kwenye Mtaa/Barabara: 26<br>latitude: -6.1637722<br>longitude: 39.1989419<br>index: 40]]></description>
+        <styleUrl>#icon-1799-0288D1</styleUrl>
+        <ExtendedData>
+          <Data name="parent_index">
+            <value>43.0</value>
+          </Data>
+          <Data name="Jina la Eneo/Mtaa">
+            <value>Mlandege</value>
+          </Data>
+          <Data name="Jina la Mmiliki">
+            <value>Unknown </value>
+          </Data>
+          <Data name="Kutoka">
+            <value>Kisonge</value>
+          </Data>
+          <Data name="Kwenda">
+            <value>Mlandege</value>
+          </Data>
+          <Data name="Brackets">
+            <value>Ndio</value>
+          </Data>
+          <Data name="Urefu (M)">
+            <value>1.0</value>
+          </Data>
+          <Data name="Upana (M)">
+            <value>1.0</value>
+          </Data>
+          <Data name="Kunatangazo kwenye Lampost">
+            <value>Ndio</value>
+          </Data>
+          <Data name="Tangazo gani lipo kwenye Lampost?">
+            <value>Kendwa Rocks Full Moon Party</value>
+          </Data>
+          <Data name="Faces">
+            <value>2.0</value>
+          </Data>
+          <Data name="Mpangililo">
+            <value>Katikati ya Barabara</value>
+          </Data>
+          <Data name="Idadi ya Lampost kwenye Mtaa/Barabara">
+            <value>26.0</value>
+          </Data>
+          <Data name="latitude">
+            <value>-6.1637722</value>
+          </Data>
+          <Data name="longitude">
+            <value>39.1989419</value>
+          </Data>
+          <Data name="index">
+            <value>40.0</value>
+          </Data>
+        </ExtendedData>
+        <Point>
+          <coordinates>
+            39.1989419,-6.1637722,0
+          </coordinates>
+        </Point>
+      </Placemark>
+      <Placemark>
+        <name>Kisonge</name>
+        <description><![CDATA[parent_index: 43<br>Jina la Eneo/Mtaa: Mlandege<br>Jina la Mmiliki: Unknown <br>Kutoka: Kisonge<br>Kwenda: Mlandege<br>Brackets: Ndio<br>Urefu (M): 1<br>Upana (M): 1<br>Kunatangazo kwenye Lampost: Ndio<br>Tangazo gani lipo kwenye Lampost?: Kendwa Rocks Full Moon Party<br>Faces: 2<br>Mpangililo: Katikati ya Barabara<br>Idadi ya Lampost kwenye Mtaa/Barabara: 26<br>latitude: -6.1620918<br>longitude: 39.1991767<br>index: 41]]></description>
+        <styleUrl>#icon-1799-0288D1</styleUrl>
+        <ExtendedData>
+          <Data name="parent_index">
+            <value>43.0</value>
+          </Data>
+          <Data name="Jina la Eneo/Mtaa">
+            <value>Mlandege</value>
+          </Data>
+          <Data name="Jina la Mmiliki">
+            <value>Unknown </value>
+          </Data>
+          <Data name="Kutoka">
+            <value>Kisonge</value>
+          </Data>
+          <Data name="Kwenda">
+            <value>Mlandege</value>
+          </Data>
+          <Data name="Brackets">
+            <value>Ndio</value>
+          </Data>
+          <Data name="Urefu (M)">
+            <value>1.0</value>
+          </Data>
+          <Data name="Upana (M)">
+            <value>1.0</value>
+          </Data>
+          <Data name="Kunatangazo kwenye Lampost">
+            <value>Ndio</value>
+          </Data>
+          <Data name="Tangazo gani lipo kwenye Lampost?">
+            <value>Kendwa Rocks Full Moon Party</value>
+          </Data>
+          <Data name="Faces">
+            <value>2.0</value>
+          </Data>
+          <Data name="Mpangililo">
+            <value>Katikati ya Barabara</value>
+          </Data>
+          <Data name="Idadi ya Lampost kwenye Mtaa/Barabara">
+            <value>26.0</value>
+          </Data>
+          <Data name="latitude">
+            <value>-6.1620918</value>
+          </Data>
+          <Data name="longitude">
+            <value>39.1991767</value>
+          </Data>
+          <Data name="index">
+            <value>41.0</value>
+          </Data>
+        </ExtendedData>
+        <Point>
+          <coordinates>
+            39.1991767,-6.1620918,0
+          </coordinates>
+        </Point>
+      </Placemark>
+      <Placemark>
+        <name>Kisonge</name>
+        <description><![CDATA[parent_index: 43<br>Jina la Eneo/Mtaa: Mlandege<br>Jina la Mmiliki: Unknown <br>Kutoka: Kisonge<br>Kwenda: Mlandege<br>Brackets: Ndio<br>Urefu (M): 1<br>Upana (M): 1<br>Kunatangazo kwenye Lampost: Ndio<br>Tangazo gani lipo kwenye Lampost?: Kendwa Rocks Full Moon Party<br>Faces: 2<br>Mpangililo: Katikati ya Barabara<br>Idadi ya Lampost kwenye Mtaa/Barabara: 26<br>latitude: -6.1620067<br>longitude: 39.1991617<br>index: 42]]></description>
+        <styleUrl>#icon-1799-0288D1</styleUrl>
+        <ExtendedData>
+          <Data name="parent_index">
+            <value>43.0</value>
+          </Data>
+          <Data name="Jina la Eneo/Mtaa">
+            <value>Mlandege</value>
+          </Data>
+          <Data name="Jina la Mmiliki">
+            <value>Unknown </value>
+          </Data>
+          <Data name="Kutoka">
+            <value>Kisonge</value>
+          </Data>
+          <Data name="Kwenda">
+            <value>Mlandege</value>
+          </Data>
+          <Data name="Brackets">
+            <value>Ndio</value>
+          </Data>
+          <Data name="Urefu (M)">
+            <value>1.0</value>
+          </Data>
+          <Data name="Upana (M)">
+            <value>1.0</value>
+          </Data>
+          <Data name="Kunatangazo kwenye Lampost">
+            <value>Ndio</value>
+          </Data>
+          <Data name="Tangazo gani lipo kwenye Lampost?">
+            <value>Kendwa Rocks Full Moon Party</value>
+          </Data>
+          <Data name="Faces">
+            <value>2.0</value>
+          </Data>
+          <Data name="Mpangililo">
+            <value>Katikati ya Barabara</value>
+          </Data>
+          <Data name="Idadi ya Lampost kwenye Mtaa/Barabara">
+            <value>26.0</value>
+          </Data>
+          <Data name="latitude">
+            <value>-6.1620067</value>
+          </Data>
+          <Data name="longitude">
+            <value>39.1991617</value>
+          </Data>
+          <Data name="index">
+            <value>42.0</value>
+          </Data>
+        </ExtendedData>
+        <Point>
+          <coordinates>
+            39.1991617,-6.1620067,0
+          </coordinates>
+        </Point>
+      </Placemark>
+      <Placemark>
+        <name>Kisonge</name>
+        <description><![CDATA[parent_index: 43<br>Jina la Eneo/Mtaa: Mlandege<br>Jina la Mmiliki: Unknown <br>Kutoka: Kisonge<br>Kwenda: Mlandege<br>Brackets: Ndio<br>Urefu (M): 1<br>Upana (M): 1<br>Kunatangazo kwenye Lampost: Ndio<br>Tangazo gani lipo kwenye Lampost?: Kendwa Rocks Full Moon Party<br>Faces: 2<br>Mpangililo: Katikati ya Barabara<br>Idadi ya Lampost kwenye Mtaa/Barabara: 26<br>latitude: -6.1595154<br>longitude: 39.1990047<br>index: 43]]></description>
+        <styleUrl>#icon-1799-0288D1</styleUrl>
+        <ExtendedData>
+          <Data name="parent_index">
+            <value>43.0</value>
+          </Data>
+          <Data name="Jina la Eneo/Mtaa">
+            <value>Mlandege</value>
+          </Data>
+          <Data name="Jina la Mmiliki">
+            <value>Unknown </value>
+          </Data>
+          <Data name="Kutoka">
+            <value>Kisonge</value>
+          </Data>
+          <Data name="Kwenda">
+            <value>Mlandege</value>
+          </Data>
+          <Data name="Brackets">
+            <value>Ndio</value>
+          </Data>
+          <Data name="Urefu (M)">
+            <value>1.0</value>
+          </Data>
+          <Data name="Upana (M)">
+            <value>1.0</value>
+          </Data>
+          <Data name="Kunatangazo kwenye Lampost">
+            <value>Ndio</value>
+          </Data>
+          <Data name="Tangazo gani lipo kwenye Lampost?">
+            <value>Kendwa Rocks Full Moon Party</value>
+          </Data>
+          <Data name="Faces">
+            <value>2.0</value>
+          </Data>
+          <Data name="Mpangililo">
+            <value>Katikati ya Barabara</value>
+          </Data>
+          <Data name="Idadi ya Lampost kwenye Mtaa/Barabara">
+            <value>26.0</value>
+          </Data>
+          <Data name="latitude">
+            <value>-6.1595154</value>
+          </Data>
+          <Data name="longitude">
+            <value>39.1990047</value>
+          </Data>
+          <Data name="index">
+            <value>43.0</value>
+          </Data>
+        </ExtendedData>
+        <Point>
+          <coordinates>
+            39.1990047,-6.1595154,0
+          </coordinates>
+        </Point>
+      </Placemark>
+      <Placemark>
+        <name>Mnazi mmoja</name>
+        <description><![CDATA[parent_index: 44<br>Jina la Eneo/Mtaa: Mnazi mmoja hospital<br>Jina la Mmiliki: Unknown<br>Kutoka: Mnazi mmoja<br>Kwenda: Malindi<br>Brackets: Ndio<br>Urefu (M): 2<br>Upana (M): 1<br>Kunatangazo kwenye Lampost: Ndio<br>Tangazo gani lipo kwenye Lampost?: Magift Dabodabo<br>Faces: 2<br>Mpangililo: Pande Mbili za Barabara<br>Idadi ya Lampost kwenye Mtaa/Barabara: 33<br>latitude: -6.1659499<br>longitude: 39.1924109<br>index: 44]]></description>
+        <styleUrl>#icon-1799-0288D1</styleUrl>
+        <ExtendedData>
+          <Data name="parent_index">
+            <value>44.0</value>
+          </Data>
+          <Data name="Jina la Eneo/Mtaa">
+            <value>Mnazi mmoja hospital</value>
+          </Data>
+          <Data name="Jina la Mmiliki">
+            <value>Unknown</value>
+          </Data>
+          <Data name="Kutoka">
+            <value>Mnazi mmoja</value>
+          </Data>
+          <Data name="Kwenda">
+            <value>Malindi</value>
+          </Data>
+          <Data name="Brackets">
+            <value>Ndio</value>
+          </Data>
+          <Data name="Urefu (M)">
+            <value>2.0</value>
+          </Data>
+          <Data name="Upana (M)">
+            <value>1.0</value>
+          </Data>
+          <Data name="Kunatangazo kwenye Lampost">
+            <value>Ndio</value>
+          </Data>
+          <Data name="Tangazo gani lipo kwenye Lampost?">
+            <value>Magift Dabodabo</value>
+          </Data>
+          <Data name="Faces">
+            <value>2.0</value>
+          </Data>
+          <Data name="Mpangililo">
+            <value>Pande Mbili za Barabara</value>
+          </Data>
+          <Data name="Idadi ya Lampost kwenye Mtaa/Barabara">
+            <value>33.0</value>
+          </Data>
+          <Data name="latitude">
+            <value>-6.1659499</value>
+          </Data>
+          <Data name="longitude">
+            <value>39.1924109</value>
+          </Data>
+          <Data name="index">
+            <value>44.0</value>
+          </Data>
+        </ExtendedData>
+        <Point>
+          <coordinates>
+            39.1924109,-6.1659499,0
+          </coordinates>
+        </Point>
+      </Placemark>
+      <Placemark>
+        <name>Mnazi mmoja</name>
+        <description><![CDATA[parent_index: 44<br>Jina la Eneo/Mtaa: Mnazi mmoja hospital<br>Jina la Mmiliki: Unknown<br>Kutoka: Mnazi mmoja<br>Kwenda: Malindi<br>Brackets: Ndio<br>Urefu (M): 2<br>Upana (M): 1<br>Kunatangazo kwenye Lampost: Ndio<br>Tangazo gani lipo kwenye Lampost?: Magift Dabodabo<br>Faces: 2<br>Mpangililo: Pande Mbili za Barabara<br>Idadi ya Lampost kwenye Mtaa/Barabara: 33<br>latitude: -6.1644412<br>longitude: 39.1930477<br>index: 45]]></description>
+        <styleUrl>#icon-1799-0288D1</styleUrl>
+        <ExtendedData>
+          <Data name="parent_index">
+            <value>44.0</value>
+          </Data>
+          <Data name="Jina la Eneo/Mtaa">
+            <value>Mnazi mmoja hospital</value>
+          </Data>
+          <Data name="Jina la Mmiliki">
+            <value>Unknown</value>
+          </Data>
+          <Data name="Kutoka">
+            <value>Mnazi mmoja</value>
+          </Data>
+          <Data name="Kwenda">
+            <value>Malindi</value>
+          </Data>
+          <Data name="Brackets">
+            <value>Ndio</value>
+          </Data>
+          <Data name="Urefu (M)">
+            <value>2.0</value>
+          </Data>
+          <Data name="Upana (M)">
+            <value>1.0</value>
+          </Data>
+          <Data name="Kunatangazo kwenye Lampost">
+            <value>Ndio</value>
+          </Data>
+          <Data name="Tangazo gani lipo kwenye Lampost?">
+            <value>Magift Dabodabo</value>
+          </Data>
+          <Data name="Faces">
+            <value>2.0</value>
+          </Data>
+          <Data name="Mpangililo">
+            <value>Pande Mbili za Barabara</value>
+          </Data>
+          <Data name="Idadi ya Lampost kwenye Mtaa/Barabara">
+            <value>33.0</value>
+          </Data>
+          <Data name="latitude">
+            <value>-6.1644412</value>
+          </Data>
+          <Data name="longitude">
+            <value>39.1930477</value>
+          </Data>
+          <Data name="index">
+            <value>45.0</value>
+          </Data>
+        </ExtendedData>
+        <Point>
+          <coordinates>
+            39.1930477,-6.1644412,0
+          </coordinates>
+        </Point>
+      </Placemark>
+      <Placemark>
+        <name>Mnazi mmoja</name>
+        <description><![CDATA[parent_index: 44<br>Jina la Eneo/Mtaa: Mnazi mmoja hospital<br>Jina la Mmiliki: Unknown<br>Kutoka: Mnazi mmoja<br>Kwenda: Malindi<br>Brackets: Ndio<br>Urefu (M): 2<br>Upana (M): 1<br>Kunatangazo kwenye Lampost: Ndio<br>Tangazo gani lipo kwenye Lampost?: Magift Dabodabo<br>Faces: 2<br>Mpangililo: Pande Mbili za Barabara<br>Idadi ya Lampost kwenye Mtaa/Barabara: 33<br>latitude: -6.1621964<br>longitude: 39.1939613<br>index: 46]]></description>
+        <styleUrl>#icon-1799-0288D1</styleUrl>
+        <ExtendedData>
+          <Data name="parent_index">
+            <value>44.0</value>
+          </Data>
+          <Data name="Jina la Eneo/Mtaa">
+            <value>Mnazi mmoja hospital</value>
+          </Data>
+          <Data name="Jina la Mmiliki">
+            <value>Unknown</value>
+          </Data>
+          <Data name="Kutoka">
+            <value>Mnazi mmoja</value>
+          </Data>
+          <Data name="Kwenda">
+            <value>Malindi</value>
+          </Data>
+          <Data name="Brackets">
+            <value>Ndio</value>
+          </Data>
+          <Data name="Urefu (M)">
+            <value>2.0</value>
+          </Data>
+          <Data name="Upana (M)">
+            <value>1.0</value>
+          </Data>
+          <Data name="Kunatangazo kwenye Lampost">
+            <value>Ndio</value>
+          </Data>
+          <Data name="Tangazo gani lipo kwenye Lampost?">
+            <value>Magift Dabodabo</value>
+          </Data>
+          <Data name="Faces">
+            <value>2.0</value>
+          </Data>
+          <Data name="Mpangililo">
+            <value>Pande Mbili za Barabara</value>
+          </Data>
+          <Data name="Idadi ya Lampost kwenye Mtaa/Barabara">
+            <value>33.0</value>
+          </Data>
+          <Data name="latitude">
+            <value>-6.1621964</value>
+          </Data>
+          <Data name="longitude">
+            <value>39.1939613</value>
+          </Data>
+          <Data name="index">
+            <value>46.0</value>
+          </Data>
+        </ExtendedData>
+        <Point>
+          <coordinates>
+            39.1939613,-6.1621964,0
+          </coordinates>
+        </Point>
+      </Placemark>
+      <Placemark>
+        <name>Mnazi mmoja</name>
+        <description><![CDATA[parent_index: 44<br>Jina la Eneo/Mtaa: Mnazi mmoja hospital<br>Jina la Mmiliki: Unknown<br>Kutoka: Mnazi mmoja<br>Kwenda: Malindi<br>Brackets: Ndio<br>Urefu (M): 2<br>Upana (M): 1<br>Kunatangazo kwenye Lampost: Ndio<br>Tangazo gani lipo kwenye Lampost?: Magift Dabodabo<br>Faces: 2<br>Mpangililo: Pande Mbili za Barabara<br>Idadi ya Lampost kwenye Mtaa/Barabara: 33<br>latitude: -6.1601212<br>longitude: 39.194724<br>index: 47]]></description>
+        <styleUrl>#icon-1799-0288D1</styleUrl>
+        <ExtendedData>
+          <Data name="parent_index">
+            <value>44.0</value>
+          </Data>
+          <Data name="Jina la Eneo/Mtaa">
+            <value>Mnazi mmoja hospital</value>
+          </Data>
+          <Data name="Jina la Mmiliki">
+            <value>Unknown</value>
+          </Data>
+          <Data name="Kutoka">
+            <value>Mnazi mmoja</value>
+          </Data>
+          <Data name="Kwenda">
+            <value>Malindi</value>
+          </Data>
+          <Data name="Brackets">
+            <value>Ndio</value>
+          </Data>
+          <Data name="Urefu (M)">
+            <value>2.0</value>
+          </Data>
+          <Data name="Upana (M)">
+            <value>1.0</value>
+          </Data>
+          <Data name="Kunatangazo kwenye Lampost">
+            <value>Ndio</value>
+          </Data>
+          <Data name="Tangazo gani lipo kwenye Lampost?">
+            <value>Magift Dabodabo</value>
+          </Data>
+          <Data name="Faces">
+            <value>2.0</value>
+          </Data>
+          <Data name="Mpangililo">
+            <value>Pande Mbili za Barabara</value>
+          </Data>
+          <Data name="Idadi ya Lampost kwenye Mtaa/Barabara">
+            <value>33.0</value>
+          </Data>
+          <Data name="latitude">
+            <value>-6.1601212</value>
+          </Data>
+          <Data name="longitude">
+            <value>39.194724</value>
+          </Data>
+          <Data name="index">
+            <value>47.0</value>
+          </Data>
+        </ExtendedData>
+        <Point>
+          <coordinates>
+            39.194724,-6.1601212,0
+          </coordinates>
+        </Point>
+      </Placemark>
+      <Placemark>
+        <name>Mnazi mmoja</name>
+        <description><![CDATA[parent_index: 44<br>Jina la Eneo/Mtaa: Mnazi mmoja hospital<br>Jina la Mmiliki: Unknown<br>Kutoka: Mnazi mmoja<br>Kwenda: Malindi<br>Brackets: Ndio<br>Urefu (M): 2<br>Upana (M): 1<br>Kunatangazo kwenye Lampost: Ndio<br>Tangazo gani lipo kwenye Lampost?: Magift Dabodabo<br>Faces: 2<br>Mpangililo: Pande Mbili za Barabara<br>Idadi ya Lampost kwenye Mtaa/Barabara: 33<br>latitude: -6.1585708<br>longitude: 39.195277<br>index: 48]]></description>
+        <styleUrl>#icon-1799-0288D1</styleUrl>
+        <ExtendedData>
+          <Data name="parent_index">
+            <value>44.0</value>
+          </Data>
+          <Data name="Jina la Eneo/Mtaa">
+            <value>Mnazi mmoja hospital</value>
+          </Data>
+          <Data name="Jina la Mmiliki">
+            <value>Unknown</value>
+          </Data>
+          <Data name="Kutoka">
+            <value>Mnazi mmoja</value>
+          </Data>
+          <Data name="Kwenda">
+            <value>Malindi</value>
+          </Data>
+          <Data name="Brackets">
+            <value>Ndio</value>
+          </Data>
+          <Data name="Urefu (M)">
+            <value>2.0</value>
+          </Data>
+          <Data name="Upana (M)">
+            <value>1.0</value>
+          </Data>
+          <Data name="Kunatangazo kwenye Lampost">
+            <value>Ndio</value>
+          </Data>
+          <Data name="Tangazo gani lipo kwenye Lampost?">
+            <value>Magift Dabodabo</value>
+          </Data>
+          <Data name="Faces">
+            <value>2.0</value>
+          </Data>
+          <Data name="Mpangililo">
+            <value>Pande Mbili za Barabara</value>
+          </Data>
+          <Data name="Idadi ya Lampost kwenye Mtaa/Barabara">
+            <value>33.0</value>
+          </Data>
+          <Data name="latitude">
+            <value>-6.1585708</value>
+          </Data>
+          <Data name="longitude">
+            <value>39.195277</value>
+          </Data>
+          <Data name="index">
+            <value>48.0</value>
+          </Data>
+        </ExtendedData>
+        <Point>
+          <coordinates>
+            39.195277,-6.1585708,0
+          </coordinates>
+        </Point>
+      </Placemark>
+    </Folder>
+    <Folder>
+      <name>Large Format Billboards</name>
+      <Placemark>
+        <name>Mtoni, Mkapa Road Trff Lights</name>
+        <description><![CDATA[SN: 1<br>REGION: Zanzibar<br>ROAD (From - To): Mkapa Road<br>VISIBILITY: Traffic ti Nungwi<br>ORIENTATION: Landscape<br>HEIGHT (M): 6.2<br>WIDTH (M): 12<br>TOTAL SQ.M: 74.4<br>INSTALLATION: 1<br>FACES: 1<br>VENDOR: MOZETI<br>LATITUDE: -6.133837<br>LONGITUDE: 39.215868]]></description>
+        <styleUrl>#icon-1899-9C27B0</styleUrl>
+        <ExtendedData>
+          <Data name="SN">
+            <value>1.0</value>
+          </Data>
+          <Data name="REGION">
+            <value>Zanzibar</value>
+          </Data>
+          <Data name="ROAD (From - To)">
+            <value>Mkapa Road</value>
+          </Data>
+          <Data name="VISIBILITY">
+            <value>Traffic ti Nungwi</value>
+          </Data>
+          <Data name="ORIENTATION">
+            <value>Landscape</value>
+          </Data>
+          <Data name="HEIGHT (M)">
+            <value>6.2</value>
+          </Data>
+          <Data name="WIDTH (M)">
+            <value>12.0</value>
+          </Data>
+          <Data name="TOTAL SQ.M">
+            <value>74.4</value>
+          </Data>
+          <Data name="INSTALLATION">
+            <value>1.0</value>
+          </Data>
+          <Data name="FACES">
+            <value>1.0</value>
+          </Data>
+          <Data name="VENDOR">
+            <value>MOZETI</value>
+          </Data>
+          <Data name="LATITUDE">
+            <value>-6.133837</value>
+          </Data>
+          <Data name="LONGITUDE">
+            <value>39.215868</value>
+          </Data>
+        </ExtendedData>
+        <Point>
+          <coordinates>
+            39.215868,-6.133837,0
+          </coordinates>
+        </Point>
+      </Placemark>
+      <Placemark>
+        <name>Bandarini Junction</name>
+        <description><![CDATA[SN: 2<br>REGION: Zanzibar<br>ROAD (From - To): Bandarini - BOT<br>VISIBILITY: Traffic to Kariakoo<br>ORIENTATION: Landscape<br>HEIGHT (M): 4<br>WIDTH (M): 8<br>TOTAL SQ.M: 32<br>INSTALLATION: 1<br>FACES: 1<br>VENDOR: MOZETI<br>LATITUDE: -6.156931<br>LONGITUDE: 39.193806]]></description>
+        <styleUrl>#icon-1899-9C27B0</styleUrl>
+        <ExtendedData>
+          <Data name="SN">
+            <value>2.0</value>
+          </Data>
+          <Data name="REGION">
+            <value>Zanzibar</value>
+          </Data>
+          <Data name="ROAD (From - To)">
+            <value>Bandarini - BOT</value>
+          </Data>
+          <Data name="VISIBILITY">
+            <value>Traffic to Kariakoo</value>
+          </Data>
+          <Data name="ORIENTATION">
+            <value>Landscape</value>
+          </Data>
+          <Data name="HEIGHT (M)">
+            <value>4.0</value>
+          </Data>
+          <Data name="WIDTH (M)">
+            <value>8.0</value>
+          </Data>
+          <Data name="TOTAL SQ.M">
+            <value>32.0</value>
+          </Data>
+          <Data name="INSTALLATION">
+            <value>1.0</value>
+          </Data>
+          <Data name="FACES">
+            <value>1.0</value>
+          </Data>
+          <Data name="VENDOR">
+            <value>MOZETI</value>
+          </Data>
+          <Data name="LATITUDE">
+            <value>-6.156931</value>
+          </Data>
+          <Data name="LONGITUDE">
+            <value>39.193806</value>
+          </Data>
+        </ExtendedData>
+        <Point>
+          <coordinates>
+            39.193806,-6.156931,0
+          </coordinates>
+        </Point>
+      </Placemark>
+      <Placemark>
+        <name>Mtemani, 4ways</name>
+        <description><![CDATA[SN: 3<br>REGION: Pemba<br>ROAD (From - To): 4ways<br>VISIBILITY: Traffic to PBZ<br>ORIENTATION: Landscape<br>HEIGHT (M): 3<br>WIDTH (M): 5<br>TOTAL SQ.M: 15<br>INSTALLATION: 1<br>FACES: 1<br>VENDOR: MOZETI<br>LATITUDE: -5.056824<br>LONGITUDE: 39.728363]]></description>
+        <styleUrl>#icon-1899-9C27B0</styleUrl>
+        <ExtendedData>
+          <Data name="SN">
+            <value>3.0</value>
+          </Data>
+          <Data name="REGION">
+            <value>Pemba</value>
+          </Data>
+          <Data name="ROAD (From - To)">
+            <value>4ways</value>
+          </Data>
+          <Data name="VISIBILITY">
+            <value>Traffic to PBZ</value>
+          </Data>
+          <Data name="ORIENTATION">
+            <value>Landscape</value>
+          </Data>
+          <Data name="HEIGHT (M)">
+            <value>3.0</value>
+          </Data>
+          <Data name="WIDTH (M)">
+            <value>5.0</value>
+          </Data>
+          <Data name="TOTAL SQ.M">
+            <value>15.0</value>
+          </Data>
+          <Data name="INSTALLATION">
+            <value>1.0</value>
+          </Data>
+          <Data name="FACES">
+            <value>1.0</value>
+          </Data>
+          <Data name="VENDOR">
+            <value>MOZETI</value>
+          </Data>
+          <Data name="LATITUDE">
+            <value>-5.056824</value>
+          </Data>
+          <Data name="LONGITUDE">
+            <value>39.728363</value>
+          </Data>
+        </ExtendedData>
+        <Point>
+          <coordinates>
+            39.728363,-5.056824,0
+          </coordinates>
+        </Point>
+      </Placemark>
+      <Placemark>
+        <name>Mlandege</name>
+        <description><![CDATA[SN: 4<br>REGION: Zanzibar<br>ROAD (From - To): Nyerere Road<br>VISIBILITY: Traffic to Mlandege<br>ORIENTATION: Landscape<br>HEIGHT (M): 6<br>WIDTH (M): 9<br>TOTAL SQ.M: 54<br>INSTALLATION: 1<br>FACES: 1<br>VENDOR: MOZETI<br>LATITUDE: -6.15922<br>LONGITUDE: 39.199236]]></description>
+        <styleUrl>#icon-1899-9C27B0</styleUrl>
+        <ExtendedData>
+          <Data name="SN">
+            <value>4.0</value>
+          </Data>
+          <Data name="REGION">
+            <value>Zanzibar</value>
+          </Data>
+          <Data name="ROAD (From - To)">
+            <value>Nyerere Road</value>
+          </Data>
+          <Data name="VISIBILITY">
+            <value>Traffic to Mlandege</value>
+          </Data>
+          <Data name="ORIENTATION">
+            <value>Landscape</value>
+          </Data>
+          <Data name="HEIGHT (M)">
+            <value>6.0</value>
+          </Data>
+          <Data name="WIDTH (M)">
+            <value>9.0</value>
+          </Data>
+          <Data name="TOTAL SQ.M">
+            <value>54.0</value>
+          </Data>
+          <Data name="INSTALLATION">
+            <value>1.0</value>
+          </Data>
+          <Data name="FACES">
+            <value>1.0</value>
+          </Data>
+          <Data name="VENDOR">
+            <value>MOZETI</value>
+          </Data>
+          <Data name="LATITUDE">
+            <value>-6.15922</value>
+          </Data>
+          <Data name="LONGITUDE">
+            <value>39.199236</value>
+          </Data>
+        </ExtendedData>
+        <Point>
+          <coordinates>
+            39.199236,-6.15922,0
+          </coordinates>
+        </Point>
+      </Placemark>
+      <Placemark>
+        <name>Magereza</name>
+        <description><![CDATA[SN: 5<br>REGION: Zanzibar<br>ROAD (From - To): Nyerere Road<br>VISIBILITY: Traffic to Kilimani<br>ORIENTATION: Landscape<br>HEIGHT (M): 4<br>WIDTH (M): 8<br>TOTAL SQ.M: 32<br>INSTALLATION: 1<br>FACES: 1<br>VENDOR: ASHTON<br>LATITUDE: -6.174869<br>LONGITUDE: 39.201154]]></description>
+        <styleUrl>#icon-1899-9C27B0</styleUrl>
+        <ExtendedData>
+          <Data name="SN">
+            <value>5.0</value>
+          </Data>
+          <Data name="REGION">
+            <value>Zanzibar</value>
+          </Data>
+          <Data name="ROAD (From - To)">
+            <value>Nyerere Road</value>
+          </Data>
+          <Data name="VISIBILITY">
+            <value>Traffic to Kilimani</value>
+          </Data>
+          <Data name="ORIENTATION">
+            <value>Landscape</value>
+          </Data>
+          <Data name="HEIGHT (M)">
+            <value>4.0</value>
+          </Data>
+          <Data name="WIDTH (M)">
+            <value>8.0</value>
+          </Data>
+          <Data name="TOTAL SQ.M">
+            <value>32.0</value>
+          </Data>
+          <Data name="INSTALLATION">
+            <value>1.0</value>
+          </Data>
+          <Data name="FACES">
+            <value>1.0</value>
+          </Data>
+          <Data name="VENDOR">
+            <value>ASHTON</value>
+          </Data>
+          <Data name="LATITUDE">
+            <value>-6.174869</value>
+          </Data>
+          <Data name="LONGITUDE">
+            <value>39.201154</value>
+          </Data>
+        </ExtendedData>
+        <Point>
+          <coordinates>
+            39.201154,-6.174869,0
+          </coordinates>
+        </Point>
+      </Placemark>
+      <Placemark>
+        <name>Kilimani Junction</name>
+        <description><![CDATA[SN: 6<br>REGION: Zanzibar<br>ROAD (From - To): Kilimani Road<br>VISIBILITY: Darajani souk-Airport<br>ORIENTATION: Landscape<br>HEIGHT (M): 4<br>WIDTH (M): 8<br>TOTAL SQ.M: 32<br>INSTALLATION: 1<br>FACES: 1<br>VENDOR: ASHTON<br>LATITUDE: -6.174999<br>LONGITUDE: 39.201303]]></description>
+        <styleUrl>#icon-1899-9C27B0</styleUrl>
+        <ExtendedData>
+          <Data name="SN">
+            <value>6.0</value>
+          </Data>
+          <Data name="REGION">
+            <value>Zanzibar</value>
+          </Data>
+          <Data name="ROAD (From - To)">
+            <value>Kilimani Road</value>
+          </Data>
+          <Data name="VISIBILITY">
+            <value>Darajani souk-Airport</value>
+          </Data>
+          <Data name="ORIENTATION">
+            <value>Landscape</value>
+          </Data>
+          <Data name="HEIGHT (M)">
+            <value>4.0</value>
+          </Data>
+          <Data name="WIDTH (M)">
+            <value>8.0</value>
+          </Data>
+          <Data name="TOTAL SQ.M">
+            <value>32.0</value>
+          </Data>
+          <Data name="INSTALLATION">
+            <value>1.0</value>
+          </Data>
+          <Data name="FACES">
+            <value>1.0</value>
+          </Data>
+          <Data name="VENDOR">
+            <value>ASHTON</value>
+          </Data>
+          <Data name="LATITUDE">
+            <value>-6.174999</value>
+          </Data>
+          <Data name="LONGITUDE">
+            <value>39.201303</value>
+          </Data>
+        </ExtendedData>
+        <Point>
+          <coordinates>
+            39.201303,-6.174999,0
+          </coordinates>
+        </Point>
+      </Placemark>
+      <Placemark>
+        <name>Sokoni Junction</name>
+        <description><![CDATA[SN: 7<br>REGION: Zanzibar<br>ROAD (From - To): Airport Road<br>VISIBILITY: Mwanakwerekwe-Airport<br>ORIENTATION: Landscape<br>HEIGHT (M): 6<br>WIDTH (M): 9<br>TOTAL SQ.M: 54<br>INSTALLATION: 1<br>FACES: 1<br>VENDOR: MOZETI<br>LATITUDE: -6.190907<br>LONGITUDE: 39.21751]]></description>
+        <styleUrl>#icon-1899-9C27B0</styleUrl>
+        <ExtendedData>
+          <Data name="SN">
+            <value>7.0</value>
+          </Data>
+          <Data name="REGION">
+            <value>Zanzibar</value>
+          </Data>
+          <Data name="ROAD (From - To)">
+            <value>Airport Road</value>
+          </Data>
+          <Data name="VISIBILITY">
+            <value>Mwanakwerekwe-Airport</value>
+          </Data>
+          <Data name="ORIENTATION">
+            <value>Landscape</value>
+          </Data>
+          <Data name="HEIGHT (M)">
+            <value>6.0</value>
+          </Data>
+          <Data name="WIDTH (M)">
+            <value>9.0</value>
+          </Data>
+          <Data name="TOTAL SQ.M">
+            <value>54.0</value>
+          </Data>
+          <Data name="INSTALLATION">
+            <value>1.0</value>
+          </Data>
+          <Data name="FACES">
+            <value>1.0</value>
+          </Data>
+          <Data name="VENDOR">
+            <value>MOZETI</value>
+          </Data>
+          <Data name="LATITUDE">
+            <value>-6.190907</value>
+          </Data>
+          <Data name="LONGITUDE">
+            <value>39.21751</value>
+          </Data>
+        </ExtendedData>
+        <Point>
+          <coordinates>
+            39.21751,-6.190907,0
+          </coordinates>
+        </Point>
+      </Placemark>
+      <Placemark>
+        <name>Mombasa/Fumba Roundabout</name>
+        <description><![CDATA[SN: 8<br>REGION: Zanzibar<br>ROAD (From - To): Airport road<br>VISIBILITY: Airport-Fumba<br>ORIENTATION: Potrait<br>HEIGHT (M): 10<br>WIDTH (M): 8<br>TOTAL SQ.M: 80<br>INSTALLATION: 1<br>FACES: 1<br>VENDOR: A1 OUTDOOR<br>LATITUDE: -6.197852<br>LONGITUDE: 39.215252]]></description>
+        <styleUrl>#icon-1899-9C27B0</styleUrl>
+        <ExtendedData>
+          <Data name="SN">
+            <value>8.0</value>
+          </Data>
+          <Data name="REGION">
+            <value>Zanzibar</value>
+          </Data>
+          <Data name="ROAD (From - To)">
+            <value>Airport road</value>
+          </Data>
+          <Data name="VISIBILITY">
+            <value>Airport-Fumba</value>
+          </Data>
+          <Data name="ORIENTATION">
+            <value>Potrait</value>
+          </Data>
+          <Data name="HEIGHT (M)">
+            <value>10.0</value>
+          </Data>
+          <Data name="WIDTH (M)">
+            <value>8.0</value>
+          </Data>
+          <Data name="TOTAL SQ.M">
+            <value>80.0</value>
+          </Data>
+          <Data name="INSTALLATION">
+            <value>1.0</value>
+          </Data>
+          <Data name="FACES">
+            <value>1.0</value>
+          </Data>
+          <Data name="VENDOR">
+            <value>A1 OUTDOOR</value>
+          </Data>
+          <Data name="LATITUDE">
+            <value>-6.197852</value>
+          </Data>
+          <Data name="LONGITUDE">
+            <value>39.215252</value>
+          </Data>
+        </ExtendedData>
+        <Point>
+          <coordinates>
+            39.215252,-6.197852,0
+          </coordinates>
+        </Point>
+      </Placemark>
+      <Placemark>
+        <name>Mazizini</name>
+        <description><![CDATA[SN: 9<br>REGION: Zanzibar<br>ROAD (From - To): Airport road<br>VISIBILITY: Airport-Kariakoo<br>ORIENTATION: Potrait<br>HEIGHT (M): 8<br>WIDTH (M): 4<br>TOTAL SQ.M: 32<br>INSTALLATION: 1<br>FACES: 1<br>VENDOR: ASHTON<br>LATITUDE: -6.196575<br>LONGITUDE: 39.21029]]></description>
+        <styleUrl>#icon-1899-9C27B0</styleUrl>
+        <ExtendedData>
+          <Data name="SN">
+            <value>9.0</value>
+          </Data>
+          <Data name="REGION">
+            <value>Zanzibar</value>
+          </Data>
+          <Data name="ROAD (From - To)">
+            <value>Airport road</value>
+          </Data>
+          <Data name="VISIBILITY">
+            <value>Airport-Kariakoo</value>
+          </Data>
+          <Data name="ORIENTATION">
+            <value>Potrait</value>
+          </Data>
+          <Data name="HEIGHT (M)">
+            <value>8.0</value>
+          </Data>
+          <Data name="WIDTH (M)">
+            <value>4.0</value>
+          </Data>
+          <Data name="TOTAL SQ.M">
+            <value>32.0</value>
+          </Data>
+          <Data name="INSTALLATION">
+            <value>1.0</value>
+          </Data>
+          <Data name="FACES">
+            <value>1.0</value>
+          </Data>
+          <Data name="VENDOR">
+            <value>ASHTON</value>
+          </Data>
+          <Data name="LATITUDE">
+            <value>-6.196575</value>
+          </Data>
+          <Data name="LONGITUDE">
+            <value>39.21029</value>
+          </Data>
+        </ExtendedData>
+        <Point>
+          <coordinates>
+            39.21029,-6.196575,0
+          </coordinates>
+        </Point>
+      </Placemark>
+      <Placemark>
+        <name>Amani Stadium Side A</name>
+        <description><![CDATA[SN: 10<br>REGION: Zanzibar<br>ROAD (From - To): Amani stadium road<br>VISIBILITY: Daraja bovu-Airport<br>ORIENTATION: Potrait<br>HEIGHT (M): 8<br>WIDTH (M): 4<br>TOTAL SQ.M: 32<br>INSTALLATION: 1<br>FACES: 1<br>VENDOR: ASHTON<br>LATITUDE: -6.164668<br>LONGITUDE: 39.226453]]></description>
+        <styleUrl>#icon-1899-9C27B0</styleUrl>
+        <ExtendedData>
+          <Data name="SN">
+            <value>10.0</value>
+          </Data>
+          <Data name="REGION">
+            <value>Zanzibar</value>
+          </Data>
+          <Data name="ROAD (From - To)">
+            <value>Amani stadium road</value>
+          </Data>
+          <Data name="VISIBILITY">
+            <value>Daraja bovu-Airport</value>
+          </Data>
+          <Data name="ORIENTATION">
+            <value>Potrait</value>
+          </Data>
+          <Data name="HEIGHT (M)">
+            <value>8.0</value>
+          </Data>
+          <Data name="WIDTH (M)">
+            <value>4.0</value>
+          </Data>
+          <Data name="TOTAL SQ.M">
+            <value>32.0</value>
+          </Data>
+          <Data name="INSTALLATION">
+            <value>1.0</value>
+          </Data>
+          <Data name="FACES">
+            <value>1.0</value>
+          </Data>
+          <Data name="VENDOR">
+            <value>ASHTON</value>
+          </Data>
+          <Data name="LATITUDE">
+            <value>-6.164668</value>
+          </Data>
+          <Data name="LONGITUDE">
+            <value>39.226453</value>
+          </Data>
+        </ExtendedData>
+        <Point>
+          <coordinates>
+            39.226453,-6.164668,0
+          </coordinates>
+        </Point>
+      </Placemark>
+      <Placemark>
+        <name>Amani Stadium Side B</name>
+        <description><![CDATA[SN: 11<br>REGION: Zanzibar<br>ROAD (From - To): Amani stadium road<br>VISIBILITY: Airport-Daraja bovu<br>ORIENTATION: Potrait<br>HEIGHT (M): 8<br>WIDTH (M): 4<br>TOTAL SQ.M: 32<br>INSTALLATION: 1<br>FACES: 1<br>VENDOR: ASHTON<br>LATITUDE: -6.164668<br>LONGITUDE: 39.226453]]></description>
+        <styleUrl>#icon-1899-9C27B0</styleUrl>
+        <ExtendedData>
+          <Data name="SN">
+            <value>11.0</value>
+          </Data>
+          <Data name="REGION">
+            <value>Zanzibar</value>
+          </Data>
+          <Data name="ROAD (From - To)">
+            <value>Amani stadium road</value>
+          </Data>
+          <Data name="VISIBILITY">
+            <value>Airport-Daraja bovu</value>
+          </Data>
+          <Data name="ORIENTATION">
+            <value>Potrait</value>
+          </Data>
+          <Data name="HEIGHT (M)">
+            <value>8.0</value>
+          </Data>
+          <Data name="WIDTH (M)">
+            <value>4.0</value>
+          </Data>
+          <Data name="TOTAL SQ.M">
+            <value>32.0</value>
+          </Data>
+          <Data name="INSTALLATION">
+            <value>1.0</value>
+          </Data>
+          <Data name="FACES">
+            <value>1.0</value>
+          </Data>
+          <Data name="VENDOR">
+            <value>ASHTON</value>
+          </Data>
+          <Data name="LATITUDE">
+            <value>-6.164668</value>
+          </Data>
+          <Data name="LONGITUDE">
+            <value>39.226453</value>
+          </Data>
+        </ExtendedData>
+        <Point>
+          <coordinates>
+            39.226453,-6.164668,0
+          </coordinates>
+        </Point>
+      </Placemark>
+      <Placemark>
+        <name>CCM Kisiwandui</name>
+        <description><![CDATA[SN: 12<br>REGION: Zanzibar<br>ROAD (From - To): Karume Road<br>VISIBILITY: Darajani-Kariakoo<br>ORIENTATION: Landscape<br>HEIGHT (M): 3<br>WIDTH (M): 6<br>TOTAL SQ.M: 18<br>INSTALLATION: 1<br>FACES: 1<br>VENDOR: CCM<br>LATITUDE: -6.164413<br>LONGITUDE: 39.194407]]></description>
+        <styleUrl>#icon-1899-9C27B0</styleUrl>
+        <ExtendedData>
+          <Data name="SN">
+            <value>12.0</value>
+          </Data>
+          <Data name="REGION">
+            <value>Zanzibar</value>
+          </Data>
+          <Data name="ROAD (From - To)">
+            <value>Karume Road</value>
+          </Data>
+          <Data name="VISIBILITY">
+            <value>Darajani-Kariakoo</value>
+          </Data>
+          <Data name="ORIENTATION">
+            <value>Landscape</value>
+          </Data>
+          <Data name="HEIGHT (M)">
+            <value>3.0</value>
+          </Data>
+          <Data name="WIDTH (M)">
+            <value>6.0</value>
+          </Data>
+          <Data name="TOTAL SQ.M">
+            <value>18.0</value>
+          </Data>
+          <Data name="INSTALLATION">
+            <value>1.0</value>
+          </Data>
+          <Data name="FACES">
+            <value>1.0</value>
+          </Data>
+          <Data name="VENDOR">
+            <value>CCM</value>
+          </Data>
+          <Data name="LATITUDE">
+            <value>-6.164413</value>
+          </Data>
+          <Data name="LONGITUDE">
+            <value>39.194407</value>
+          </Data>
+        </ExtendedData>
+        <Point>
+          <coordinates>
+            39.194407,-6.164413,0
+          </coordinates>
+        </Point>
+      </Placemark>
+      <Placemark>
+        <name>Kilimani Junction</name>
+        <description><![CDATA[SN: 13<br>REGION: Zanzibar<br>ROAD (From - To): Nyerere Road<br>VISIBILITY: Kariakoo-Airport<br>ORIENTATION: Potrait<br>HEIGHT (M): 9<br>WIDTH (M): 6<br>TOTAL SQ.M: 54<br>INSTALLATION: 1<br>FACES: 1<br>VENDOR: MOZETI<br>LATITUDE: -6.177634<br>LONGITUDE: 39.203819]]></description>
+        <styleUrl>#icon-1899-9C27B0</styleUrl>
+        <ExtendedData>
+          <Data name="SN">
+            <value>13.0</value>
+          </Data>
+          <Data name="REGION">
+            <value>Zanzibar</value>
+          </Data>
+          <Data name="ROAD (From - To)">
+            <value>Nyerere Road</value>
+          </Data>
+          <Data name="VISIBILITY">
+            <value>Kariakoo-Airport</value>
+          </Data>
+          <Data name="ORIENTATION">
+            <value>Potrait</value>
+          </Data>
+          <Data name="HEIGHT (M)">
+            <value>9.0</value>
+          </Data>
+          <Data name="WIDTH (M)">
+            <value>6.0</value>
+          </Data>
+          <Data name="TOTAL SQ.M">
+            <value>54.0</value>
+          </Data>
+          <Data name="INSTALLATION">
+            <value>1.0</value>
+          </Data>
+          <Data name="FACES">
+            <value>1.0</value>
+          </Data>
+          <Data name="VENDOR">
+            <value>MOZETI</value>
+          </Data>
+          <Data name="LATITUDE">
+            <value>-6.177634</value>
+          </Data>
+          <Data name="LONGITUDE">
+            <value>39.203819</value>
+          </Data>
+        </ExtendedData>
+        <Point>
+          <coordinates>
+            39.203819,-6.177634,0
+          </coordinates>
+        </Point>
+      </Placemark>
+      <Placemark>
+        <name>Darajani/Kisiwandui</name>
+        <description><![CDATA[SN: 14<br>REGION: Zanzibar<br>ROAD (From - To): Michenzani Road<br>VISIBILITY: Kariakoo-Darajani<br>ORIENTATION: Potrait<br>HEIGHT (M): 8<br>WIDTH (M): 4<br>TOTAL SQ.M: 32<br>INSTALLATION: 1<br>FACES: 1<br>VENDOR: ASHTON<br>LATITUDE: -6.164897<br>LONGITUDE: 39.195513]]></description>
+        <styleUrl>#icon-1899-9C27B0</styleUrl>
+        <ExtendedData>
+          <Data name="SN">
+            <value>14.0</value>
+          </Data>
+          <Data name="REGION">
+            <value>Zanzibar</value>
+          </Data>
+          <Data name="ROAD (From - To)">
+            <value>Michenzani Road</value>
+          </Data>
+          <Data name="VISIBILITY">
+            <value>Kariakoo-Darajani</value>
+          </Data>
+          <Data name="ORIENTATION">
+            <value>Potrait</value>
+          </Data>
+          <Data name="HEIGHT (M)">
+            <value>8.0</value>
+          </Data>
+          <Data name="WIDTH (M)">
+            <value>4.0</value>
+          </Data>
+          <Data name="TOTAL SQ.M">
+            <value>32.0</value>
+          </Data>
+          <Data name="INSTALLATION">
+            <value>1.0</value>
+          </Data>
+          <Data name="FACES">
+            <value>1.0</value>
+          </Data>
+          <Data name="VENDOR">
+            <value>ASHTON</value>
+          </Data>
+          <Data name="LATITUDE">
+            <value>-6.164897</value>
+          </Data>
+          <Data name="LONGITUDE">
+            <value>39.195513</value>
+          </Data>
+        </ExtendedData>
+        <Point>
+          <coordinates>
+            39.195513,-6.164897,0
+          </coordinates>
+        </Point>
+      </Placemark>
+      <Placemark>
+        <name>Kizmkazi Roundabout</name>
+        <description><![CDATA[SN: 15<br>REGION: Pemba<br>ROAD (From - To): Kizmkazi Road<br>VISIBILITY: Mjini-Kizmkazi<br>ORIENTATION: Potrait<br>HEIGHT (M): 10<br>WIDTH (M): 8<br>TOTAL SQ.M: 80<br>INSTALLATION: 1<br>FACES: 1<br>VENDOR: MOZETI<br>LATITUDE: -6.41826<br>LONGITUDE: 39.484603]]></description>
+        <styleUrl>#icon-1899-9C27B0</styleUrl>
+        <ExtendedData>
+          <Data name="SN">
+            <value>15.0</value>
+          </Data>
+          <Data name="REGION">
+            <value>Pemba</value>
+          </Data>
+          <Data name="ROAD (From - To)">
+            <value>Kizmkazi Road</value>
+          </Data>
+          <Data name="VISIBILITY">
+            <value>Mjini-Kizmkazi</value>
+          </Data>
+          <Data name="ORIENTATION">
+            <value>Potrait</value>
+          </Data>
+          <Data name="HEIGHT (M)">
+            <value>10.0</value>
+          </Data>
+          <Data name="WIDTH (M)">
+            <value>8.0</value>
+          </Data>
+          <Data name="TOTAL SQ.M">
+            <value>80.0</value>
+          </Data>
+          <Data name="INSTALLATION">
+            <value>1.0</value>
+          </Data>
+          <Data name="FACES">
+            <value>1.0</value>
+          </Data>
+          <Data name="VENDOR">
+            <value>MOZETI</value>
+          </Data>
+          <Data name="LATITUDE">
+            <value>-6.41826</value>
+          </Data>
+          <Data name="LONGITUDE">
+            <value>39.484603</value>
+          </Data>
+        </ExtendedData>
+        <Point>
+          <coordinates>
+            39.484603,-6.41826,0
+          </coordinates>
+        </Point>
+      </Placemark>
+      <Placemark>
+        <name>Michenzani Round About</name>
+        <description><![CDATA[SN: 16<br>REGION: Zanzibar<br>ROAD (From - To): Karume Rd<br>VISIBILITY: Michenzani Round About<br>ORIENTATION: Potrait<br>HEIGHT (M): 10<br>WIDTH (M): 8<br>TOTAL SQ.M: 80<br>INSTALLATION: 1<br>FACES: 1<br>VENDOR: A1 OUTDOOR<br>LATITUDE: -6.165294<br>LONGITUDE: 39.19866]]></description>
+        <styleUrl>#icon-1899-9C27B0</styleUrl>
+        <ExtendedData>
+          <Data name="SN">
+            <value>16.0</value>
+          </Data>
+          <Data name="REGION">
+            <value>Zanzibar</value>
+          </Data>
+          <Data name="ROAD (From - To)">
+            <value>Karume Rd</value>
+          </Data>
+          <Data name="VISIBILITY">
+            <value>Michenzani Round About</value>
+          </Data>
+          <Data name="ORIENTATION">
+            <value>Potrait</value>
+          </Data>
+          <Data name="HEIGHT (M)">
+            <value>10.0</value>
+          </Data>
+          <Data name="WIDTH (M)">
+            <value>8.0</value>
+          </Data>
+          <Data name="TOTAL SQ.M">
+            <value>80.0</value>
+          </Data>
+          <Data name="INSTALLATION">
+            <value>1.0</value>
+          </Data>
+          <Data name="FACES">
+            <value>1.0</value>
+          </Data>
+          <Data name="VENDOR">
+            <value>A1 OUTDOOR</value>
+          </Data>
+          <Data name="LATITUDE">
+            <value>-6.165294</value>
+          </Data>
+          <Data name="LONGITUDE">
+            <value>39.19866</value>
+          </Data>
+        </ExtendedData>
+        <Point>
+          <coordinates>
+            39.19866,-6.165294,0
+          </coordinates>
+        </Point>
+      </Placemark>
+      <Placemark>
+        <name>J-Malawi/Thabit (Kinazini)</name>
+        <description><![CDATA[SN: 17<br>REGION: Zanzibar<br>ROAD (From - To): Malawi rd<br>VISIBILITY: J-Malawai/Thabit (Kinazini)<br>ORIENTATION: Landscape<br>HEIGHT (M): 4.5<br>WIDTH (M): 18<br>TOTAL SQ.M: 81<br>INSTALLATION: 1<br>FACES: 1<br>VENDOR: A1 OUTDOOR<br>LATITUDE: -6.157281<br>LONGITUDE: 39.204029]]></description>
+        <styleUrl>#icon-1899-9C27B0</styleUrl>
+        <ExtendedData>
+          <Data name="SN">
+            <value>17.0</value>
+          </Data>
+          <Data name="REGION">
+            <value>Zanzibar</value>
+          </Data>
+          <Data name="ROAD (From - To)">
+            <value>Malawi rd</value>
+          </Data>
+          <Data name="VISIBILITY">
+            <value>J-Malawai/Thabit (Kinazini)</value>
+          </Data>
+          <Data name="ORIENTATION">
+            <value>Landscape</value>
+          </Data>
+          <Data name="HEIGHT (M)">
+            <value>4.5</value>
+          </Data>
+          <Data name="WIDTH (M)">
+            <value>18.0</value>
+          </Data>
+          <Data name="TOTAL SQ.M">
+            <value>81.0</value>
+          </Data>
+          <Data name="INSTALLATION">
+            <value>1.0</value>
+          </Data>
+          <Data name="FACES">
+            <value>1.0</value>
+          </Data>
+          <Data name="VENDOR">
+            <value>A1 OUTDOOR</value>
+          </Data>
+          <Data name="LATITUDE">
+            <value>-6.157281</value>
+          </Data>
+          <Data name="LONGITUDE">
+            <value>39.204029</value>
+          </Data>
+        </ExtendedData>
+        <Point>
+          <coordinates>
+            39.204029,-6.157281,0
+          </coordinates>
+        </Point>
+      </Placemark>
+      <Placemark>
+        <name>Kariakooo</name>
+        <description><![CDATA[SN: 18<br>REGION: Zanzibar<br>ROAD (From - To): Thabit Kombo<br>VISIBILITY: Kwerekwe-Mjin darajani<br>ORIENTATION: Landscape<br>HEIGHT (M): 4.5<br>WIDTH (M): 18<br>TOTAL SQ.M: 81<br>INSTALLATION: 1<br>FACES: 1<br>VENDOR: A1 OUTDOOR<br>LATITUDE: -6.16583<br>LONGITUDE: 39.203768]]></description>
+        <styleUrl>#icon-1899-9C27B0</styleUrl>
+        <ExtendedData>
+          <Data name="SN">
+            <value>18.0</value>
+          </Data>
+          <Data name="REGION">
+            <value>Zanzibar</value>
+          </Data>
+          <Data name="ROAD (From - To)">
+            <value>Thabit Kombo</value>
+          </Data>
+          <Data name="VISIBILITY">
+            <value>Kwerekwe-Mjin darajani</value>
+          </Data>
+          <Data name="ORIENTATION">
+            <value>Landscape</value>
+          </Data>
+          <Data name="HEIGHT (M)">
+            <value>4.5</value>
+          </Data>
+          <Data name="WIDTH (M)">
+            <value>18.0</value>
+          </Data>
+          <Data name="TOTAL SQ.M">
+            <value>81.0</value>
+          </Data>
+          <Data name="INSTALLATION">
+            <value>1.0</value>
+          </Data>
+          <Data name="FACES">
+            <value>1.0</value>
+          </Data>
+          <Data name="VENDOR">
+            <value>A1 OUTDOOR</value>
+          </Data>
+          <Data name="LATITUDE">
+            <value>-6.16583</value>
+          </Data>
+          <Data name="LONGITUDE">
+            <value>39.203768</value>
+          </Data>
+        </ExtendedData>
+        <Point>
+          <coordinates>
+            39.203768,-6.16583,0
+          </coordinates>
+        </Point>
+      </Placemark>
+      <Placemark>
+        <name>Zanzibar Airport (Traffic to Chukwani)</name>
+        <description><![CDATA[SN: 19<br>REGION: Zanzibar<br>ROAD (From - To): Airport  Rd<br>VISIBILITY: Zanzibar Airport (Traffic to Chukwani)<br>ORIENTATION: Potrait<br>HEIGHT (M): 10<br>WIDTH (M): 8<br>TOTAL SQ.M: 80<br>INSTALLATION: 1<br>FACES: 1<br>VENDOR: A1 OUTDOOR<br>LATITUDE: -6.217368<br>LONGITUDE: 39.220516]]></description>
+        <styleUrl>#icon-1899-9C27B0</styleUrl>
+        <ExtendedData>
+          <Data name="SN">
+            <value>19.0</value>
+          </Data>
+          <Data name="REGION">
+            <value>Zanzibar</value>
+          </Data>
+          <Data name="ROAD (From - To)">
+            <value>Airport  Rd</value>
+          </Data>
+          <Data name="VISIBILITY">
+            <value>Zanzibar Airport (Traffic to Chukwani)</value>
+          </Data>
+          <Data name="ORIENTATION">
+            <value>Potrait</value>
+          </Data>
+          <Data name="HEIGHT (M)">
+            <value>10.0</value>
+          </Data>
+          <Data name="WIDTH (M)">
+            <value>8.0</value>
+          </Data>
+          <Data name="TOTAL SQ.M">
+            <value>80.0</value>
+          </Data>
+          <Data name="INSTALLATION">
+            <value>1.0</value>
+          </Data>
+          <Data name="FACES">
+            <value>1.0</value>
+          </Data>
+          <Data name="VENDOR">
+            <value>A1 OUTDOOR</value>
+          </Data>
+          <Data name="LATITUDE">
+            <value>-6.217368</value>
+          </Data>
+          <Data name="LONGITUDE">
+            <value>39.220516</value>
+          </Data>
+        </ExtendedData>
+        <Point>
+          <coordinates>
+            39.220516,-6.217368,0
+          </coordinates>
+        </Point>
+      </Placemark>
+      <Placemark>
+        <name>Mwanakwerekwe Roundabout</name>
+        <description><![CDATA[SN: 20<br>REGION: Zanzibar<br>ROAD (From - To): Mwanakereke Rd<br>VISIBILITY: Traffic to Fuoni<br>ORIENTATION: Landscape<br>HEIGHT (M): 4<br>WIDTH (M): 8<br>TOTAL SQ.M: 32<br>INSTALLATION: 1<br>FACES: 1<br>VENDOR: ASHTON<br>LATITUDE: -6.176675<br>LONGITUDE: 39.223627]]></description>
+        <styleUrl>#icon-1899-9C27B0</styleUrl>
+        <ExtendedData>
+          <Data name="SN">
+            <value>20.0</value>
+          </Data>
+          <Data name="REGION">
+            <value>Zanzibar</value>
+          </Data>
+          <Data name="ROAD (From - To)">
+            <value>Mwanakereke Rd</value>
+          </Data>
+          <Data name="VISIBILITY">
+            <value>Traffic to Fuoni</value>
+          </Data>
+          <Data name="ORIENTATION">
+            <value>Landscape</value>
+          </Data>
+          <Data name="HEIGHT (M)">
+            <value>4.0</value>
+          </Data>
+          <Data name="WIDTH (M)">
+            <value>8.0</value>
+          </Data>
+          <Data name="TOTAL SQ.M">
+            <value>32.0</value>
+          </Data>
+          <Data name="INSTALLATION">
+            <value>1.0</value>
+          </Data>
+          <Data name="FACES">
+            <value>1.0</value>
+          </Data>
+          <Data name="VENDOR">
+            <value>ASHTON</value>
+          </Data>
+          <Data name="LATITUDE">
+            <value>-6.176675</value>
+          </Data>
+          <Data name="LONGITUDE">
+            <value>39.223627</value>
+          </Data>
+        </ExtendedData>
+        <Point>
+          <coordinates>
+            39.223627,-6.176675,0
+          </coordinates>
+        </Point>
+      </Placemark>
+    </Folder>
+  </Document>
+</kml>
