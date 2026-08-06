@@ -1,0 +1,44 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportHeight="108"
+    android:viewportWidth="108">
+    <!-- Billboard panel -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M30,34 L78,34 L78,60 L30,60 Z" />
+    <!-- Billboard border accent -->
+    <path
+        android:fillColor="#0D9668"
+        android:pathData="M30,34 L78,34 L78,37 L30,37 Z" />
+    <!-- Left post -->
+    <path
+        android:fillColor="#BBBBBB"
+        android:pathData="M42,60 L44,60 L44,76 L42,76 Z" />
+    <!-- Right post -->
+    <path
+        android:fillColor="#BBBBBB"
+        android:pathData="M64,60 L66,60 L66,76 L64,76 Z" />
+    <!-- Ground line -->
+    <path
+        android:fillColor="#BBBBBB"
+        android:pathData="M36,76 L72,76 L72,77.5 L36,77.5 Z" />
+    <!-- Letter B -->
+    <path
+        android:fillColor="#065F46"
+        android:pathData="M42,41 L42,56 L51,56 C54.5,56 57,54 57,52 C57,50.2 55.5,48.7 53.5,48.2 C55,47.5 56,46.2 56,44.8 C56,42.5 53.8,41 51,41 Z M46,44 L50.5,44 C51.8,44 52.8,44.7 52.8,45.6 C52.8,46.5 51.8,47.2 50.5,47.2 L46,47.2 Z M46,49.8 L51,49.8 C52.5,49.8 53.5,50.6 53.5,51.7 C53.5,52.8 52.5,53.5 51,53.5 L46,53.5 Z" />
+    <!-- 360 text -->
+    <path
+        android:fillColor="#0D9668"
+        android:pathData="M60,48 L60,56 L62.5,56 L62.5,53 L65,53 L65,51.5 L62.5,51.5 L62.5,49.5 L66,49.5 L66,48 Z" />
+    <!-- Location pin dot -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M54,29 C55.65,29 57,30.35 57,32 C57,33.65 55.65,35 54,35 C52.35,35 51,33.65 51,32 C51,30.35 52.35,29 54,29 Z" />
+    <!-- Location pin ring -->
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#10B981"
+        android:strokeWidth="1.5"
+        android:pathData="M54,26 C57.3,26 60,28.7 60,32 C60,35.3 57.3,38 54,38 C50.7,38 48,35.3 48,32 C48,28.7 50.7,26 54,26 Z" />
+</vector>

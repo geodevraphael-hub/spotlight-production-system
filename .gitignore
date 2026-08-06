@@ -40,3 +40,17 @@ next-env.d.ts
 /.wrangler/
 /outputs/
 /work/
+*.tsbuildinfo
+*.tgz
+.whatsapp-*.tmp
+
+# app artifacts
+/public/downloads/
+
+# mobile build artifacts
+/mobile/node_modules/
+/mobile/dist/
+/mobile/android/app/build/
+/mobile/android/.gradle/
+/mobile/*.png
+/mobile/*.xml

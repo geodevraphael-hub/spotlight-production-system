@@ -13,12 +13,12 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "KMK OOH Planner | Dar es Salaam",
+  title: "Spotlight OOH",
   description:
-    "Interactive outdoor media inventory and campaign planning map for Dar es Salaam.",
+    "Interactive outdoor media inventory and campaign planning map.",
   icons: {
-    icon: "/favicon.svg",
-    shortcut: "/favicon.svg",
+    icon: [{ url: "/favicon.svg?v=billboard360-20260731", type: "image/svg+xml" }],
+    shortcut: [{ url: "/favicon.svg?v=billboard360-20260731", type: "image/svg+xml" }],
   },
 };
 
@@ -28,9 +28,10 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+        suppressHydrationWarning
       >
         {children}
       </body>

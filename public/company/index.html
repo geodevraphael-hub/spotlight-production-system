@@ -1,0 +1,804 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Genesis Advertising Limited | Creative Advertising Company</title>
+  <meta name="description" content="Genesis Advertising Limited is a premium advertising company for brand strategy, creative direction, campaign execution, digital communication, production and experiential marketing." />
+  <meta name="theme-color" content="#050505" />
+  <style>
+    :root {
+      --ink: #f8f2e7;
+      --muted: rgba(248, 242, 231, .68);
+      --soft: rgba(248, 242, 231, .10);
+      --line: rgba(248, 242, 231, .18);
+      --gold: #d7b46a;
+      --gold-2: #ffdf94;
+      --amber: #9b6a2d;
+      --black: #050505;
+      --panel: rgba(16, 15, 13, .70);
+      --green: #68e1b5;
+      --blue: #88b8ff;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      background:
+        radial-gradient(circle at 16% 10%, rgba(215,180,106,.28), transparent 32rem),
+        radial-gradient(circle at 78% 0%, rgba(104,225,181,.14), transparent 34rem),
+        radial-gradient(circle at 72% 76%, rgba(136,184,255,.10), transparent 30rem),
+        linear-gradient(135deg, #050505 0%, #0c0b09 48%, #070707 100%);
+      color: var(--ink);
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      background-image:
+        linear-gradient(rgba(255,255,255,.035) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,.035) 1px, transparent 1px);
+      background-size: 72px 72px;
+      mask-image: linear-gradient(to bottom, rgba(0,0,0,.72), transparent 88%);
+      z-index: 0;
+    }
+
+    .grain {
+      position: fixed;
+      inset: -20%;
+      pointer-events: none;
+      opacity: .12;
+      z-index: 1;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 240 240' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.55'/%3E%3C/svg%3E");
+      animation: drift 9s steps(6) infinite;
+    }
+
+    @keyframes drift {
+      0%, 100% { transform: translate3d(0,0,0); }
+      50% { transform: translate3d(-3%,2%,0); }
+    }
+
+    .shell {
+      position: relative;
+      z-index: 2;
+      width: min(1180px, calc(100% - 36px));
+      margin: 0 auto;
+    }
+
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 18px;
+      padding: 28px 0;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 13px;
+      letter-spacing: .14em;
+      text-transform: uppercase;
+      font-size: 12px;
+      color: var(--muted);
+      font-weight: 800;
+    }
+
+    .mark {
+      width: 42px;
+      height: 42px;
+      border: 1px solid var(--line);
+      border-radius: 50%;
+      display: grid;
+      place-items: center;
+      background: linear-gradient(145deg, rgba(215,180,106,.24), rgba(255,255,255,.03));
+      box-shadow: 0 0 34px rgba(215,180,106,.18);
+    }
+
+    .mark svg { width: 22px; height: 22px; }
+
+    nav {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: rgba(255,255,255,.04);
+      backdrop-filter: blur(18px);
+    }
+
+    nav a {
+      color: var(--muted);
+      text-decoration: none;
+      font-size: 12px;
+      font-weight: 750;
+      padding: 10px 14px;
+      border-radius: 999px;
+      transition: .25s ease;
+    }
+
+    nav a:hover { color: var(--ink); background: rgba(255,255,255,.08); }
+
+    .hero {
+      min-height: 84vh;
+      display: grid;
+      grid-template-columns: 1.03fr .97fr;
+      align-items: center;
+      gap: 46px;
+      padding: 56px 0 72px;
+    }
+
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      border: 1px solid rgba(215,180,106,.32);
+      border-radius: 999px;
+      padding: 9px 13px;
+      color: var(--gold-2);
+      font-size: 12px;
+      font-weight: 800;
+      letter-spacing: .13em;
+      text-transform: uppercase;
+      background: rgba(215,180,106,.08);
+    }
+
+    .pulse {
+      width: 8px;
+      height: 8px;
+      background: var(--green);
+      border-radius: 50%;
+      box-shadow: 0 0 0 0 rgba(104,225,181,.8);
+      animation: pulse 1.8s infinite;
+    }
+
+    @keyframes pulse {
+      70% { box-shadow: 0 0 0 12px rgba(104,225,181,0); }
+      100% { box-shadow: 0 0 0 0 rgba(104,225,181,0); }
+    }
+
+    h1 {
+      margin: 24px 0 22px;
+      font-size: clamp(48px, 7.8vw, 112px);
+      line-height: .86;
+      letter-spacing: -.075em;
+      max-width: 900px;
+    }
+
+    .gold-text {
+      background: linear-gradient(90deg, #fff8e9, var(--gold-2) 44%, #9b6a2d);
+      -webkit-background-clip: text;
+      color: transparent;
+    }
+
+    .lead {
+      color: var(--muted);
+      font-size: clamp(18px, 2vw, 23px);
+      line-height: 1.55;
+      max-width: 700px;
+      margin: 0 0 32px;
+    }
+
+    .actions { display: flex; flex-wrap: wrap; gap: 14px; }
+
+    .btn {
+      position: relative;
+      isolation: isolate;
+      overflow: hidden;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      padding: 15px 22px;
+      color: var(--ink);
+      text-decoration: none;
+      font-weight: 850;
+      font-size: 14px;
+      background: rgba(255,255,255,.05);
+      transition: transform .25s ease, border-color .25s ease, background .25s ease;
+    }
+
+    .btn.primary {
+      color: #15100a;
+      border-color: transparent;
+      background: linear-gradient(135deg, var(--gold-2), var(--gold) 55%, #8a5d24);
+      box-shadow: 0 20px 70px rgba(215,180,106,.22);
+    }
+
+    .btn::after {
+      content: "";
+      position: absolute;
+      inset: -40% auto -40% -70%;
+      width: 50%;
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,.55), transparent);
+      transform: rotate(18deg);
+      animation: sheen 4.4s infinite;
+      z-index: -1;
+    }
+
+    @keyframes sheen {
+      0%, 45% { left: -70%; }
+      70%, 100% { left: 130%; }
+    }
+
+    .btn:hover { transform: translateY(-2px); border-color: rgba(215,180,106,.55); }
+
+    .orbital {
+      position: relative;
+      min-height: 620px;
+      border: 1px solid var(--line);
+      border-radius: 42px;
+      background:
+        linear-gradient(145deg, rgba(255,255,255,.10), rgba(255,255,255,.025)),
+        radial-gradient(circle at 52% 34%, rgba(215,180,106,.24), transparent 22rem);
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.12), 0 30px 120px rgba(0,0,0,.46);
+      overflow: hidden;
+    }
+
+    canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
+
+    .glass-map {
+      position: absolute;
+      inset: 58px 42px;
+      border-radius: 34px;
+      background: rgba(7,7,7,.55);
+      border: 1px solid rgba(255,255,255,.14);
+      backdrop-filter: blur(18px);
+      overflow: hidden;
+    }
+
+    .glass-map::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background:
+        linear-gradient(90deg, transparent 0 49%, rgba(215,180,106,.22) 49% 50%, transparent 50%),
+        linear-gradient(transparent 0 49%, rgba(215,180,106,.18) 49% 50%, transparent 50%);
+      background-size: 72px 72px;
+      opacity: .42;
+    }
+
+    .route {
+      position: absolute;
+      width: 78%;
+      height: 48%;
+      left: 11%;
+      top: 26%;
+      border: 2px solid transparent;
+      border-top-color: rgba(255,223,148,.72);
+      border-right-color: rgba(255,223,148,.30);
+      border-radius: 50%;
+      transform: rotate(-16deg);
+      filter: drop-shadow(0 0 18px rgba(215,180,106,.35));
+      animation: orbitLine 9s linear infinite;
+    }
+
+    @keyframes orbitLine { to { transform: rotate(344deg); } }
+
+    .pin {
+      position: absolute;
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: var(--gold-2);
+      box-shadow: 0 0 0 9px rgba(215,180,106,.13), 0 0 36px rgba(255,223,148,.9);
+      animation: float 4.5s ease-in-out infinite;
+    }
+
+    .pin:nth-child(1) { left: 22%; top: 28%; }
+    .pin:nth-child(2) { left: 68%; top: 34%; animation-delay: .8s; background: var(--green); }
+    .pin:nth-child(3) { left: 44%; top: 62%; animation-delay: 1.5s; background: var(--blue); }
+    .pin:nth-child(4) { left: 76%; top: 68%; animation-delay: 2.1s; }
+
+    @keyframes float {
+      50% { transform: translateY(-13px) scale(1.08); }
+    }
+
+    .metric-card {
+      position: absolute;
+      border: 1px solid rgba(255,255,255,.14);
+      background: rgba(12,12,11,.74);
+      border-radius: 22px;
+      padding: 18px;
+      backdrop-filter: blur(18px);
+      box-shadow: 0 20px 70px rgba(0,0,0,.35);
+    }
+
+    .metric-card strong {
+      display: block;
+      font-size: 32px;
+      letter-spacing: -.05em;
+      color: var(--gold-2);
+    }
+
+    .metric-card span {
+      color: var(--muted);
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: .1em;
+      font-weight: 800;
+    }
+
+    .metric-a { left: 26px; bottom: 34px; }
+    .metric-b { right: 28px; top: 34px; }
+
+    section { padding: 78px 0; }
+
+    .section-title {
+      display: grid;
+      grid-template-columns: .62fr 1fr;
+      gap: 26px;
+      align-items: end;
+      margin-bottom: 30px;
+    }
+
+    h2 {
+      margin: 0;
+      font-size: clamp(34px, 5vw, 68px);
+      line-height: .94;
+      letter-spacing: -.055em;
+    }
+
+    .section-title p {
+      margin: 0;
+      color: var(--muted);
+      line-height: 1.7;
+      font-size: 17px;
+      max-width: 640px;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+    }
+
+    .card {
+      position: relative;
+      overflow: hidden;
+      min-height: 250px;
+      border: 1px solid var(--line);
+      border-radius: 30px;
+      padding: 26px;
+      background: var(--panel);
+      backdrop-filter: blur(16px);
+      transition: transform .28s ease, border-color .28s ease, background .28s ease;
+    }
+
+    .card::before {
+      content: "";
+      position: absolute;
+      inset: auto -20% -40% 10%;
+      height: 160px;
+      background: radial-gradient(circle, rgba(215,180,106,.22), transparent 70%);
+      opacity: .75;
+    }
+
+    .card:hover {
+      transform: translateY(-7px);
+      border-color: rgba(215,180,106,.42);
+      background: rgba(28,25,20,.78);
+    }
+
+    .icon {
+      width: 46px;
+      height: 46px;
+      border-radius: 16px;
+      display: grid;
+      place-items: center;
+      background: rgba(215,180,106,.12);
+      color: var(--gold-2);
+      border: 1px solid rgba(215,180,106,.22);
+      margin-bottom: 30px;
+    }
+
+    .card h3 {
+      margin: 0 0 12px;
+      font-size: 21px;
+      letter-spacing: -.02em;
+    }
+
+    .card p {
+      margin: 0;
+      color: var(--muted);
+      line-height: 1.65;
+    }
+
+    .timeline {
+      display: grid;
+      gap: 12px;
+      border: 1px solid var(--line);
+      border-radius: 34px;
+      padding: 18px;
+      background: rgba(255,255,255,.04);
+    }
+
+    .step {
+      display: grid;
+      grid-template-columns: 56px 1fr auto;
+      gap: 18px;
+      align-items: center;
+      padding: 18px;
+      border-radius: 24px;
+      border: 1px solid rgba(255,255,255,.09);
+      background: rgba(0,0,0,.22);
+    }
+
+    .num {
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      display: grid;
+      place-items: center;
+      font-weight: 900;
+      color: #120e07;
+      background: linear-gradient(135deg, var(--gold-2), var(--gold));
+    }
+
+    .step h3 { margin: 0 0 5px; }
+    .step p { margin: 0; color: var(--muted); }
+    .tag {
+      color: var(--green);
+      border: 1px solid rgba(104,225,181,.28);
+      padding: 8px 10px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 850;
+      text-transform: uppercase;
+      letter-spacing: .09em;
+    }
+
+    .proof {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+    }
+
+    .certificate {
+      border: 1px solid rgba(215,180,106,.34);
+      border-radius: 34px;
+      padding: 32px;
+      background:
+        linear-gradient(145deg, rgba(215,180,106,.13), rgba(255,255,255,.035)),
+        rgba(7,7,7,.62);
+    }
+
+    .certificate small {
+      color: var(--gold-2);
+      text-transform: uppercase;
+      letter-spacing: .14em;
+      font-weight: 900;
+    }
+
+    .certificate h3 {
+      margin: 16px 0;
+      font-size: clamp(28px, 4vw, 48px);
+      line-height: .98;
+      letter-spacing: -.045em;
+    }
+
+    .certificate p { color: var(--muted); line-height: 1.7; }
+
+    .showcase {
+      display: grid;
+      align-content: end;
+      min-height: 420px;
+      border-radius: 34px;
+      border: 1px solid var(--line);
+      overflow: hidden;
+      background:
+        radial-gradient(circle at 72% 26%, rgba(255,223,148,.42), transparent 8rem),
+        radial-gradient(circle at 36% 56%, rgba(104,225,181,.20), transparent 12rem),
+        linear-gradient(145deg, rgba(255,255,255,.08), rgba(255,255,255,.02));
+    }
+
+    .screen-stack {
+      position: relative;
+      min-height: 320px;
+      margin: 28px;
+    }
+
+    .screen {
+      position: absolute;
+      border: 1px solid rgba(255,255,255,.18);
+      border-radius: 22px;
+      background: rgba(5,5,5,.68);
+      backdrop-filter: blur(16px);
+      box-shadow: 0 30px 100px rgba(0,0,0,.42);
+    }
+
+    .screen.one {
+      left: 0;
+      top: 24px;
+      width: 76%;
+      height: 210px;
+      transform: rotate(-4deg);
+    }
+
+    .screen.two {
+      right: 0;
+      bottom: 0;
+      width: 55%;
+      height: 184px;
+      transform: rotate(5deg);
+    }
+
+    .bars { padding: 24px; display: grid; gap: 12px; }
+    .bar { height: 12px; border-radius: 999px; background: rgba(255,255,255,.10); overflow: hidden; }
+    .bar i { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, var(--gold), var(--green)); animation: fill 4s ease-in-out infinite alternate; }
+    .bar:nth-child(2) i { width: 72%; animation-delay: .4s; }
+    .bar:nth-child(3) i { width: 48%; animation-delay: .8s; }
+    .bar:nth-child(4) i { width: 86%; animation-delay: 1.2s; }
+
+    @keyframes fill {
+      from { transform: translateX(-22%); }
+      to { transform: translateX(0); }
+    }
+
+    .cta {
+      text-align: center;
+      border: 1px solid rgba(215,180,106,.34);
+      border-radius: 42px;
+      padding: 58px 28px;
+      background:
+        radial-gradient(circle at 50% 0%, rgba(215,180,106,.28), transparent 20rem),
+        rgba(255,255,255,.045);
+    }
+
+    .cta h2 { margin-bottom: 18px; }
+    .cta p { color: var(--muted); max-width: 710px; margin: 0 auto 26px; line-height: 1.7; }
+
+    footer {
+      display: flex;
+      justify-content: space-between;
+      gap: 18px;
+      padding: 34px 0 48px;
+      color: rgba(248,242,231,.52);
+      font-size: 13px;
+      border-top: 1px solid var(--line);
+    }
+
+    .reveal {
+      opacity: 0;
+      transform: translateY(26px);
+      transition: opacity .7s ease, transform .7s ease;
+    }
+
+    .reveal.show {
+      opacity: 1;
+      transform: none;
+    }
+
+    @media (max-width: 920px) {
+      header, footer { flex-direction: column; align-items: flex-start; }
+      nav { width: 100%; overflow-x: auto; justify-content: flex-start; }
+      .hero, .section-title, .proof { grid-template-columns: 1fr; }
+      .orbital { min-height: 520px; }
+      .grid { grid-template-columns: 1fr; }
+      .step { grid-template-columns: 48px 1fr; }
+      .tag { grid-column: 2; width: max-content; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
+    }
+  </style>
+</head>
+<body>
+  <div class="grain"></div>
+  <header class="shell">
+    <a class="brand" href="#top" aria-label="Genesis Advertising Limited">
+      <span class="mark" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none">
+          <path d="M12 2.5 19.8 7v10L12 21.5 4.2 17V7L12 2.5Z" stroke="currentColor" stroke-width="1.7"/>
+          <path d="M8 12h8M12 8v8" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+        </svg>
+      </span>
+      Genesis Advertising Limited
+    </a>
+    <nav aria-label="Site navigation">
+      <a href="#services">Services</a>
+      <a href="#workflow">Workflow</a>
+      <a href="#company">Company</a>
+      <a href="#contact">Contact</a>
+    </nav>
+  </header>
+
+  <main id="top">
+    <section class="shell hero">
+      <div>
+        <span class="eyebrow"><span class="pulse"></span> Creative advertising company</span>
+        <h1>Ideas shaped into <span class="gold-text">market presence</span>.</h1>
+        <p class="lead">Genesis Advertising Limited builds refined brand experiences, persuasive campaigns and high-impact communication systems for companies that want to be seen, remembered and chosen.</p>
+        <div class="actions">
+          <a class="btn primary" href="#contact">Start a conversation</a>
+          <a class="btn" href="#services">Explore services</a>
+        </div>
+      </div>
+
+      <div class="orbital" aria-label="Animated abstract creative system">
+        <canvas id="stars"></canvas>
+        <div class="glass-map">
+          <div class="route"></div>
+          <span class="pin"></span>
+          <span class="pin"></span>
+          <span class="pin"></span>
+          <span class="pin"></span>
+        </div>
+        <div class="metric-card metric-a">
+          <strong>360</strong>
+          <span>Brand view</span>
+        </div>
+        <div class="metric-card metric-b">
+          <strong>Live</strong>
+          <span>Creative control</span>
+        </div>
+      </div>
+    </section>
+
+    <section class="shell reveal" id="services">
+      <div class="section-title">
+        <h2>A complete creative partner.</h2>
+        <p>Built for brands that need strong identity, disciplined campaign thinking, precise execution and communication work that feels premium across every customer touchpoint.</p>
+      </div>
+      <div class="grid">
+        <article class="card">
+          <div class="icon">01</div>
+          <h3>Brand strategy</h3>
+          <p>Define positioning, messaging, visual direction and market narratives that make the brand easier to understand and harder to ignore.</p>
+        </article>
+        <article class="card">
+          <div class="icon">02</div>
+          <h3>Creative campaigns</h3>
+          <p>Develop concepts, copy, art direction and campaign systems that connect business objectives with memorable audience experiences.</p>
+        </article>
+        <article class="card">
+          <div class="icon">03</div>
+          <h3>Design and production</h3>
+          <p>Create polished brand assets, print-ready artwork, digital content, motion pieces, presentation systems and production-ready materials.</p>
+        </article>
+        <article class="card">
+          <div class="icon">04</div>
+          <h3>Digital communication</h3>
+          <p>Shape social, web, email and content experiences that preserve brand quality while moving customers toward action.</p>
+        </article>
+        <article class="card">
+          <div class="icon">05</div>
+          <h3>Experiential marketing</h3>
+          <p>Design activations, launches and brand moments that turn campaigns into physical, memorable customer experiences.</p>
+        </article>
+        <article class="card">
+          <div class="icon">06</div>
+          <h3>Campaign management</h3>
+          <p>Coordinate timelines, approvals, vendors, delivery requirements and reporting so creative work reaches the market cleanly.</p>
+        </article>
+      </div>
+    </section>
+
+    <section class="shell reveal" id="workflow">
+      <div class="section-title">
+        <h2>From brief to presence.</h2>
+        <p>Our workflow turns business ambition into visible, consistent and professionally managed communication across brand, digital, print and experiential channels.</p>
+      </div>
+      <div class="timeline">
+        <div class="step">
+          <div class="num">1</div>
+          <div><h3>Discover the brand</h3><p>Understand the company, audience, market pressure, commercial goal and existing communication gaps.</p></div>
+          <span class="tag">Discovery</span>
+        </div>
+        <div class="step">
+          <div class="num">2</div>
+          <div><h3>Shape the idea</h3><p>Develop the strategic direction, concept language, visual mood and campaign architecture.</p></div>
+          <span class="tag">Strategy</span>
+        </div>
+        <div class="step">
+          <div class="num">3</div>
+          <div><h3>Produce the system</h3><p>Design, write, refine and prepare the communication assets needed for launch.</p></div>
+          <span class="tag">Execution</span>
+        </div>
+        <div class="step">
+          <div class="num">4</div>
+          <div><h3>Launch and optimize</h3><p>Coordinate rollout, monitor response, improve delivery and keep the brand experience consistent.</p></div>
+          <span class="tag">Growth</span>
+        </div>
+      </div>
+    </section>
+
+    <section class="shell proof reveal" id="company">
+      <div class="certificate">
+        <small>Corporate identity</small>
+        <h3>GENESIS ADVERTISING LIMITED</h3>
+        <p>The company certificate provided confirms a change of name from G4 REPUBLIK LIMITED to GENESIS ADVERTISING LIMITED, entered on the register on 11 July 2024 in Tanzania.</p>
+        <p>This website positions Genesis Advertising Limited as a premium advertising company focused on creative quality, disciplined execution and elegant brand presence.</p>
+      </div>
+      <div class="showcase" aria-hidden="true">
+        <div class="screen-stack">
+          <div class="screen one">
+            <div class="bars">
+              <div class="bar"><i style="width:92%"></i></div>
+              <div class="bar"><i></i></div>
+              <div class="bar"><i></i></div>
+              <div class="bar"><i></i></div>
+            </div>
+          </div>
+          <div class="screen two">
+            <div class="bars">
+              <div class="bar"><i style="width:64%"></i></div>
+              <div class="bar"><i style="width:88%"></i></div>
+              <div class="bar"><i style="width:52%"></i></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="shell reveal" id="contact">
+      <div class="cta">
+        <h2>Build a brand people remember.</h2>
+        <p>Genesis Advertising Limited is ready to support ambitious companies with strategy, creative direction, design, production, digital communication and campaign execution.</p>
+        <div class="actions" style="justify-content:center">
+          <a class="btn primary" href="mailto:info@genesisadvertising.co.tz">Email Genesis</a>
+          <a class="btn" href="#top">Back to top</a>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="shell">
+    <span>© <span id="year"></span> Genesis Advertising Limited</span>
+    <span>Certificate-backed company identity · Premium advertising and creative execution</span>
+  </footer>
+
+  <script>
+    document.getElementById("year").textContent = new Date().getFullYear();
+
+    const reveals = document.querySelectorAll(".reveal");
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach((entry) => {
+        if (entry.isIntersecting) entry.target.classList.add("show");
+      });
+    }, { threshold: 0.16 });
+    reveals.forEach((el) => observer.observe(el));
+
+    const canvas = document.getElementById("stars");
+    const ctx = canvas.getContext("2d");
+    const points = [];
+    function resize() {
+      const rect = canvas.parentElement.getBoundingClientRect();
+      canvas.width = rect.width * devicePixelRatio;
+      canvas.height = rect.height * devicePixelRatio;
+      ctx.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0);
+      points.length = 0;
+      for (let i = 0; i < 72; i++) {
+        points.push({
+          x: Math.random() * rect.width,
+          y: Math.random() * rect.height,
+          r: Math.random() * 1.8 + .4,
+          s: Math.random() * .42 + .08
+        });
+      }
+    }
+    function draw() {
+      const rect = canvas.parentElement.getBoundingClientRect();
+      ctx.clearRect(0, 0, rect.width, rect.height);
+      points.forEach((p, i) => {
+        p.y -= p.s;
+        if (p.y < -10) p.y = rect.height + 10;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+        ctx.fillStyle = i % 5 === 0 ? "rgba(255,223,148,.8)" : "rgba(248,242,231,.34)";
+        ctx.fill();
+      });
+      requestAnimationFrame(draw);
+    }
+    resize();
+    draw();
+    addEventListener("resize", resize);
+  </script>
+</body>
+</html>
