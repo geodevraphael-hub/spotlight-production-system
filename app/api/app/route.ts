@@ -40,6 +40,13 @@ function whatsappDigits(phone: string) {
   return digits;
 }
 
+function smsDigits(phone: string) {
+  const digits = phone.replace(/[^\d]/g, "");
+  if (digits.startsWith("0") && digits.length >= 10) return `255${digits.slice(1)}`;
+  if (digits.length === 9) return `255${digits}`;
+  return digits;
+}
+
 function runtimeSecret(name: string) {
   const workerValue = (env as Record<string, unknown>)[name];
   if (workerValue !== undefined && workerValue !== null) return String(workerValue);
@@ -76,6 +83,38 @@ async function sendWhatsAppText(to: string, message: string) {
     return { phone: to, sent: false, error: error instanceof Error ? error.message : String(error) };
   }
   return { phone: to, sent: true };
+}
+
+async function sendSmsText(to: string, message: string) {
+  const user = runtimeSecret("MSHASTRA_USER");
+  const password = runtimeSecret("MSHASTRA_PASSWORD");
+  const senderId = runtimeSecret("MSHASTRA_SENDER_ID") || "Spotlight";
+  const countryCode = runtimeSecret("MSHASTRA_COUNTRY_CODE") || "255";
+  const recipient = smsDigits(to);
+  if (!user || !password || !recipient) {
+    return { phone: to, sent: false, skipped: true };
+  }
+  const params = new URLSearchParams({
+    user,
+    pwd: password,
+    senderid: senderId,
+    mobileno: recipient,
+    msgtext: message,
+    CountryCode: countryCode,
+  });
+  try {
+    const response = await fetch(`https://mshastra.com/sendurl.aspx?${params.toString()}`);
+    const text = await response.text();
+    const failed = /error|invalid|fail|not allowed|denied|unauthori[sz]ed/i.test(text);
+    return {
+      phone: to,
+      sent: response.ok && !failed,
+      status: response.status,
+      response: text,
+    };
+  } catch (error) {
+    return { phone: to, sent: false, error: error instanceof Error ? error.message : String(error) };
+  }
 }
 
 async function sendResendEmail(to: string[], subject: string, html: string) {
@@ -907,7 +946,23 @@ export async function POST(request: Request) {
         link: whatsappLink(phone, message),
         api: await sendWhatsAppText(phone, message),
       })));
-      return json({ ok: true, whatsapp });
+      const sms = await Promise.all(phones.map(async (phone) => {
+        const smsResult: any = await sendSmsText(phone, message);
+        return { phone, api: smsResult };
+      }));
+      await recordNotificationAudit({
+        projectId,
+        assetId: null,
+        notificationType: "flighted",
+        channel: "sms",
+        recipients: phones,
+        subject: "SMS flighting notification",
+        status: sms.some((item) => item.api?.sent) ? "sent" : sms.some((item) => item.api?.skipped) ? "skipped" : "failed",
+        providerResponse: sms,
+        createdBy: user.id,
+        createdAt: now,
+      });
+      return json({ ok: true, whatsapp, sms });
     }
     return json({ ok: true });
   }
@@ -942,7 +997,23 @@ export async function POST(request: Request) {
         link: whatsappLink(phone, message),
         api: await sendWhatsAppText(phone, message),
       })));
-      return json({ sent: due.length, whatsapp });
+      const sms = await Promise.all(phones.map(async (phone) => {
+        const smsResult: any = await sendSmsText(phone, message);
+        return { phone, api: smsResult };
+      }));
+      await recordNotificationAudit({
+        projectId,
+        assetId: null,
+        notificationType: "expiry_reminder",
+        channel: "sms",
+        recipients: phones,
+        subject: "SMS billboard removal reminder",
+        status: sms.some((item) => item.api?.sent) ? "sent" : sms.some((item) => item.api?.skipped) ? "skipped" : "failed",
+        providerResponse: sms,
+        createdBy: user.id,
+        createdAt: now,
+      });
+      return json({ sent: due.length, whatsapp, sms });
     }
     return json({ sent: 0, whatsapp: [] });
   }
