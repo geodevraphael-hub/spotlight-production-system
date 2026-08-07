@@ -2946,7 +2946,7 @@ export default function Home() {
               )}
               {selected.sourceAttributes && Object.keys(selected.sourceAttributes).length > 0 && (
                 <details className="source-attributes" open>
-                  <summary>Uploaded CSV attributes</summary>
+                  <summary>Uploaded CSV attributes · {Object.keys(sourceAttrDraft).length} fields</summary>
                   <div className="source-attributes-grid">
                     {Object.entries(sourceAttrDraft)
                       .filter(([key, value]) => key.trim() || String(value ?? "").trim())
