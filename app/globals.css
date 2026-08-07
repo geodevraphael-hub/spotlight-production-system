@@ -3796,6 +3796,53 @@ button {
   cursor: pointer;
 }
 
+.validation-approval-box {
+  display: grid;
+  gap: 8px;
+  margin-top: 8px;
+  padding-top: 10px;
+  border-top: 1px solid #eadcc6;
+}
+
+.validation-approval-box label {
+  display: grid;
+  gap: 6px;
+}
+
+.validation-approval-box label > span {
+  display: block;
+  grid-template-columns: none;
+  color: var(--green-dark);
+  font-size: 9px;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+}
+
+.validation-approval-box textarea {
+  width: 100%;
+  min-height: 72px;
+  resize: vertical;
+  padding: 9px 10px;
+  border: 1px solid var(--line);
+  border-radius: 0;
+  background: #fff;
+  color: var(--ink);
+  font-size: 12px;
+  line-height: 1.45;
+  outline: 0;
+}
+
+.validation-approval-box textarea:focus {
+  border-color: rgba(13, 150, 104, .55);
+  box-shadow: 0 0 0 2px rgba(13, 150, 104, .12);
+}
+
+.validation-approval-box .primary-button {
+  min-height: 36px;
+  justify-content: center;
+}
+
 .photo-viewer {
   position: fixed;
   z-index: 1200;

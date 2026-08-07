@@ -906,6 +906,37 @@ export async function POST(request: Request) {
     }
     return json({ ok: true });
   }
+  if (action === "approve-validation" && user.role === "admin") {
+    const assignmentId = Number(body.assignmentId) || 0;
+    const remark = String(body.remark ?? "").trim();
+    if (!assignmentId) return json({ error: "Validation assignment is required" }, 400);
+    if (!remark) return json({ error: "Approval remark is required" }, 400);
+    const assignment = await env.DB.prepare("SELECT * FROM validation_assignments WHERE id=?")
+      .bind(assignmentId).first<any>();
+    if (!assignment) return json({ error: "Assignment not found" }, 404);
+    const now = Date.now();
+    const report = {
+      ...JSON.parse(assignment.report || "{}"),
+      adminRemark: remark,
+      approvedBy: user.id,
+      approvedByName: user.name,
+      approvedAt: now,
+    };
+    await env.DB.prepare("UPDATE validation_assignments SET status='ok',report=?,completed_at=?,updated_at=? WHERE id=?")
+      .bind(JSON.stringify(report), now, now, assignmentId).run();
+    const row = await env.DB.prepare("SELECT id,data FROM inventory WHERE COALESCE(json_extract(data,'$.projectId'),1)=? AND CAST(json_extract(data,'$.id') AS INTEGER)=?")
+      .bind(Number(assignment.project_id), Number(assignment.asset_id)).first<{ id: number; data: string }>();
+    if (row) {
+      const data = JSON.parse(row.data);
+      data.validationStatus = "ok";
+      data.validationRemark = remark;
+      data.validatedAt = now;
+      data.validatedBy = user.id;
+      if (!data.photoUrl && report.photo) data.photoUrl = report.photo;
+      await env.DB.prepare("UPDATE inventory SET data=? WHERE id=?").bind(JSON.stringify(data), row.id).run();
+    }
+    return json({ ok: true, assignment: { ...assignment, status: "ok", report, completed_at: now, updated_at: now } });
+  }
   if (action === "flight-schedule" && (user.role === "admin" || user.role === "creator" || user.role === "planner")) {
     const projectId = Number(body.projectId) || 0;
     const assetIds = Array.isArray(body.assetIds) ? body.assetIds.map(Number).filter(Boolean) : [Number(body.assetId)].filter(Boolean);

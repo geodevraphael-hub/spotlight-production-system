@@ -213,6 +213,7 @@ function validationReportLines(report?: Record<string, unknown>) {
     ["Note", String(report.customIssue ?? "")],
     ["GPS", report.latitude && report.longitude ? `${Number(report.latitude).toFixed(6)}, ${Number(report.longitude).toFixed(6)}` : ""],
     ["Accuracy", report.accuracy ? `${Number(report.accuracy).toFixed(1)}m` : ""],
+    ["Admin remark", String(report.adminRemark ?? "")],
   ];
   return lines.filter(([, value]) => value.trim());
 }
@@ -722,6 +723,8 @@ export default function Home() {
   const [validationAssignments, setValidationAssignments] = useState<ValidationAssignment[]>([]);
   const [validationAssigneeId, setValidationAssigneeId] = useState("");
   const [validationSaving, setValidationSaving] = useState(false);
+  const [validationApprovalDrafts, setValidationApprovalDrafts] = useState<Record<number, string>>({});
+  const [validationApprovalSaving, setValidationApprovalSaving] = useState<Record<number, boolean>>({});
   const [notificationSummary, setNotificationSummary] = useState({ records: 0, recipientEmails: 0, sent: 0, failed: 0, skipped: 0 });
   const selectionBoxRef = useRef<any>(null);
   const selectionStartRef = useRef<any>(null);
@@ -2379,6 +2382,38 @@ export default function Home() {
     }
   }
 
+  async function approveValidationAssignment(assignment: ValidationAssignment) {
+    const remark = (validationApprovalDrafts[assignment.id] ?? "").trim();
+    if (!remark) {
+      setImportMessage("Write approval remark before marking okay");
+      window.setTimeout(() => setImportMessage(""), 2500);
+      return;
+    }
+    setValidationApprovalSaving((current) => ({ ...current, [assignment.id]: true }));
+    try {
+      const response = await fetch("/api/app?action=approve-validation", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ assignmentId: assignment.id, remark }),
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error ?? "Approval failed");
+      const refreshed = await fetch(`/api/app?action=validation-assignments&projectId=${currentProjectId}`).then((value) => value.json());
+      setValidationAssignments(refreshed.assignments ?? []);
+      setBillboards((current) => current.map((item) => item.id === Number(assignment.asset_id)
+        ? { ...item, validationStatus: "ok", validatedAt: Date.now() }
+        : item));
+      setValidationApprovalDrafts((current) => ({ ...current, [assignment.id]: "" }));
+      setImportMessage("Validation marked as okay");
+      window.setTimeout(() => setImportMessage(""), 2500);
+    } catch (error) {
+      setImportMessage(error instanceof Error ? error.message : "Unable to approve validation");
+      window.setTimeout(() => setImportMessage(""), 3000);
+    } finally {
+      setValidationApprovalSaving((current) => ({ ...current, [assignment.id]: false }));
+    }
+  }
+
   async function addUser(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const values = Object.fromEntries(new FormData(event.currentTarget));
@@ -3004,7 +3039,7 @@ export default function Home() {
                       <div key={assignment.id} className="validation-row">
                         <span>{assignment.assignee_name || assignment.assignee_email || `User ${assignment.assigned_to}`}</span>
                         <strong>{validationStatusLabel(assignment.status)}</strong>
-                        {assignment.status === "issue" && (
+                        {(assignment.status === "issue" || Boolean(assignment.report?.adminRemark)) && (
                           <div className="validation-report-details">
                             {validationReportLines(assignment.report).map(([label, value]) => (
                               <span key={label}><b>{label}</b>{String(value)}</span>
@@ -3013,6 +3048,26 @@ export default function Home() {
                               <button type="button" onClick={() => { setViewingPhoto(String(assignment.report?.photo)); setPhotoViewerOpen(true); }}>
                                 <Eye size={13} /> View issue photo
                               </button>
+                            )}
+                            {user?.role === "admin" && assignment.status === "issue" && (
+                              <div className="validation-approval-box">
+                                <label>
+                                  <span>Admin remark</span>
+                                  <textarea
+                                    value={validationApprovalDrafts[assignment.id] ?? ""}
+                                    onChange={(event) => setValidationApprovalDrafts((current) => ({ ...current, [assignment.id]: event.target.value }))}
+                                    placeholder="Write why this issue is approved as okay"
+                                  />
+                                </label>
+                                <button
+                                  type="button"
+                                  className="primary-button"
+                                  disabled={Boolean(validationApprovalSaving[assignment.id])}
+                                  onClick={() => approveValidationAssignment(assignment)}
+                                >
+                                  {validationApprovalSaving[assignment.id] ? "Approving..." : "Mark approved / okay"}
+                                </button>
+                              </div>
                             )}
                           </div>
                         )}
