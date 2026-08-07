@@ -373,6 +373,24 @@ function flightNotificationHtml(items: any[], projectName: string, startAt: numb
     </div>`;
 }
 
+function flightNotificationText(item: any, projectName: string, startAt: number | null, durationDays: number, endAt: number | null, note: string) {
+  const location = billboardSpecificLocation(item);
+  const dimension = billboardDimension(item);
+  const durationText = durationDays ? `${durationDays} day(s)` : "an open duration";
+  const expiryText = endAt ? new Date(endAt).toLocaleDateString("en-GB") : "a date to be confirmed";
+  const flightedText = startAt ? new Date(startAt).toLocaleDateString("en-GB") : "Not set";
+  const vendor = item.vendor || item.owner || "UNKNOWN";
+  const route = `${item.district || ""}${item.from ? ` - ${item.from}` : ""}${item.to ? ` to ${item.to}` : ""}`.trim() || "Not recorded";
+  return [
+    `Notification of Flight for Billboard at ${location} of Dimension ${dimension}.`,
+    `Please be informed that the billboard at ${location} has been successfully flighted.`,
+    `Project: ${projectName}. Vendor: ${vendor}. Route/Area: ${route}.`,
+    `Flighted date: ${flightedText}. Expected duration: ${durationText}. Expiry date: ${expiryText}.`,
+    note ? `Note: ${note}.` : "",
+    "Warm regards, Spotlight Billboard 360.",
+  ].filter(Boolean).join(" ");
+}
+
 function rowsToExcelSheet(name: string, rows: Array<Array<unknown>>, formulas: Record<string, string> = {}) {
   const body = rows.map((row, rowIndex) => {
     const cells = row.map((value, colIndex) => {
@@ -923,7 +941,7 @@ export async function POST(request: Request) {
       const inventory = await env.DB.prepare("SELECT data FROM inventory WHERE COALESCE(json_extract(data,'$.projectId'),1)=? ORDER BY id").bind(projectId).all<{ data: string }>();
       const items = inventory.results.map((row) => JSON.parse(row.data)).filter((item) => assetIds.includes(Number(item.id)));
       const projectName = project?.name ?? "project";
-      const message = `Please be informed that ${items.length || assetIds.length} billboard(s) have been successfully flighted for about ${durationDays || "open"} day(s) in ${projectName}. Expiry: ${endAt ? new Date(endAt).toLocaleDateString("en-GB") : "Not set"}.`;
+      const fallbackItems = items.length ? items : assetIds.map((assetId) => ({ id: assetId }));
       for (const item of items.length ? items : [{}]) {
         const subject = flightNotificationSubject(item);
         const emailResult: any = await sendResendEmail(emails, subject, flightNotificationHtml([item], projectName, startAt, durationDays, endAt, note));
@@ -941,28 +959,32 @@ export async function POST(request: Request) {
           createdAt: now,
         });
       }
+      for (const item of fallbackItems) {
+        const smsMessage = flightNotificationText(item, projectName, startAt, durationDays, endAt, note);
+        const sms = await Promise.all(phones.map(async (phone) => {
+          const smsResult: any = await sendSmsText(phone, smsMessage);
+          return { phone, api: smsResult };
+        }));
+        await recordNotificationAudit({
+          projectId,
+          assetId: Number(item.id) || null,
+          notificationType: "flighted",
+          channel: "sms",
+          recipients: phones,
+          subject: `SMS ${flightNotificationSubject(item)}`,
+          status: sms.some((result) => result.api?.sent) ? "sent" : sms.some((result) => result.api?.skipped) ? "skipped" : "failed",
+          providerResponse: sms,
+          createdBy: user.id,
+          createdAt: now,
+        });
+      }
+      const message = `Please be informed that ${fallbackItems.length} billboard(s) have been successfully flighted for about ${durationDays || "open"} day(s) in ${projectName}. Expiry: ${endAt ? new Date(endAt).toLocaleDateString("en-GB") : "Not set"}.`;
       const whatsapp = await Promise.all(phones.map(async (phone) => ({
         phone,
         link: whatsappLink(phone, message),
         api: await sendWhatsAppText(phone, message),
       })));
-      const sms = await Promise.all(phones.map(async (phone) => {
-        const smsResult: any = await sendSmsText(phone, message);
-        return { phone, api: smsResult };
-      }));
-      await recordNotificationAudit({
-        projectId,
-        assetId: null,
-        notificationType: "flighted",
-        channel: "sms",
-        recipients: phones,
-        subject: "SMS flighting notification",
-        status: sms.some((item) => item.api?.sent) ? "sent" : sms.some((item) => item.api?.skipped) ? "skipped" : "failed",
-        providerResponse: sms,
-        createdBy: user.id,
-        createdAt: now,
-      });
-      return json({ ok: true, whatsapp, sms });
+      return json({ ok: true, whatsapp, sms: { billboards: fallbackItems.length, recipients: phones.length } });
     }
     return json({ ok: true });
   }
