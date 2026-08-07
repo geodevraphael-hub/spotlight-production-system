@@ -1188,6 +1188,18 @@ export async function POST(request: Request) {
       .bind(projectId, String(body.name), String(body.description ?? ""), "active", config, body.boundaryId ? Number(body.boundaryId) : null, assignedUsers, assignedGroups, user.id, now, now).run();
     return json({ id: result.meta.last_row_id }, 201);
   }
+  if (action === "delete-mission" && (user.role === "admin" || user.role === "creator")) {
+    const missionId = Number(body.id) || 0;
+    const projectId = Number(body.projectId) || 0;
+    if (!missionId || !projectId) return json({ error: "Mission and project are required" }, 400);
+    const mission = await env.DB.prepare("SELECT id,name,project_id FROM missions WHERE id=? AND project_id=?")
+      .bind(missionId, projectId).first<{ id: number; name: string; project_id: number }>();
+    if (!mission) return json({ error: "Mission not found" }, 404);
+    const allowed = user.role === "admin" || Boolean(await env.DB.prepare("SELECT 1 FROM project_users WHERE project_id=? AND user_id=?").bind(projectId, user.id).first());
+    if (!allowed) return json({ error: "Forbidden" }, 403);
+    await env.DB.prepare("DELETE FROM missions WHERE id=? AND project_id=?").bind(missionId, projectId).run();
+    return json({ ok: true, deletedMission: mission.name });
+  }
   if (action === "field-collections") {
     if (user.role !== "field_user") return json({ error: "Only field users can submit field collections" }, 403);
     const missionId = Number(body.missionId);

@@ -217,6 +217,26 @@ function validationReportLines(report?: Record<string, unknown>) {
   return lines.filter(([, value]) => value.trim());
 }
 
+function parseJsonArray(value: unknown): any[] {
+  if (Array.isArray(value)) return value;
+  try {
+    const parsed = JSON.parse(String(value ?? "[]"));
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+function parseJsonObject(value: unknown): Record<string, any> {
+  if (value && typeof value === "object" && !Array.isArray(value)) return value as Record<string, any>;
+  try {
+    const parsed = JSON.parse(String(value ?? "{}"));
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
 function parseCsvRows(text: string) {
   const rows: string[][] = [];
   let row: string[] = [];
@@ -689,6 +709,7 @@ export default function Home() {
   const [sourceAttrDraft, setSourceAttrDraft] = useState<Record<string, string>>({});
   const [sourceAttrSaving, setSourceAttrSaving] = useState(false);
   const [missionFormOpen, setMissionFormOpen] = useState(false);
+  const [editingMission, setEditingMission] = useState<any | null>(null);
   const [groupFormOpen, setGroupFormOpen] = useState(false);
   const [editingGroup, setEditingGroup] = useState<any | null>(null);
   const [sharedToken, setSharedToken] = useState<string | null>(null);
@@ -1548,12 +1569,32 @@ export default function Home() {
     };
     await fetch("/api/app?action=missions", {
       method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ projectId: currentProjectId, name: form.get("name"), description: form.get("description"), assignedUsers, assignedGroups, config, boundaryId: Number(form.get("boundaryId")) || null }),
+      body: JSON.stringify({ id: editingMission?.id, projectId: currentProjectId, name: form.get("name"), description: form.get("description"), status: form.get("status") || "active", assignedUsers, assignedGroups, config, boundaryId: Number(form.get("boundaryId")) || null }),
     });
     setMissionFormOpen(false);
+    setEditingMission(null);
     const r = await fetch(`/api/app?action=missions&projectId=${currentProjectId}`);
     const d = await r.json();
     setMissions(d.missions ?? []);
+  }
+
+  async function deleteMission(mission: any) {
+    const name = mission?.name ?? "this mission";
+    if (!window.confirm(`Delete mission "${name}"?\n\nSubmitted field reports will be kept, but this mission will no longer appear for field users.`)) return;
+    const response = await fetch("/api/app?action=delete-mission", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: mission.id, projectId: currentProjectId }),
+    });
+    if (!response.ok) {
+      const data = await response.json().catch(() => ({}));
+      setImportMessage(data.error || "Unable to delete mission");
+      window.setTimeout(() => setImportMessage(""), 2500);
+      return;
+    }
+    setMissions((current) => current.filter((item) => item.id !== mission.id));
+    setImportMessage("Mission deleted");
+    window.setTimeout(() => setImportMessage(""), 2500);
   }
 
   async function saveGroup(event: React.FormEvent<HTMLFormElement>) {
@@ -1664,6 +1705,10 @@ export default function Home() {
     currentProject && (user?.role === "admin" || (user?.role === "creator" && Number(currentProject.created_by) === user.id)),
   );
   const fieldUsers = users.filter((account) => account.role === "field_user");
+  const activeMissions = missions.filter((mission) => mission.status === "active");
+  const inactiveMissions = missions.filter((mission) => mission.status !== "active");
+  const missionAssignedUserCount = missions.reduce((sum, mission) => sum + parseJsonArray(mission.assigned_users).length, 0);
+  const missionAssignedGroupCount = missions.reduce((sum, mission) => sum + parseJsonArray(mission.assigned_groups).length, 0);
   const selectedValidationAssignments = selected
     ? validationAssignments.filter((assignment) => Number(assignment.asset_id) === selected.id)
     : [];
@@ -3894,106 +3939,157 @@ export default function Home() {
       )}
 
       {activeTab === "field" && canManage && (
-        <div className="workspace field-workspace">
-          <div className="field-panels">
-            <section className="field-panel">
-              <div className="field-panel-head">
-                <div><span className="eyebrow">Missions</span><h3>{missions.length} missions</h3><small>{projects.find((project) => project.id === currentProjectId)?.name ?? "Selected project"}</small></div>
-                <button className="text-button" onClick={() => setMissionFormOpen(true)}><Plus size={15} /> New mission</button>
+        <div className="workspace field-workspace field-workspace--command">
+          <div className="field-command-page">
+            <section className="field-command-hero">
+              <div>
+                <span className="eyebrow">Field Management</span>
+                <h2>{currentProject?.name ?? "Selected project"}</h2>
+                <p>Manage collection missions, field users, groups, and admin boundaries for this project.</p>
               </div>
-              <div className="field-list">
-                {missions.map((m) => (
-                  <article key={m.id} className="field-card">
-                    <div className="field-card-head">
-                      <strong>{m.name}</strong>
-                      <span className={`status ${m.status === "active" ? "" : "status--occupied"}`}>{m.status}</span>
-                    </div>
-                    <small>{m.description || "No description"}</small>
-                    <div className="field-card-meta">
-                      <span>Assigned: {JSON.parse(m.assigned_users || "[]").length} users</span>
-                      <span>{JSON.parse(m.assigned_groups || "[]").length} groups</span>
-                    </div>
-                  </article>
-                ))}
-                {!missions.length && <div className="empty-state">No missions created yet.</div>}
-              </div>
-            </section>
-
-            <section className="field-panel">
-              <div className="field-panel-head">
-                <div><span className="eyebrow">Field Team &amp; Groups</span><h3>{users.filter((u) => u.role === "field_user").length} field users · {userGroups.length} groups</h3></div>
+              <div className="field-command-actions">
+                <button className="primary-button" onClick={() => { setEditingMission(null); setMissionFormOpen(true); }}><Plus size={15} /> New mission</button>
                 <button className="text-button" onClick={() => { setEditingGroup(null); setGroupFormOpen(true); }}><Plus size={15} /> New group</button>
               </div>
-              <div className="field-list">
-                <div className="field-section-label">Groups</div>
-                {userGroups.map((g) => (
-                  <article key={g.id} className="field-card">
-                    <strong>{g.name}</strong>
-                    <div className="field-card-actions">
-                      <button onClick={() => { setEditingGroup(g); setGroupFormOpen(true); }}>Manage members</button>
-                      {user?.role === "admin" && <button className="danger-link" onClick={() => deleteGroup(g.id)}><Trash2 size={13} /> Delete</button>}
-                    </div>
-                    <small>{g.description || "No description"} · {g.members?.length ?? 0} members</small>
-                    {g.members?.length > 0 && <div className="field-card-members">{g.members.map((m: any) => <span key={m.id}>{m.name}</span>)}</div>}
-                  </article>
-                ))}
-                <div className="field-section-label">Field Users</div>
-                {users.filter((u) => u.role === "field_user").map((u) => (
-                  <article key={u.id} className="field-card">
-                    <strong>{u.name}</strong>
-                    <small>{u.email}</small>
-                    {user?.role === "admin" && <button className="danger-link remove-field-user" onClick={() => removeUser(u.id)}><Trash2 size={13} /> Remove field user</button>}
-                  </article>
-                ))}
-              </div>
             </section>
 
-            <section className="field-panel">
-              <div className="field-panel-head">
-                <div>
-                  <span className="eyebrow">Admin Boundaries</span>
-                  <h3>{boundaries.length} uploaded</h3>
-                  <small>Tanzania: Region → District → Ward → Street/Mtaa (Mainland) | Region → District → Shehia (Zanzibar)</small>
+            <section className="field-kpis">
+              <Metric value={missions.length} label="Total missions" />
+              <Metric value={activeMissions.length} label="Active missions" accent />
+              <Metric value={fieldUsers.length} label="Field users" />
+              <Metric value={userGroups.length} label="Groups" />
+              <Metric value={boundaries.length} label="Boundaries" />
+            </section>
+
+            <section className="field-management-grid">
+              <section className="field-panel field-panel--wide">
+                <div className="field-panel-head field-panel-head--table">
+                  <div>
+                    <span className="eyebrow">Missions</span>
+                    <h3>{missions.length} missions - {inactiveMissions.length} inactive</h3>
+                    <small>{missionAssignedUserCount} direct user assignments - {missionAssignedGroupCount} group assignments</small>
+                  </div>
+                  <button className="primary-button" onClick={() => { setEditingMission(null); setMissionFormOpen(true); }}><Plus size={15} /> Add mission</button>
                 </div>
-                <label className="text-button import-button">
-                  <FileUp size={15} /> Upload GeoJSON
-                  <input type="file" accept=".geojson,.json" hidden onChange={(event) => event.target.files?.[0] && uploadBoundary(event.target.files[0])} />
-                </label>
-              </div>
-              <div className="field-list">
-                {boundaries.map((b) => (
-                  <article key={b.id} className="field-card">
-                    <strong>{b.name}</strong>
-                    <small>{b.boundary_type} · Levels: {b.levels?.join(" → ") || "auto-detected"}</small>
-                  </article>
-                ))}
-                {!boundaries.length && <div className="empty-state">No boundaries uploaded yet.<br />Upload a GeoJSON file with Region, District, Ward, Shehia, Street, Village, or Mtaa attributes.</div>}
-              </div>
+                <div className="mission-table">
+                  <div className="mission-table-head">
+                    <span>Mission</span><span>Assignment</span><span>Rules</span><span>Status</span><span>Actions</span>
+                  </div>
+                  {missions.map((m) => {
+                    const assignedUsers = parseJsonArray(m.assigned_users);
+                    const assignedGroups = parseJsonArray(m.assigned_groups);
+                    const config = parseJsonObject(m.config);
+                    const boundary = boundaries.find((item) => Number(item.id) === Number(m.boundary_id));
+                    const assignedUserNames = assignedUsers.map((id) => users.find((account) => Number(account.id) === Number(id))?.name || `User ${id}`);
+                    const assignedGroupNames = assignedGroups.map((id) => userGroups.find((group) => Number(group.id) === Number(id))?.name || `Group ${id}`);
+                    return (
+                      <article key={m.id} className="mission-row">
+                        <div className="mission-main">
+                          <strong>{m.name}</strong>
+                          <small>{m.description || "No description"}</small>
+                          <em>{boundary ? `Boundary: ${boundary.name}` : "No boundary attached"}</em>
+                        </div>
+                        <div className="mission-tags">
+                          <span>{assignedUsers.length} users</span>
+                          <span>{assignedGroups.length} groups</span>
+                          {(assignedUserNames.length || assignedGroupNames.length) ? <small>{[...assignedUserNames, ...assignedGroupNames].slice(0, 4).join(", ")}{assignedUserNames.length + assignedGroupNames.length > 4 ? "..." : ""}</small> : <small>No one assigned</small>}
+                        </div>
+                        <div className="mission-tags">
+                          <span>{config.photoRequired ? "Photo required" : "Photo optional"}</span>
+                          <span>{Number(config.minPhotos) || 0} min photos</span>
+                          {config.lamppostCapture && <span>Lamppost capture</span>}
+                        </div>
+                        <div><span className={`status ${m.status === "active" ? "" : "status--occupied"}`}>{m.status}</span></div>
+                        <div className="mission-actions">
+                          <button onClick={() => { setEditingMission(m); setMissionFormOpen(true); }}>Edit</button>
+                          <button className="danger-link" onClick={() => deleteMission(m)}><Trash2 size={13} /> Delete</button>
+                        </div>
+                      </article>
+                    );
+                  })}
+                  {!missions.length && <div className="empty-state">No missions created yet.<br />Create a mission and assign field users or groups to start collection work.</div>}
+                </div>
+              </section>
+
+              <section className="field-panel">
+                <div className="field-panel-head field-panel-head--table">
+                  <div><span className="eyebrow">Field Team &amp; Groups</span><h3>{fieldUsers.length} field users - {userGroups.length} groups</h3><small>Group field users to assign missions faster.</small></div>
+                  <button className="text-button" onClick={() => { setEditingGroup(null); setGroupFormOpen(true); }}><Plus size={15} /> New group</button>
+                </div>
+                <div className="field-list field-list--open">
+                  <div className="field-section-label">Groups</div>
+                  {userGroups.map((g) => (
+                    <article key={g.id} className="field-card field-card--interactive">
+                      <div className="field-card-head"><strong>{g.name}</strong><span>{g.members?.length ?? 0} members</span></div>
+                      <small>{g.description || "No description"}</small>
+                      {g.members?.length > 0 && <div className="field-card-members">{g.members.map((m: any) => <span key={m.id}>{m.name}</span>)}</div>}
+                      <div className="field-card-actions">
+                        <button onClick={() => { setEditingGroup(g); setGroupFormOpen(true); }}>Manage members</button>
+                        {user?.role === "admin" && <button className="danger-link" onClick={() => deleteGroup(g.id)}><Trash2 size={13} /> Delete</button>}
+                      </div>
+                    </article>
+                  ))}
+                  {!userGroups.length && <div className="empty-state">No groups yet.</div>}
+                  <div className="field-section-label">Field Users</div>
+                  {fieldUsers.map((u) => (
+                    <article key={u.id} className="field-card field-card--interactive">
+                      <div className="field-card-head"><strong>{u.name}</strong><span>{u.role}</span></div>
+                      <small>{u.email}</small>
+                      {user?.role === "admin" && <button className="danger-link remove-field-user" onClick={() => removeUser(u.id)}><Trash2 size={13} /> Remove field user</button>}
+                    </article>
+                  ))}
+                  {!fieldUsers.length && <div className="empty-state">No field users available.</div>}
+                </div>
+              </section>
+
+              <section className="field-panel">
+                <div className="field-panel-head field-panel-head--table">
+                  <div>
+                    <span className="eyebrow">Admin Boundaries</span>
+                    <h3>{boundaries.length} uploaded</h3>
+                    <small>Use boundaries to guide missions by Region, District, Ward, Shehia, Street, Village, or Mtaa.</small>
+                  </div>
+                  <label className="text-button import-button">
+                    <FileUp size={15} /> Upload GeoJSON
+                    <input type="file" accept=".geojson,.json" hidden onChange={(event) => event.target.files?.[0] && uploadBoundary(event.target.files[0])} />
+                  </label>
+                </div>
+                <div className="field-list field-list--open">
+                  {boundaries.map((b) => (
+                    <article key={b.id} className="field-card field-card--interactive">
+                      <strong>{b.name}</strong>
+                      <small>{b.boundary_type} - Levels: {b.levels?.join(" -> ") || "auto-detected"}</small>
+                    </article>
+                  ))}
+                  {!boundaries.length && <div className="empty-state">No boundaries uploaded yet.<br />Upload a GeoJSON file with administrative attributes.</div>}
+                </div>
+              </section>
             </section>
           </div>
 
           {missionFormOpen && (
             <>
-              <button className="plan-backdrop" onClick={() => setMissionFormOpen(false)} />
+              <button className="plan-backdrop" onClick={() => { setMissionFormOpen(false); setEditingMission(null); }} />
               <form className="modal-card asset-form" onSubmit={saveMission}>
-                <button type="button" className="close-detail" onClick={() => setMissionFormOpen(false)}><X size={17} /></button>
-                <span className="eyebrow">Create mission</span>
-                <h2>New field mission</h2>
+                <button type="button" className="close-detail" onClick={() => { setMissionFormOpen(false); setEditingMission(null); }}><X size={17} /></button>
+                <span className="eyebrow">{editingMission ? "Edit mission" : "Create mission"}</span>
+                <h2>{editingMission ? editingMission.name : "New field mission"}</h2>
                 <p className="form-context">Project: {projects.find((project) => project.id === currentProjectId)?.name ?? "Selected project"}</p>
                 <div className="mapping-grid">
-                  <label><span>Mission name *</span><input name="name" required /></label>
-                  <label><span>Description</span><input name="description" /></label>
-                  <fieldset className="member-picker"><legend>Assign individual field users</legend>{users.filter((u) => u.role === "field_user").map((fieldUser) => <label key={fieldUser.id}><input type="checkbox" name="assignedUsers" value={fieldUser.id} /><span>{fieldUser.name}<small>{fieldUser.email}</small></span></label>)}</fieldset>
-                  <fieldset className="member-picker"><legend>Assign groups</legend>{userGroups.map((group) => <label key={group.id}><input type="checkbox" name="assignedGroups" value={group.id} /><span>{group.name}<small>{group.members?.length ?? 0} members</small></span></label>)}</fieldset>
-                  <label><span>Boundary</span><select name="boundaryId"><option value="">None</option>{boundaries.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}</select></label>
-                  <label><span>Required fields</span><input name="requiredFields" defaultValue="district,street" /></label>
-                  <label><span>Min photos</span><input type="number" name="minPhotos" defaultValue={1} min={0} /></label>
-                  <label className="checkbox-label"><input type="checkbox" name="photoRequired" defaultChecked /> Photos required</label>
-                  <label className="checkbox-label"><input type="checkbox" name="lamppostCapture" /> Enable lamppost bulk capture</label>
+                  <label><span>Mission name *</span><input name="name" defaultValue={editingMission?.name ?? ""} required /></label>
+                  <label><span>Status</span><select name="status" defaultValue={editingMission?.status ?? "active"}><option value="active">Active</option><option value="paused">Paused</option><option value="closed">Closed</option></select></label>
+                  <label><span>Description</span><input name="description" defaultValue={editingMission?.description ?? ""} /></label>
+                  <fieldset className="member-picker"><legend>Assign individual field users</legend>{users.filter((u) => u.role === "field_user").map((fieldUser) => <label key={fieldUser.id}><input type="checkbox" name="assignedUsers" value={fieldUser.id} defaultChecked={parseJsonArray(editingMission?.assigned_users).map(Number).includes(Number(fieldUser.id))} /><span>{fieldUser.name}<small>{fieldUser.email}</small></span></label>)}</fieldset>
+                  <fieldset className="member-picker"><legend>Assign groups</legend>{userGroups.map((group) => <label key={group.id}><input type="checkbox" name="assignedGroups" value={group.id} defaultChecked={parseJsonArray(editingMission?.assigned_groups).map(Number).includes(Number(group.id))} /><span>{group.name}<small>{group.members?.length ?? 0} members</small></span></label>)}</fieldset>
+                  <label><span>Boundary</span><select name="boundaryId" defaultValue={editingMission?.boundary_id ?? ""}><option value="">None</option>{boundaries.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}</select></label>
+                  <label><span>Required fields</span><input name="requiredFields" defaultValue={(parseJsonObject(editingMission?.config).requiredFields ?? ["district","street"]).join(",")} /></label>
+                  <label><span>Min photos</span><input type="number" name="minPhotos" defaultValue={Number(parseJsonObject(editingMission?.config).minPhotos ?? 1)} min={0} /></label>
+                  <label className="checkbox-label"><input type="checkbox" name="photoRequired" defaultChecked={editingMission ? Boolean(parseJsonObject(editingMission?.config).photoRequired) : true} /> Photos required</label>
+                  <label className="checkbox-label"><input type="checkbox" name="lamppostCapture" defaultChecked={Boolean(parseJsonObject(editingMission?.config).lamppostCapture)} /> Enable lamppost bulk capture</label>
                 </div>
                 <div className="asset-form-actions">
-                  <button type="button" className="text-button" onClick={() => setMissionFormOpen(false)}>Cancel</button>
-                  <button className="primary-button" type="submit"><Plus size={15} /> Create mission</button>
+                  <button type="button" className="text-button" onClick={() => { setMissionFormOpen(false); setEditingMission(null); }}>Cancel</button>
+                  <button className="primary-button" type="submit"><Check size={15} /> {editingMission ? "Save mission" : "Create mission"}</button>
                 </div>
               </form>
             </>

@@ -3805,6 +3805,62 @@ button {
   flex-direction: column;
   flex: 1;
   overflow-y: auto;
+  background: #f3f6f3;
+}
+
+.field-workspace--command {
+  display: block;
+}
+
+.field-command-page {
+  display: grid;
+  gap: 10px;
+  width: 100%;
+  padding: 14px;
+}
+
+.field-command-hero {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  padding: 16px 18px;
+  border: 1px solid var(--line);
+  background: #fff;
+}
+
+.field-command-hero h2 {
+  margin: 4px 0;
+  font-size: 28px;
+  letter-spacing: -.04em;
+}
+
+.field-command-hero p {
+  margin: 0;
+  color: var(--muted);
+}
+
+.field-command-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.field-kpis {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(120px, 1fr));
+  gap: 8px;
+}
+
+.field-kpis .metric,
+.field-kpis .metric--accent {
+  border-radius: 0;
+}
+
+.field-management-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.3fr) minmax(330px, .7fr);
+  gap: 10px;
 }
 
 .field-panels {
@@ -3817,11 +3873,15 @@ button {
 
 .field-panel {
   background: white;
-  border-radius: var(--radius);
+  border-radius: 0;
   border: 1px solid var(--line);
   display: flex;
   flex-direction: column;
   overflow: hidden;
+}
+
+.field-panel--wide {
+  grid-row: span 2;
 }
 
 .field-panel-head {
@@ -3830,6 +3890,10 @@ button {
   justify-content: space-between;
   padding: 18px 20px;
   border-bottom: 1px solid var(--line);
+}
+
+.field-panel-head--table {
+  background: #fbfcfb;
 }
 
 .field-panel-head h3 {
@@ -3853,12 +3917,24 @@ button {
   scrollbar-width: thin;
 }
 
+.field-list--open {
+  max-height: none;
+}
+
 .field-card {
   display: flex;
   flex-direction: column;
   gap: 4px;
   padding: 14px 20px;
   border-bottom: 1px solid var(--line);
+}
+
+.field-card--interactive {
+  transition: background .16s ease, border-color .16s ease;
+}
+
+.field-card--interactive:hover {
+  background: #f8fbf9;
 }
 
 .field-card-head {
@@ -3896,12 +3972,102 @@ button {
   gap: 4px;
   padding: 5px 8px;
   border: 1px solid var(--line);
-  border-radius: 6px;
+  border-radius: 0;
   background: white;
   color: var(--green-dark);
   cursor: pointer;
   font-size: 9px;
   font-weight: 800;
+}
+
+.mission-table {
+  display: grid;
+}
+
+.mission-table-head,
+.mission-row {
+  display: grid;
+  grid-template-columns: minmax(220px, 1.15fr) minmax(180px, .8fr) minmax(170px, .8fr) 100px 150px;
+  gap: 12px;
+  align-items: start;
+}
+
+.mission-table-head {
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--line);
+  background: #f8faf8;
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+}
+
+.mission-row {
+  padding: 14px;
+  border-bottom: 1px solid var(--line);
+  background: #fff;
+  transition: background .16s ease;
+}
+
+.mission-row:hover {
+  background: #f8fbf9;
+}
+
+.mission-main,
+.mission-tags {
+  display: grid;
+  gap: 5px;
+}
+
+.mission-main strong {
+  font-size: 13px;
+}
+
+.mission-main small,
+.mission-main em,
+.mission-tags small {
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.35;
+  font-style: normal;
+}
+
+.mission-tags span {
+  display: inline-flex;
+  width: fit-content;
+  padding: 4px 7px;
+  border: 1px solid var(--line);
+  background: #fff;
+  color: var(--green-dark);
+  font-size: 10px;
+  font-weight: 800;
+}
+
+.mission-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+.mission-actions button {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 30px;
+  padding: 0 10px;
+  border: 1px solid var(--line);
+  background: white;
+  color: var(--green-dark);
+  font-size: 10px;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.mission-actions button:hover,
+.field-card-actions button:hover {
+  border-color: rgba(13, 150, 104, .38);
+  background: #f3fbf6;
 }
 
 .danger-link {
@@ -4075,6 +4241,28 @@ button {
   .field-panels {
     grid-template-columns: 1fr;
     padding: 12px;
+  }
+
+  .field-command-page {
+    padding: 10px;
+  }
+
+  .field-command-hero {
+    flex-direction: column;
+  }
+
+  .field-kpis,
+  .field-management-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .mission-table-head {
+    display: none;
+  }
+
+  .mission-row {
+    grid-template-columns: 1fr;
+    gap: 10px;
   }
 
   .flighting-page {
