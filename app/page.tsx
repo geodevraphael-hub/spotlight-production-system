@@ -925,10 +925,11 @@ export default function Home() {
           lat: item.lat,
           lng: item.lng,
           assetId: item.id,
+          area: item.district || "Unassigned area",
           source: "Inventory",
         };
       })
-      .filter(Boolean) as Array<{ id: string; title: string; subtitle: string; image: string; originalImage: string; lat: number; lng: number; assetId: number | null; source: string }>;
+      .filter(Boolean) as Array<{ id: string; title: string; subtitle: string; image: string; originalImage: string; lat: number; lng: number; assetId: number | null; area: string; source: string }>;
     const fromCollections = fieldCollections
       .map((collection) => {
         const data = collection.data ?? {};
@@ -944,12 +945,26 @@ export default function Home() {
           lat: collection.latitude,
           lng: collection.longitude,
           assetId: null as number | null,
+          area: String(data.district || data.area || data.region || collection.mission_name || "Unassigned area"),
           source: "Field collection",
         };
       })
-      .filter(Boolean) as Array<{ id: string; title: string; subtitle: string; image: string; originalImage: string; lat: number; lng: number; assetId: number | null; source: string }>;
+      .filter(Boolean) as Array<{ id: string; title: string; subtitle: string; image: string; originalImage: string; lat: number; lng: number; assetId: number | null; area: string; source: string }>;
     return [...fromInventory, ...fromCollections];
   }, [billboards, fieldCollections]);
+
+  const imageLibraryGroups = useMemo(() => {
+    const grouped = new Map<string, typeof imageLibraryItems>();
+    imageLibraryItems.forEach((item) => {
+      const area = item.area?.trim() || "Unassigned area";
+      const items = grouped.get(area) ?? [];
+      items.push(item);
+      grouped.set(area, items);
+    });
+    return Array.from(grouped.entries())
+      .map(([area, items]) => ({ area, items }))
+      .sort((a, b) => a.area.localeCompare(b.area));
+  }, [imageLibraryItems]);
 
   const plannedAssets = useMemo(
     () =>
@@ -3727,8 +3742,8 @@ export default function Home() {
             <div className="library-head">
               <div>
                 <span className="eyebrow">Image library</span>
-                <h2>{imageLibraryItems.length} linked images</h2>
-                <p>Browse billboard image links from the selected project and preview them without waiting for map markers.</p>
+                <h2>{imageLibraryGroups.length} areas · {imageLibraryItems.length} linked images</h2>
+                <p>Browse billboard image links grouped by area, then preview or jump back to the map.</p>
               </div>
               <button className="text-button" onClick={() => setActiveTab("planner")}>Back to map</button>
             </div>
@@ -3738,31 +3753,44 @@ export default function Home() {
                 <small>Add Photo URL values during CSV import, manual billboard entry, or field collection.</small>
               </div>
             )}
-            <div className="image-library-grid">
-              {imageLibraryItems.map((item) => (
-                <article className="image-library-card" key={item.id}>
-                  <button className="image-library-thumb" onClick={() => { setViewingPhoto(item.image); setPhotoViewerOpen(true); }}>
-                    <img src={item.image} alt={item.title} loading="lazy" onError={markImageFailed} />
-                    <em>Image unavailable</em>
-                    <span><Eye size={14} /> Preview</span>
-                  </button>
-                  <div className="image-library-copy">
-                    <span>{item.source}</span>
-                    <strong>{item.title}</strong>
-                    <small>{item.subtitle}</small>
+            <div className="image-library-groups">
+              {imageLibraryGroups.map((group) => (
+                <section className="image-library-area" key={group.area}>
+                  <div className="image-library-area-head">
+                    <div>
+                      <span className="eyebrow">Area</span>
+                      <h3>{group.area}</h3>
+                    </div>
+                    <strong>{group.items.length} image{group.items.length === 1 ? "" : "s"}</strong>
                   </div>
-                  <div className="image-library-actions">
-                    <button onClick={() => { setActiveTab("planner"); window.setTimeout(() => {
-                      if (item.assetId) {
-                        const asset = billboards.find((assetItem) => assetItem.id === item.assetId);
-                        if (asset) focusItem(asset);
-                      } else if (Number.isFinite(item.lat) && Number.isFinite(item.lng)) {
-                        mapRef.current?.flyTo([item.lat, item.lng], 17, { duration: 0.7 });
-                      }
-                    }, 120); }}>Map</button>
-                    <a href={item.originalImage || item.image} target="_blank" rel="noreferrer">Open URL</a>
+                  <div className="image-library-grid">
+                    {group.items.map((item) => (
+                      <article className="image-library-card" key={item.id}>
+                        <button className="image-library-thumb" onClick={() => { setViewingPhoto(item.image); setPhotoViewerOpen(true); }}>
+                          <img src={item.image} alt={item.title} loading="lazy" onError={markImageFailed} />
+                          <em>Image unavailable</em>
+                          <span><Eye size={14} /> Preview</span>
+                        </button>
+                        <div className="image-library-copy">
+                          <span>{item.source}</span>
+                          <strong>{item.title}</strong>
+                          <small>{item.subtitle}</small>
+                        </div>
+                        <div className="image-library-actions">
+                          <button onClick={() => { setActiveTab("planner"); window.setTimeout(() => {
+                            if (item.assetId) {
+                              const asset = billboards.find((assetItem) => assetItem.id === item.assetId);
+                              if (asset) focusItem(asset);
+                            } else if (Number.isFinite(item.lat) && Number.isFinite(item.lng)) {
+                              mapRef.current?.flyTo([item.lat, item.lng], 17, { duration: 0.7 });
+                            }
+                          }, 120); }}>Map</button>
+                          <a href={item.originalImage || item.image} target="_blank" rel="noreferrer">Open URL</a>
+                        </div>
+                      </article>
+                    ))}
                   </div>
-                </article>
+                </section>
               ))}
             </div>
           </section>
