@@ -50,6 +50,7 @@ button {
 
 .topbar {
   z-index: 1001;
+  grid-column: 1 / -1;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -273,6 +274,8 @@ button {
 .workspace {
   min-height: 0;
   display: flex;
+  grid-row: 3;
+  grid-column: 1 / -1;
 }
 
 .sidebar {
@@ -3125,6 +3128,7 @@ button {
 
 /* Tab navigation */
 .tab-bar {
+  grid-column: 1 / -1;
   display: flex;
   gap: 0;
   border-bottom: 1px solid var(--line);
@@ -4326,5 +4330,434 @@ button {
 
   .flight-table-toolbar {
     grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 760px) {
+  html,
+  body {
+    height: 100%;
+    overflow: hidden;
+  }
+
+  .app-shell {
+    height: 100dvh;
+    grid-template-rows: auto auto minmax(0, 1fr);
+  }
+
+  .topbar {
+    min-height: 56px;
+    flex-wrap: wrap;
+    align-content: center;
+    gap: 8px;
+    padding: 8px 10px;
+  }
+
+  .brand {
+    min-width: 0;
+    flex: 1 1 130px;
+  }
+
+  .brand small {
+    display: none;
+  }
+
+  .app-shell--shared-view .brand {
+    display: none;
+  }
+
+  .app-shell--shared-view .topbar {
+    min-height: 0;
+    padding-top: 7px;
+    padding-bottom: 7px;
+  }
+
+  .topbar-actions {
+    flex: 1 1 100%;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto auto;
+    gap: 7px;
+    min-width: 0;
+  }
+
+  .app-shell--shared-view .topbar-actions {
+    grid-template-columns: minmax(0, 1fr) auto auto;
+  }
+
+  .project-view-label,
+  .project-select,
+  .basemap-select,
+  .address-search,
+  .view-only-pill {
+    min-width: 0;
+    height: 38px;
+    border-radius: 0;
+  }
+
+  .project-view-label strong,
+  .project-select select {
+    overflow: hidden;
+    max-width: 100%;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+
+  .basemap-select {
+    padding: 0 7px;
+  }
+
+  .basemap-select svg {
+    display: none;
+  }
+
+  .basemap-select select {
+    max-width: 86px;
+    font-size: 10px;
+  }
+
+  .address-search {
+    grid-column: 1 / -1;
+    order: 4;
+    width: 100%;
+  }
+
+  .address-search input {
+    width: 100%;
+    font-size: 13px;
+  }
+
+  .view-only-pill {
+    justify-content: center;
+    padding: 0 8px;
+    font-size: 9px;
+  }
+
+  .tab-bar {
+    padding: 0;
+    overflow-x: auto;
+    scrollbar-width: none;
+    border-top: 1px solid var(--line);
+  }
+
+  .tab-bar::-webkit-scrollbar {
+    display: none;
+  }
+
+  .tab-btn {
+    flex: 1 0 auto;
+    min-height: 42px;
+    padding: 0 16px;
+    font-size: 11px;
+  }
+
+  .workspace {
+    position: relative;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  .sidebar {
+    position: absolute;
+    inset: auto 0 0 0;
+    z-index: 900;
+    width: 100%;
+    height: min(62dvh, 520px);
+    flex-basis: auto;
+    border-right: 0;
+    border-top: 1px solid var(--line);
+    box-shadow: 0 -14px 30px rgba(15, 23, 42, .16);
+    transform: translateY(0);
+    transition: transform .24s ease;
+  }
+
+  .sidebar--closed {
+    margin-left: 0;
+    transform: translateY(calc(100% - 48px));
+  }
+
+  .sidebar--closed .sidebar-inner {
+    pointer-events: none;
+  }
+
+  .sidebar-head {
+    padding: 12px 14px 10px;
+  }
+
+  .metrics-grid {
+    grid-template-columns: repeat(5, minmax(72px, 1fr));
+    overflow-x: auto;
+    margin-top: 10px;
+    padding-bottom: 2px;
+  }
+
+  .metric {
+    min-width: 72px;
+  }
+
+  .controls {
+    padding: 0 14px 10px;
+  }
+
+  .filter-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .result-heading {
+    height: 36px;
+    flex-basis: 36px;
+    padding: 0 14px;
+  }
+
+  .asset-row-main {
+    grid-template-columns: 32px minmax(0, 1fr);
+    padding: 12px 12px 12px 14px;
+  }
+
+  .asset-row-main .status {
+    grid-column: 2;
+    justify-self: start;
+    margin-top: 5px;
+  }
+
+  .collapse-button {
+    top: -48px;
+    right: 12px;
+    width: auto;
+    min-width: 130px;
+    height: 40px;
+    padding: 0 12px;
+    border: 1px solid var(--line);
+    border-bottom: 0;
+    border-radius: 0;
+    background: #fff;
+    color: var(--green-dark);
+    font-size: 11px;
+    font-weight: 900;
+    text-transform: uppercase;
+    box-shadow: 0 -8px 18px rgba(15, 23, 42, .12);
+  }
+
+  .collapse-button::before {
+    content: "Inventory";
+    margin-right: 8px;
+  }
+
+  .sidebar--closed .collapse-button svg {
+    transform: rotate(90deg);
+  }
+
+  .map-area {
+    min-height: 0;
+  }
+
+  .map-key {
+    top: 10px;
+    left: 10px;
+    right: 10px;
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 6px 8px;
+    padding: 8px;
+    border-radius: 0;
+    font-size: 8px;
+  }
+
+  .map-key > span {
+    min-width: 0;
+    white-space: nowrap;
+  }
+
+  .leaflet-control-zoom {
+    margin-right: 10px !important;
+    margin-bottom: 70px !important;
+  }
+
+  .map-control {
+    width: 42px;
+    height: 42px;
+    border-radius: 0;
+  }
+
+  .locate {
+    right: 10px;
+    bottom: 126px;
+  }
+
+  .bulk-select {
+    right: 10px;
+    bottom: 176px;
+    min-width: 58px;
+  }
+
+  .detail-card--asset {
+    top: auto;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    max-height: 76dvh;
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 10px;
+    border-radius: 0;
+    border-right: 0;
+    border-bottom: 0;
+    border-left: 0;
+    box-shadow: 0 -18px 40px rgba(15, 23, 42, .18);
+  }
+
+  .detail-card--asset .detail-title {
+    padding: 14px 58px 12px 14px;
+  }
+
+  .detail-card--asset .detail-title h2 {
+    font-size: 18px;
+  }
+
+  .detail-card--asset .detail-stats {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    margin: 0 12px;
+  }
+
+  .detail-card--asset .attributes,
+  .detail-card--asset .flight-card,
+  .detail-card--asset .selected-media-panel,
+  .detail-card--asset .validation-panel,
+  .detail-card--asset .source-attributes {
+    grid-column: 1;
+    margin: 0 12px;
+  }
+
+  .detail-card--asset .flight-grid,
+  .source-attributes-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .source-attributes-grid label {
+    grid-template-columns: 1fr;
+    gap: 5px;
+    padding: 8px 0;
+  }
+
+  .detail-card--asset .linked-image-preview {
+    min-height: 150px;
+  }
+
+  .linked-image-preview img {
+    height: 180px;
+  }
+
+  .detail-card--asset .detail-actions {
+    position: sticky;
+    bottom: 0;
+    display: flex;
+    gap: 8px;
+    padding: 10px 12px calc(10px + env(safe-area-inset-bottom));
+  }
+
+  .detail-card--asset .detail-actions .primary-button {
+    flex: 1;
+  }
+
+  .detail-card--asset .detail-actions .icon-button {
+    width: 48px;
+    flex: 0 0 48px;
+  }
+
+  .detail-card--asset .detail-actions .primary-button,
+  .detail-card--asset .detail-actions .icon-button {
+    min-height: 42px;
+  }
+
+  .image-library-workspace {
+    height: 100%;
+    overflow: auto;
+  }
+
+  .library-panel {
+    min-height: 100%;
+    padding: 10px;
+  }
+
+  .library-head {
+    position: sticky;
+    top: 0;
+    z-index: 5;
+    display: grid;
+    gap: 10px;
+    margin-bottom: 10px;
+    padding: 12px;
+  }
+
+  .library-head .text-button {
+    display: inline-flex;
+    width: 100%;
+    justify-content: center;
+    min-height: 38px;
+    border: 1px solid var(--line);
+    background: #fff;
+  }
+
+  .image-library-groups {
+    gap: 10px;
+  }
+
+  .image-library-area-head {
+    padding: 11px 12px;
+  }
+
+  .image-library-area .image-library-grid {
+    padding: 10px;
+  }
+
+  .image-library-grid {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+
+  .image-library-card {
+    grid-template-columns: 112px minmax(0, 1fr);
+    align-items: stretch;
+    gap: 10px;
+  }
+
+  .image-library-thumb {
+    height: 112px;
+  }
+
+  .image-library-copy {
+    align-content: start;
+    padding-top: 2px;
+  }
+
+  .image-library-copy strong {
+    font-size: 14px;
+  }
+
+  .image-library-actions {
+    grid-column: 1 / -1;
+  }
+
+  .image-library-actions button,
+  .image-library-actions a {
+    min-height: 38px;
+    font-size: 11px;
+  }
+
+  .photo-viewer {
+    padding: 12px;
+  }
+
+  .photo-viewer img {
+    max-width: 100%;
+    max-height: 82dvh;
+    border-radius: 0;
+  }
+
+  .photo-viewer .close-detail {
+    top: max(12px, env(safe-area-inset-top));
+    right: 12px;
+    width: 46px;
+    height: 46px;
   }
 }

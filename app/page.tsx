@@ -1027,6 +1027,9 @@ export default function Home() {
 
   function focusItem(item: Billboard) {
     setSelected(item);
+    if (typeof window !== "undefined" && window.matchMedia("(max-width: 760px)").matches) {
+      setSidebarOpen(false);
+    }
     mapRef.current?.flyTo([item.lat, item.lng], 17, {
       duration: 1.35,
       easeLinearity: 0.18,
@@ -1727,6 +1730,21 @@ export default function Home() {
   const selectedValidationAssignments = selected
     ? validationAssignments.filter((assignment) => Number(assignment.asset_id) === selected.id)
     : [];
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const media = window.matchMedia("(max-width: 760px)");
+    const applyMobileMapLayout = () => {
+      if (media.matches) {
+        setSidebarOpen(false);
+      }
+      window.setTimeout(() => mapRef.current?.invalidateSize(), 180);
+    };
+    applyMobileMapLayout();
+    media.addEventListener("change", applyMobileMapLayout);
+    return () => media.removeEventListener("change", applyMobileMapLayout);
+  }, [isSharedView]);
+
   const largeFormatFaces = filtered
     .filter((item) => item.mediaType === "large-format")
     .reduce((sum, item) => sum + item.faces, 0);
@@ -2456,7 +2474,7 @@ export default function Home() {
   }
 
   return (
-    <main className="app-shell">
+    <main className={isSharedView ? "app-shell app-shell--shared-view" : "app-shell"}>
       <header className="topbar">
         <div className="brand">
           <span className="brand-mark">S</span>
