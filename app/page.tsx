@@ -197,6 +197,26 @@ function statusLabel(value?: Billboard["status"]) {
   return String(value);
 }
 
+function validationStatusLabel(value?: string) {
+  if (value === "issue") return "Not okay";
+  if (value === "ok") return "Okay";
+  if (value === "in_progress") return "In progress";
+  if (value === "assigned") return "Assigned";
+  return value || "Not assigned";
+}
+
+function validationReportLines(report?: Record<string, unknown>) {
+  if (!report) return [];
+  const lines: Array<[string, string]> = [
+    ["Main issue", String(report.issueType ?? "")],
+    ["Detail", String(report.issueDetail ?? "")],
+    ["Note", String(report.customIssue ?? "")],
+    ["GPS", report.latitude && report.longitude ? `${Number(report.latitude).toFixed(6)}, ${Number(report.longitude).toFixed(6)}` : ""],
+    ["Accuracy", report.accuracy ? `${Number(report.accuracy).toFixed(1)}m` : ""],
+  ];
+  return lines.filter(([, value]) => value.trim());
+}
+
 function parseCsvRows(text: string) {
   const rows: string[][] = [];
   let row: string[] = [];
@@ -311,6 +331,53 @@ function billboardImageUrl(item: Billboard) {
 
 function billboardOriginalImageUrl(item: Billboard) {
   return originalImageUrl(item.photoOriginalUrl || item.photoUrl);
+}
+
+function sourceAttrValue(attrs: Record<string, string>, keys: string[], fallback = "") {
+  for (const key of keys) {
+    const exact = attrs[key];
+    if (exact !== undefined && String(exact).trim() !== "") return String(exact).trim();
+    const normalizedKey = normalizeHeader(key);
+    const matched = Object.entries(attrs).find(([candidate]) => normalizeHeader(candidate) === normalizedKey);
+    if (matched && String(matched[1]).trim() !== "") return String(matched[1]).trim();
+  }
+  return fallback;
+}
+
+function applySourceAttributesToBillboard(item: Billboard, attrs: Record<string, string>): Billboard {
+  const dimension = parseDimensions(sourceAttrValue(attrs, ["DIMENSION", "SIZE", "FORMAT", "TOTAL SQ.M /DURATION"], ""));
+  const lat = parseNumber(sourceAttrValue(attrs, ["Latitude", "LATITUDE", "lat"], ""));
+  const lng = parseNumber(sourceAttrValue(attrs, ["Longitude", "LONGITUDE", "lng", "lon"], ""));
+  const photoUrl = sourceAttrValue(attrs, ["Photo URL", "PHOTO URL", "IMAGE URL", "Image URL", "photoUrl"], item.photoOriginalUrl || item.photoUrl || "");
+  const height = parseNumber(sourceAttrValue(attrs, ["HEIGHT (M)", "HEIGHT", "height"], ""));
+  const width = parseNumber(sourceAttrValue(attrs, ["WIDTH (M)", "WIDTH", "width"], ""));
+  const faces = parseNumber(sourceAttrValue(attrs, ["FACES", "faces"], ""));
+  const lampPosts = parseNumber(sourceAttrValue(attrs, ["LAMP POSTS", "LAMPPOSTS", "INSTALLATION", "lampPosts"], ""));
+  const mediaType = sourceAttrValue(attrs, ["MEDIA TYPE", "TYPE", "BOARD TYPE", "mediaType"], "");
+  const status = sourceAttrValue(attrs, ["STATUS", "status"], "");
+  return {
+    ...item,
+    sourceAttributes: attrs,
+    district: sourceAttrValue(attrs, ["DISTRICT", "district"], item.district),
+    street: sourceAttrValue(attrs, ["SPECIFIC LOCATION", "specificLocation", "ROAD/STREET", "ROAD (From - To)", "STREET", "street"], item.street),
+    owner: sourceAttrValue(attrs, ["VENDOR", "OWNER", "owner"], item.owner),
+    vendor: sourceAttrValue(attrs, ["VENDOR", "OWNER", "vendor"], item.vendor || item.owner),
+    from: sourceAttrValue(attrs, ["Traffic Visibility (From)", "FROM", "from"], item.from),
+    to: sourceAttrValue(attrs, ["Traffic Visibility (To)", "TO", "to"], item.to),
+    brackets: sourceAttrValue(attrs, ["BRACKETS", "brackets"], item.brackets),
+    arrangement: sourceAttrValue(attrs, ["ARRANGEMENT", "ORIENTATION", "orientation"], item.arrangement),
+    advert: sourceAttrValue(attrs, ["CURRENT ADVERT", "ADVERT", "advert"], item.advert),
+    height: height || dimension.height || item.height,
+    width: width || dimension.width || item.width,
+    faces: faces || item.faces,
+    lampPosts: lampPosts || item.lampPosts,
+    lat: lat || item.lat,
+    lng: lng || item.lng,
+    mediaType: mediaType ? normalizeMediaType(mediaType) : item.mediaType,
+    status: status ? normalizeUploadStatus(status) : item.status,
+    photoUrl: normalizeImageUrl(photoUrl),
+    photoOriginalUrl: photoUrl && normalizeImageUrl(photoUrl) !== photoUrl ? originalImageUrl(photoUrl) : item.photoOriginalUrl,
+  };
 }
 
 function markerSize(item: Billboard) {
@@ -989,7 +1056,7 @@ export default function Home() {
     const cleaned = Object.fromEntries(
       Object.entries(sourceAttrDraft).map(([key, value]) => [key, String(value ?? "")]),
     );
-    const updated = { ...selected, sourceAttributes: cleaned };
+    const updated = applySourceAttributesToBillboard(selected, cleaned);
     setSourceAttrSaving(true);
     setBillboards((current) => current.map((item) => (item.id === updated.id ? updated : item)));
     setSelected(updated);
@@ -2858,7 +2925,19 @@ export default function Home() {
                     {selectedValidationAssignments.map((assignment) => (
                       <div key={assignment.id} className="validation-row">
                         <span>{assignment.assignee_name || assignment.assignee_email || `User ${assignment.assigned_to}`}</span>
-                        <strong>{assignment.status}</strong>
+                        <strong>{validationStatusLabel(assignment.status)}</strong>
+                        {assignment.status === "issue" && (
+                          <div className="validation-report-details">
+                            {validationReportLines(assignment.report).map(([label, value]) => (
+                              <span key={label}><b>{label}</b>{String(value)}</span>
+                            ))}
+                            {Boolean(assignment.report?.photo) && (
+                              <button type="button" onClick={() => { setViewingPhoto(String(assignment.report?.photo)); setPhotoViewerOpen(true); }}>
+                                <Eye size={13} /> View issue photo
+                              </button>
+                            )}
+                          </div>
+                        )}
                       </div>
                     ))}
                     {!selectedValidationAssignments.length && <small>No validation assignment yet.</small>}
@@ -2866,7 +2945,7 @@ export default function Home() {
                 </section>
               )}
               {selected.sourceAttributes && Object.keys(selected.sourceAttributes).length > 0 && (
-                <details className="source-attributes">
+                <details className="source-attributes" open>
                   <summary>Uploaded CSV attributes</summary>
                   <div className="source-attributes-grid">
                     {Object.entries(sourceAttrDraft)
@@ -3759,7 +3838,7 @@ export default function Home() {
                     }}>
                       <span className="status status--occupied">Issue</span>
                       <strong>{assignment.asset ? (assignment.asset.street || `${assignment.asset.from} → ${assignment.asset.to}`) : `Assignment #${assignment.id}`}</strong>
-                      <small>{String(assignment.report?.issueType || "Issue reported")} · {assignment.assignee_name ?? "Field user"}</small>
+                      <small>{String(assignment.report?.issueType || "Issue reported")} · {String(assignment.report?.issueDetail || "No detail")} · {assignment.assignee_name ?? "Field user"}</small>
                     </button>
                   ))}
                   {recentFieldReports.map((collection) => (

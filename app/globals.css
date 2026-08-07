@@ -3673,7 +3673,8 @@ button {
 }
 
 .validation-row {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
@@ -3691,6 +3692,45 @@ button {
   background: var(--mint);
   font-size: 10px;
   text-transform: uppercase;
+}
+
+.validation-report-details {
+  grid-column: 1 / -1;
+  display: grid;
+  gap: 6px;
+  margin-top: 2px;
+  padding: 10px;
+  border: 1px solid #e7d7bd;
+  background: #fffaf0;
+}
+
+.validation-report-details span {
+  display: grid;
+  grid-template-columns: 96px minmax(0, 1fr);
+  gap: 8px;
+  color: var(--ink);
+  font-size: 11px;
+}
+
+.validation-report-details b {
+  color: var(--muted);
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+}
+
+.validation-report-details button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 30px;
+  border: 1px solid var(--line);
+  background: white;
+  color: var(--green);
+  font-size: 11px;
+  font-weight: 800;
+  cursor: pointer;
 }
 
 .photo-viewer {
