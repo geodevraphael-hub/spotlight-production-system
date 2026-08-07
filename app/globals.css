@@ -3258,6 +3258,295 @@ button {
   padding: 12px 22px 18px;
 }
 
+.detail-card--asset {
+  display: flex;
+  flex-direction: column;
+  max-height: calc(100vh - 118px);
+  border: 1px solid rgba(15, 23, 42, .08);
+  box-shadow: 0 22px 70px rgba(15, 23, 42, .18);
+}
+
+.detail-card--asset .close-detail {
+  top: 12px;
+  right: 12px;
+}
+
+.detail-card--asset .detail-head {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: linear-gradient(180deg, rgba(255, 255, 255, .98), rgba(255, 255, 255, .92));
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--line);
+  padding-right: 56px;
+}
+
+.detail-card--asset .detail-stats,
+.detail-card--asset .flight-card,
+.detail-card--asset .selected-media-panel,
+.detail-card--asset .validation-panel,
+.detail-card--asset .csv-attributes {
+  margin-left: 22px;
+  margin-right: 22px;
+}
+
+.detail-card--asset .flight-card,
+.detail-card--asset .selected-media-panel,
+.detail-card--asset .validation-panel {
+  border-radius: 18px;
+  border-color: rgba(13, 150, 104, .18);
+  box-shadow: 0 10px 26px rgba(15, 23, 42, .05);
+}
+
+.detail-card--asset .flight-card {
+  background: linear-gradient(135deg, rgba(13, 150, 104, .08), #fff 45%);
+}
+
+.detail-card--asset .selected-media-panel {
+  padding: 12px;
+  border: 1px solid var(--line);
+  background: #fff;
+}
+
+.detail-card--asset .validation-panel {
+  margin-bottom: 12px;
+}
+
+.detail-card--asset .detail-actions {
+  position: sticky;
+  bottom: 0;
+  z-index: 2;
+  background: rgba(255, 255, 255, .96);
+  backdrop-filter: blur(12px);
+  border-top: 1px solid var(--line);
+}
+
+.dashboard-workspace--summary {
+  overflow: auto;
+  background:
+    radial-gradient(circle at top left, rgba(13, 150, 104, .10), transparent 30%),
+    linear-gradient(180deg, #f7faf8, #eef4f1);
+}
+
+.dashboard-page {
+  position: relative;
+  width: min(1320px, 100%);
+  margin: 0 auto;
+  padding: 22px;
+}
+
+.dashboard-hero {
+  display: flex;
+  justify-content: space-between;
+  gap: 18px;
+  align-items: flex-start;
+  padding: 22px;
+  border: 1px solid rgba(13, 150, 104, .16);
+  border-radius: 24px;
+  background: linear-gradient(135deg, #fff, #f4fbf7);
+  box-shadow: 0 18px 48px rgba(15, 23, 42, .07);
+}
+
+.dashboard-hero h2 {
+  margin: 5px 0 4px;
+  font-size: clamp(22px, 3vw, 34px);
+  letter-spacing: -.04em;
+}
+
+.dashboard-hero p {
+  margin: 0;
+  color: var(--muted);
+  max-width: 680px;
+}
+
+.dashboard-kpis {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(130px, 1fr));
+  gap: 12px;
+  margin: 16px 0;
+}
+
+.dashboard-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.dashboard-card {
+  min-height: 190px;
+  padding: 18px;
+  border: 1px solid rgba(15, 23, 42, .08);
+  border-radius: 22px;
+  background: rgba(255, 255, 255, .94);
+  box-shadow: 0 16px 42px rgba(15, 23, 42, .06);
+}
+
+.dashboard-card--wide {
+  grid-column: span 2;
+}
+
+.dashboard-card-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.dashboard-card h3 {
+  margin: 3px 0 0;
+  font-size: 16px;
+}
+
+.dashboard-pill {
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: var(--mint);
+  color: var(--green);
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.dashboard-bars {
+  display: grid;
+  gap: 13px;
+}
+
+.dashboard-bar-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 8px;
+  position: relative;
+  padding-bottom: 12px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.dashboard-bar-row strong {
+  color: var(--ink);
+}
+
+.dashboard-bar-row::after,
+.dashboard-bar-row i {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 7px;
+  border-radius: 999px;
+  background: #eef2f0;
+}
+
+.dashboard-bar-row i {
+  right: auto;
+  background: linear-gradient(90deg, var(--green), #76d0a5);
+}
+
+.dashboard-mini-grid,
+.issue-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.dashboard-mini-grid div,
+.issue-summary-grid div {
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: #fbfdfc;
+}
+
+.dashboard-mini-grid b,
+.issue-summary-grid b {
+  display: block;
+  font-size: 24px;
+  letter-spacing: -.04em;
+}
+
+.dashboard-mini-grid span,
+.issue-summary-grid span {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.issue-type-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.issue-type-list span {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 8px 10px;
+  border-radius: 999px;
+  background: #fff7ed;
+  color: #7c2d12;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.dashboard-report-list {
+  display: grid;
+  gap: 8px;
+}
+
+.dashboard-report-list button {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 4px 10px;
+  align-items: center;
+  width: 100%;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: white;
+  text-align: left;
+  cursor: pointer;
+}
+
+.dashboard-report-list button:hover {
+  border-color: rgba(13, 150, 104, .35);
+  box-shadow: 0 10px 22px rgba(15, 23, 42, .06);
+}
+
+.dashboard-report-list strong {
+  font-size: 13px;
+}
+
+.dashboard-report-list small {
+  grid-column: 2;
+  color: var(--muted);
+}
+
+.dashboard-inspector {
+  position: fixed;
+  z-index: 650;
+  top: 96px;
+  right: 24px;
+  bottom: 24px;
+  width: min(440px, calc(100vw - 32px));
+  overflow: auto;
+  padding: 18px 0;
+  border: 1px solid var(--line);
+  border-radius: 22px;
+  background: white;
+  box-shadow: 0 24px 70px rgba(15, 23, 42, .20);
+}
+
+.dashboard-inspector > h3,
+.dashboard-inspector > .eyebrow {
+  margin-left: 22px;
+  margin-right: 56px;
+}
+
 .validation-panel {
   margin: 14px 22px 0;
   padding: 14px;
@@ -3566,6 +3855,31 @@ button {
 
   .dashboard-workspace {
     flex-direction: column;
+  }
+
+  .dashboard-page {
+    padding: 12px;
+  }
+
+  .dashboard-hero,
+  .dashboard-card-head {
+    flex-direction: column;
+  }
+
+  .dashboard-kpis,
+  .dashboard-grid,
+  .dashboard-card--wide {
+    grid-template-columns: 1fr;
+  }
+
+  .dashboard-card--wide {
+    grid-column: auto;
+  }
+
+  .dashboard-inspector {
+    top: 74px;
+    right: 10px;
+    bottom: 10px;
   }
 
   .field-panels {

@@ -634,9 +634,7 @@ export default function Home() {
   const [validationAssignments, setValidationAssignments] = useState<ValidationAssignment[]>([]);
   const [validationAssigneeId, setValidationAssigneeId] = useState("");
   const [validationSaving, setValidationSaving] = useState(false);
-  const dashMapNode = useRef<HTMLDivElement>(null);
-  const dashMapRef = useRef<LeafletMap | null>(null);
-  const dashMarkersRef = useRef<LeafletMarker[]>([]);
+  const [notificationSummary, setNotificationSummary] = useState({ records: 0, recipientEmails: 0, sent: 0, failed: 0, skipped: 0 });
   const selectionBoxRef = useRef<any>(null);
   const selectionStartRef = useRef<any>(null);
 
@@ -721,7 +719,8 @@ export default function Home() {
       fetch(`/api/app?action=flight-schedules&projectId=${currentProjectId}`).then((response) => response.ok ? response.json() : null),
       fetch(`/api/app?action=project-contacts&projectId=${currentProjectId}`).then((response) => response.ok ? response.json() : null),
       fetch(`/api/app?action=validation-assignments&projectId=${currentProjectId}`).then((response) => response.ok ? response.json() : null),
-    ]).then(async ([inventoryData, planData, flightData, contactData, validationData]) => {
+      fetch(`/api/app?action=notification-audit&projectId=${currentProjectId}&from=0&to=${Date.now()}`).then((response) => response.ok ? response.json() : null),
+    ]).then(async ([inventoryData, planData, flightData, contactData, validationData, notificationData]) => {
       if (cancelled) return;
       let inventory = inventoryData?.inventory ?? [];
       if (!inventory.length && currentProjectId === 1 && user.role !== "viewer") {
@@ -748,6 +747,7 @@ export default function Home() {
       setFlightSchedules(flightData?.schedules ?? []);
       setProjectContacts(contactData?.contacts ?? []);
       setValidationAssignments(validationData?.assignments ?? []);
+      setNotificationSummary(notificationData?.summary ?? { records: 0, recipientEmails: 0, sent: 0, failed: 0, skipped: 0 });
       setLoading(false);
     });
     return () => { cancelled = true; };
@@ -1437,42 +1437,6 @@ export default function Home() {
   }, [user, activeTab, currentProjectId]);
 
   useEffect(() => {
-    if (!user || activeTab !== "dashboard") return;
-    if (!dashMapNode.current || dashMapRef.current) return;
-    import("leaflet").then((L) => {
-      if (!dashMapNode.current || dashMapRef.current) return;
-      const map = L.map(dashMapNode.current, { zoomControl: true, attributionControl: false }).setView([-6.1455, 39.2269], 12);
-      L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", { maxZoom: 19 }).addTo(map);
-      L.tileLayer("https://services.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}", { maxZoom: 19 }).addTo(map);
-      dashMapRef.current = map;
-    });
-    return () => { dashMapRef.current?.remove(); dashMapRef.current = null; };
-  }, [user, activeTab]);
-
-  useEffect(() => {
-    if (!dashMapRef.current) return;
-    dashMarkersRef.current.forEach((marker) => marker.remove());
-    dashMarkersRef.current = [];
-    if (!fieldCollections.length) return;
-    import("leaflet").then((L) => {
-      fieldCollections.forEach((c) => {
-        const statusColor = c.status === "validated" ? "#22c55e" : c.status === "rejected" ? "#f59e0b" : "#64748b";
-        const icon = L.divIcon({
-          className: "field-marker",
-          html: `<span style="background:${statusColor}" class="field-dot"></span>`,
-          iconSize: [14, 14], iconAnchor: [7, 7],
-        });
-        const marker = L.marker([c.latitude, c.longitude], { icon }).addTo(dashMapRef.current!)
-          .on("click", () => {
-            setSelectedCollection(c);
-            fetch(`/api/app?action=collection-photos&collectionId=${c.id}`).then((r) => r.json()).then((d) => setCollectionPhotos(d.photos ?? []));
-          });
-        dashMarkersRef.current.push(marker);
-      });
-    });
-  }, [fieldCollections]);
-
-  useEffect(() => {
     if (!user || activeTab !== "field") return;
     if (user.role !== "admin" && user.role !== "creator") return;
     Promise.all([
@@ -1649,9 +1613,36 @@ export default function Home() {
     .filter((item) => item.mediaType === "lamp-post")
     .reduce((sum, item) => sum + (Number(item.lampPosts) || Number(item.faces) || 1), 0);
   const filteredTotalFaces = filtered.reduce((sum, item) => sum + item.faces, 0);
+  const totalFaces = billboards.reduce((sum, item) => sum + item.faces, 0);
   const flightedSchedules = flightSchedules.filter((item) => item.flight_status === "flighted");
   const dueFlightSchedules = flightedSchedules.filter((item) => item.end_at && item.end_at <= Date.now());
   const stagedSchedules = flightSchedules.filter((item) => item.stage && item.stage !== "flighted" && item.stage !== "removed");
+  const flightScheduleStats = {
+    flighted: flightedSchedules.length,
+    expired: dueFlightSchedules.length,
+    expiringSoon: flightedSchedules.filter((item) => item.end_at && item.end_at > Date.now() && item.end_at <= Date.now() + 7 * 86400000).length,
+    unflighted: Math.max(0, billboards.length - flightedSchedules.length),
+  };
+  const validationIssues = validationAssignments.filter((assignment) => assignment.status === "issue");
+  const validationOk = validationAssignments.filter((assignment) => assignment.status === "ok");
+  const validationPending = validationAssignments.filter((assignment) => ["assigned", "in_progress"].includes(assignment.status));
+  const rejectedCollections = fieldCollections.filter((collection) => collection.status === "rejected");
+  const dashboardIssueCount = validationIssues.length + rejectedCollections.length;
+  const issueTypeCounts = validationIssues.reduce<Record<string, number>>((acc, assignment) => {
+    const issueType = String(assignment.report?.issueType || "Unspecified issue");
+    acc[issueType] = (acc[issueType] || 0) + 1;
+    return acc;
+  }, {});
+  const mediaBreakdown = [
+    { label: "Large format", value: billboards.filter((item) => item.mediaType === "large-format").reduce((sum, item) => sum + item.faces, 0) },
+    { label: "Digital screens", value: billboards.filter((item) => item.mediaType === "digital-screen").reduce((sum, item) => sum + item.faces, 0) },
+    { label: "Fabricated banner", value: billboards.filter((item) => item.mediaType === "fabricated-banner").reduce((sum, item) => sum + item.faces, 0) },
+    { label: "Lamp posts", value: billboards.filter((item) => item.mediaType === "lamp-post").reduce((sum, item) => sum + (Number(item.lampPosts) || Number(item.faces) || 1), 0) },
+  ];
+  const recentFieldReports = [...fieldCollections]
+    .sort((a, b) => Number(b.created_at || 0) - Number(a.created_at || 0))
+    .slice(0, 8);
+  const recentValidationIssues = validationIssues.slice(0, 8);
   const filteredFlightAssets = useMemo(() => {
     const term = flightSearch.trim().toLowerCase();
     return billboards.filter((asset) => {
@@ -2699,7 +2690,7 @@ export default function Home() {
           )}
 
           {selected && (
-            <article className="detail-card">
+            <article className="detail-card detail-card--asset">
               <button
                 className="close-detail"
                 onClick={() => setSelected(null)}
@@ -3655,49 +3646,145 @@ export default function Home() {
       )}
 
       {activeTab === "dashboard" && (
-        <div className="workspace dashboard-workspace">
-          <aside className="dash-sidebar">
-            <div className="dash-sidebar-head">
-              <span className="eyebrow">Field Collections</span>
-              <h3>{fieldCollections.length} collected</h3>
-              <div className="dash-stats">
-                <span className="dash-stat"><b>{fieldCollections.filter((c) => c.status === "pending").length}</b> Pending</span>
-                <span className="dash-stat dash-stat--ok"><b>{fieldCollections.filter((c) => c.status === "validated").length}</b> Validated</span>
-                <span className="dash-stat dash-stat--bad"><b>{fieldCollections.filter((c) => c.status === "rejected").length}</b> Rejected</span>
+        <div className="workspace dashboard-workspace dashboard-workspace--summary">
+          <section className="dashboard-page">
+            <div className="dashboard-hero">
+              <div>
+                <span className="eyebrow">Project dashboard</span>
+                <h2>{currentProject?.name ?? "Selected project"}</h2>
+                <p>Operational view for inventory, flighting, validation issues, field reports, and notifications.</p>
               </div>
+              <button className="text-button" onClick={() => setActiveTab("planner")}><MapPin size={15} /> Open planning map</button>
             </div>
-            <section className="dash-list">
-              {fieldCollections.map((c) => (
-                <button key={c.id} className={selectedCollection?.id === c.id ? "dash-row dash-row--active" : "dash-row"} onClick={() => {
-                  setSelectedCollection(c);
-                  fetch(`/api/app?action=collection-photos&collectionId=${c.id}`).then((r) => r.json()).then((d) => setCollectionPhotos(d.photos ?? []));
-                  dashMapRef.current?.flyTo([c.latitude, c.longitude], 17, { duration: 1 });
-                }}>
-                  <span className={`dash-dot dash-dot--${c.status}`} />
-                  <span className="dash-row-info">
-                    <strong>{c.data?.district || c.data?.street || `Collection #${c.id}`}</strong>
-                    <small>{c.collector} · {new Date(c.created_at).toLocaleDateString()}</small>
-                  </span>
-                </button>
-              ))}
-              {!fieldCollections.length && <div className="empty-state">No field collections yet.<br />Assign missions to field users to start collecting data.</div>}
-            </section>
-          </aside>
-          <section className="map-area">
-            <div ref={dashMapNode} className="map" />
-            {selectedCollection && (
-              <article className="detail-card dash-detail">
-                <button className="close-detail" onClick={() => setSelectedCollection(null)}><X size={17} /></button>
-                <div className="detail-head">
+
+            <div className="dashboard-kpis">
+              <Metric value={billboards.length} label="Mapped assets" />
+              <Metric value={totalFaces} label="Total faces" accent />
+              <Metric value={flightScheduleStats.flighted} label="Flighted" />
+              <Metric value={dashboardIssueCount} label="Validation issues" />
+              <Metric value={notificationSummary.sent} label="Notifications sent" accent />
+            </div>
+
+            <div className="dashboard-grid">
+              <section className="dashboard-card">
+                <div className="dashboard-card-head">
                   <div>
-                    <span className="eyebrow">{selectedCollection.status} · {selectedCollection.collector}</span>
-                    <h2>{selectedCollection.data?.street || selectedCollection.data?.district || `Collection #${selectedCollection.id}`}</h2>
-                    <p>{selectedCollection.data?.district && `${selectedCollection.data.district}`}{selectedCollection.data?.ward && ` · ${selectedCollection.data.ward}`}{selectedCollection.data?.region && ` · ${selectedCollection.data.region}`}</p>
+                    <span className="eyebrow">Inventory mix</span>
+                    <h3>Faces by board type</h3>
                   </div>
+                  <span className="dashboard-pill">{totalFaces} total faces</span>
                 </div>
+                <div className="dashboard-bars">
+                  {mediaBreakdown.map((row) => {
+                    const percent = totalFaces ? Math.max(4, Math.round((row.value / totalFaces) * 100)) : 0;
+                    return (
+                      <div className="dashboard-bar-row" key={row.label}>
+                        <span>{row.label}</span>
+                        <strong>{row.value}</strong>
+                        <i style={{ width: `${percent}%` }} />
+                      </div>
+                    );
+                  })}
+                </div>
+              </section>
+
+              <section className="dashboard-card">
+                <div className="dashboard-card-head">
+                  <div>
+                    <span className="eyebrow">Flighting</span>
+                    <h3>Status control</h3>
+                  </div>
+                  <button className="text-button" onClick={() => setActiveTab("flighting")}>Manage</button>
+                </div>
+                <div className="dashboard-mini-grid">
+                  <div><b>{flightScheduleStats.flighted}</b><span>Flighted</span></div>
+                  <div><b>{flightScheduleStats.expired}</b><span>Expired</span></div>
+                  <div><b>{flightScheduleStats.expiringSoon}</b><span>Expiring soon</span></div>
+                  <div><b>{flightScheduleStats.unflighted}</b><span>Unflighted</span></div>
+                </div>
+              </section>
+
+              <section className="dashboard-card dashboard-card--wide">
+                <div className="dashboard-card-head">
+                  <div>
+                    <span className="eyebrow">Field validation</span>
+                    <h3>Issues reported by field users</h3>
+                  </div>
+                  <span className="dashboard-pill">{validationAssignments.length} assignments</span>
+                </div>
+                <div className="issue-summary-grid">
+                  <div><b>{validationOk.length}</b><span>Confirmed okay</span></div>
+                  <div><b>{validationPending.length}</b><span>Pending / in progress</span></div>
+                  <div><b>{validationIssues.length}</b><span>Billboard issues</span></div>
+                  <div><b>{rejectedCollections.length}</b><span>Rejected collections</span></div>
+                </div>
+                <div className="issue-type-list">
+                  {Object.entries(issueTypeCounts).map(([label, value]) => (
+                    <span key={label}><b>{value}</b>{label}</span>
+                  ))}
+                  {!Object.keys(issueTypeCounts).length && <small>No structured validation issues reported yet.</small>}
+                </div>
+              </section>
+
+              <section className="dashboard-card">
+                <div className="dashboard-card-head">
+                  <div>
+                    <span className="eyebrow">Notifications</span>
+                    <h3>Email and SMS audit</h3>
+                  </div>
+                  <span className="dashboard-pill">{notificationSummary.records} batches</span>
+                </div>
+                <div className="dashboard-mini-grid">
+                  <div><b>{notificationSummary.sent}</b><span>Sent</span></div>
+                  <div><b>{notificationSummary.failed}</b><span>Failed</span></div>
+                  <div><b>{notificationSummary.skipped}</b><span>Skipped</span></div>
+                  <div><b>{notificationSummary.recipientEmails}</b><span>Recipients</span></div>
+                </div>
+              </section>
+
+              <section className="dashboard-card dashboard-card--wide">
+                <div className="dashboard-card-head">
+                  <div>
+                    <span className="eyebrow">Recent field reports</span>
+                    <h3>Collected and validation records</h3>
+                  </div>
+                  <button className="text-button" onClick={() => setActiveTab("field")}>Open field work</button>
+                </div>
+                <div className="dashboard-report-list">
+                  {recentValidationIssues.map((assignment) => (
+                    <button key={`validation-${assignment.id}`} onClick={() => {
+                      if (!assignment.asset) return;
+                      setActiveTab("planner");
+                      window.setTimeout(() => focusItem(assignment.asset!), 120);
+                    }}>
+                      <span className="status status--occupied">Issue</span>
+                      <strong>{assignment.asset ? (assignment.asset.street || `${assignment.asset.from} → ${assignment.asset.to}`) : `Assignment #${assignment.id}`}</strong>
+                      <small>{String(assignment.report?.issueType || "Issue reported")} · {assignment.assignee_name ?? "Field user"}</small>
+                    </button>
+                  ))}
+                  {recentFieldReports.map((collection) => (
+                    <button key={`collection-${collection.id}`} onClick={() => {
+                      setSelectedCollection(collection);
+                      fetch(`/api/app?action=collection-photos&collectionId=${collection.id}`).then((r) => r.json()).then((d) => setCollectionPhotos(d.photos ?? []));
+                    }}>
+                      <span className={`status ${collection.status === "validated" ? "" : "status--occupied"}`}>{collection.status}</span>
+                      <strong>{collection.data?.specificLocation || collection.data?.street || collection.data?.district || `Collection #${collection.id}`}</strong>
+                      <small>{collection.collector} ? {new Date(collection.created_at).toLocaleDateString()}</small>
+                    </button>
+                  ))}
+                  {!recentValidationIssues.length && !recentFieldReports.length && <div className="empty-state">No field reports yet.</div>}
+                </div>
+              </section>
+            </div>
+
+            {selectedCollection && (
+              <aside className="dashboard-inspector">
+                <button className="close-detail" onClick={() => setSelectedCollection(null)}><X size={17} /></button>
+                <span className="eyebrow">{selectedCollection.status} ? {selectedCollection.collector}</span>
+                <h3>{selectedCollection.data?.specificLocation || selectedCollection.data?.street || selectedCollection.data?.district || `Collection #${selectedCollection.id}`}</h3>
                 <div className="detail-stats">
-                  <div><span>Lat</span><strong>{selectedCollection.latitude?.toFixed(6)}</strong></div>
-                  <div><span>Lng</span><strong>{selectedCollection.longitude?.toFixed(6)}</strong></div>
+                  <div><span>Latitude</span><strong>{selectedCollection.latitude?.toFixed(6)}</strong></div>
+                  <div><span>Longitude</span><strong>{selectedCollection.longitude?.toFixed(6)}</strong></div>
                   <div><span>Accuracy</span><strong>{selectedCollection.accuracy?.toFixed(1)}m</strong></div>
                 </div>
                 {selectedCollection.data && (
@@ -3721,7 +3808,7 @@ export default function Home() {
                     <button className="text-button" onClick={() => validateCollection(selectedCollection.id, "rejected")}>Reject</button>
                   </div>
                 )}
-              </article>
+              </aside>
             )}
           </section>
         </div>
