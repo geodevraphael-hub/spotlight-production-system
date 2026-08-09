@@ -639,6 +639,7 @@ export default function Home() {
   const [availability, setAvailability] = useState("All status");
   const [boardTypeFilter, setBoardTypeFilter] = useState("All types");
   const [mapFlightFilter, setMapFlightFilter] = useState("All flight status");
+  const [allProjectsProjectFilter, setAllProjectsProjectFilter] = useState("All projects");
   const [shortlist, setShortlist] = useState<number[]>([]);
   const [costs, setCosts] = useState<Record<number, CostBreakdown>>({});
   const [planOpen, setPlanOpen] = useState(false);
@@ -873,8 +874,14 @@ export default function Home() {
     [billboards],
   );
 
+  const allProjectNames = useMemo(
+    () => Array.from(new Set(billboards.map((item) => item.projectName).filter(Boolean) as string[])).sort(),
+    [billboards],
+  );
+
   const filtered = useMemo(() => {
     const term = query.trim().toLowerCase();
+    const allProjectsMode = user?.role === "admin" && currentProjectId === 0;
     return billboards.filter((item) => {
       const matchesSearch =
         !term ||
@@ -884,6 +891,10 @@ export default function Home() {
           .includes(term);
       const matchesDistrict =
         district === "All areas" || item.district === district;
+      const matchesProject =
+        !allProjectsMode ||
+        allProjectsProjectFilter === "All projects" ||
+        item.projectName === allProjectsProjectFilter;
       const matchesAvailability =
         availability === "All status" ||
         (availability === "not-selected" ? (item.status ?? "not-selected") === "not-selected" : item.status === availability);
@@ -902,9 +913,9 @@ export default function Home() {
         (mapFlightFilter === "expired"
           ? storedFlightStatus === "flighted" && Boolean(expiry && expiry <= Date.now())
           : mapFlightFilter === storedFlightStatus);
-      return matchesSearch && matchesDistrict && matchesAvailability && matchesBoardType && matchesFaces && matchesFlightStatus;
+      return matchesSearch && matchesProject && matchesDistrict && matchesAvailability && matchesBoardType && matchesFaces && matchesFlightStatus;
     });
-  }, [billboards, query, district, availability, boardTypeFilter, facesFilter, mapFlightFilter]);
+  }, [billboards, query, user?.role, currentProjectId, allProjectsProjectFilter, district, availability, boardTypeFilter, facesFilter, mapFlightFilter]);
 
   const visibleAssets = useMemo(
     () =>
@@ -2473,6 +2484,7 @@ export default function Home() {
     setBoardTypeFilter("All types");
     setFacesFilter("All faces");
     setMapFlightFilter("All flight status");
+    setAllProjectsProjectFilter("All projects");
   }
 
   if (!authReady) {
@@ -2700,6 +2712,20 @@ export default function Home() {
               </button>
               {showFilters && (
                 <div className="filter-grid">
+                  {isAllProjectsMap && (
+                    <label>
+                      <span>Project</span>
+                      <select
+                        value={allProjectsProjectFilter}
+                        onChange={(event) => setAllProjectsProjectFilter(event.target.value)}
+                      >
+                        <option>All projects</option>
+                        {allProjectNames.map((item) => (
+                          <option key={item}>{item}</option>
+                        ))}
+                      </select>
+                    </label>
+                  )}
                   <label>
                     <span>Area</span>
                     <select
@@ -2765,7 +2791,8 @@ export default function Home() {
                 availability !== "All status" ||
                 boardTypeFilter !== "All types" ||
                 facesFilter !== "All faces" ||
-                mapFlightFilter !== "All flight status") && (
+                mapFlightFilter !== "All flight status" ||
+                allProjectsProjectFilter !== "All projects") && (
                 <button onClick={resetFilters}>Reset</button>
               )}
             </div>
