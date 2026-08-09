@@ -306,7 +306,7 @@ function excelDate(value?: number | null) {
   return value ? new Date(value).toISOString().slice(0, 10) : "";
 }
 
-function attrValue(item: any, keys: string[], fallback = "") {
+function attrValue(item: any, keys: string[], fallback: unknown = "") {
   const attrs = item?.sourceAttributes ?? {};
   for (const key of keys) {
     const direct = item?.[key];
@@ -391,17 +391,90 @@ function flightNotificationText(item: any, projectName: string, startAt: number 
   ].filter(Boolean).join(" ");
 }
 
+function excelColumnName(index: number) {
+  let name = "";
+  let value = index + 1;
+  while (value > 0) {
+    const remainder = (value - 1) % 26;
+    name = String.fromCharCode(65 + remainder) + name;
+    value = Math.floor((value - 1) / 26);
+  }
+  return name;
+}
+
+function excelColumnWidth(header: unknown) {
+  const text = String(header ?? "").toUpperCase();
+  if (["SN", "FACES"].includes(text)) return 42;
+  if (text.includes("LATITUDE") || text.includes("LONGITUDE")) return 78;
+  if (text.includes("DATE") || text.includes("START")) return 84;
+  if (text.includes("COST") || text.includes("TOTAL") || text.includes("PRINTING") || text.includes("RENTAL") || text.includes("TRANSPORT")) return 98;
+  if (text.includes("STATUS") || text.includes("APPROVAL") || text.includes("DELIVER")) return 118;
+  if (text.includes("SPECIFIC") || text.includes("LOCATION") || text.includes("REMARK") || text.includes("COMMENT") || text.includes("REASON")) return 180;
+  if (text.includes("TRAFFIC") || text.includes("ROAD")) return 145;
+  if (text.includes("VENDOR") || text.includes("MATERIAL") || text.includes("ORIENTATION")) return 115;
+  return 96;
+}
+
+function excelValueStyle(value: unknown, header: unknown, rowIndex: number, colIndex: number, sheetName: string) {
+  const text = String(value ?? "").trim().toLowerCase();
+  const heading = String(header ?? "").trim().toUpperCase();
+  if (rowIndex === 0) return "Header";
+  if (sheetName === "Summary" && colIndex === 0 && value) return "SummaryLabel";
+  if (sheetName === "Summary" && colIndex === 1 && value) return "SummaryValue";
+  if (text === "flighted" || text === "received" || text === "approved" || text === "sent" || text === "complete") return "StatusGood";
+  if (text === "ok" || text === "validated" || text === "selected") return "StatusGood";
+  if (text === "pending" || text === "in progress" || text === "not started" || text === "unflighted") return "StatusPending";
+  if (text === "expired" || text === "not received" || text === "not found" || text === "returned" || text === "rejected") return "StatusBad";
+  if (text === "cxd" || text === "cancelled" || text === "canceled") return "StatusNeutral";
+  if (heading.includes("COST") || heading === "TOTAL" || heading.includes("RENTAL") || heading.includes("PRINTING") || heading.includes("TRANSPORT")) return rowIndex % 2 ? "Currency" : "CurrencyAlt";
+  if (heading.includes("DATE") || heading.includes("START")) return rowIndex % 2 ? "Date" : "DateAlt";
+  if (typeof value === "number" && Number.isFinite(value)) return rowIndex % 2 ? "Number" : "NumberAlt";
+  return rowIndex % 2 ? "Text" : "TextAlt";
+}
+
+function excelDataCell(value: unknown, header: unknown, styleId: string, formula = "") {
+  const formulaAttr = formula ? ` ss:Formula="${xmlEscape(formula)}"` : "";
+  const headerText = String(header ?? "").toUpperCase();
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return `<Cell ss:StyleID="${styleId}"${formulaAttr}><Data ss:Type="Number">${value}</Data></Cell>`;
+  }
+  const text = String(value ?? "");
+  if (/^\d{4}-\d{2}-\d{2}$/.test(text) && (headerText.includes("DATE") || headerText.includes("START"))) {
+    return `<Cell ss:StyleID="${styleId}"${formulaAttr}><Data ss:Type="DateTime">${text}T00:00:00.000</Data></Cell>`;
+  }
+  return `<Cell ss:StyleID="${styleId}"${formulaAttr}><Data ss:Type="String">${xmlEscape(value)}</Data></Cell>`;
+}
+
 function rowsToExcelSheet(name: string, rows: Array<Array<unknown>>, formulas: Record<string, string> = {}) {
+  const colCount = Math.max(rows[0]?.length ?? 1, 1);
+  const headers = rows[0] ?? [];
+  const title = name === "Summary" ? "Spotlight Project Report" : name;
+  const columns = Array.from({ length: colCount }, (_, index) => `<Column ss:AutoFitWidth="0" ss:Width="${excelColumnWidth(headers[index])}"/>`).join("");
+  const titleRows = `
+    <Row ss:Height="30"><Cell ss:MergeAcross="${Math.max(colCount - 1, 0)}" ss:StyleID="Title"><Data ss:Type="String">${xmlEscape(title)}</Data></Cell></Row>
+    <Row ss:Height="22"><Cell ss:MergeAcross="${Math.max(colCount - 1, 0)}" ss:StyleID="Subtitle"><Data ss:Type="String">Generated ${new Date().toISOString().slice(0, 10)} · Clean operational workbook for planning, execution, cost and flighting review</Data></Cell></Row>
+    <Row ss:Height="8"/>
+  `;
   const body = rows.map((row, rowIndex) => {
     const cells = row.map((value, colIndex) => {
       const ref = `${rowIndex + 1}:${colIndex + 1}`;
-      const formula = formulas[ref] ? ` ss:Formula="${xmlEscape(formulas[ref])}"` : "";
-      const isNumber = typeof value === "number" && Number.isFinite(value);
-      return `<Cell${formula}><Data ss:Type="${isNumber ? "Number" : "String"}">${xmlEscape(value)}</Data></Cell>`;
+      const style = excelValueStyle(value, headers[colIndex], rowIndex, colIndex, name);
+      return excelDataCell(value, headers[colIndex], style, formulas[ref]);
     }).join("");
-    return `<Row>${cells}</Row>`;
+    return `<Row ss:AutoFitHeight="${rowIndex === 0 ? 0 : 1}"${rowIndex === 0 ? ' ss:Height="24"' : ""}>${cells}</Row>`;
   }).join("");
-  return `<Worksheet ss:Name="${xmlEscape(name).slice(0, 31)}"><Table>${body}</Table><AutoFilter x:Range="R1C1:R${Math.max(rows.length, 1)}C${Math.max(rows[0]?.length ?? 1, 1)}" xmlns="urn:schemas-microsoft-com:office:excel"/></Worksheet>`;
+  const lastRow = Math.max(rows.length + 3, 4);
+  const lastCol = excelColumnName(colCount - 1);
+  return `<Worksheet ss:Name="${xmlEscape(name).slice(0, 31)}">
+    <Table ss:ExpandedColumnCount="${colCount}" ss:ExpandedRowCount="${rows.length + 3}" x:FullColumns="1" x:FullRows="1">${columns}${titleRows}${body}</Table>
+    <WorksheetOptions xmlns="urn:schemas-microsoft-com:office:excel">
+      <PageSetup><Layout x:Orientation="Landscape"/><Header x:Margin="0.3"/><Footer x:Margin="0.3"/><PageMargins x:Bottom="0.45" x:Left="0.25" x:Right="0.25" x:Top="0.45"/></PageSetup>
+      <FitToPage/><Print><FitWidth>1</FitWidth><FitHeight>0</FitHeight><ValidPrinterInfo/></Print>
+      <FreezePanes/><FrozenNoSplit/><SplitHorizontal>4</SplitHorizontal><TopRowBottomPane>4</TopRowBottomPane><ActivePane>2</ActivePane>
+      <DisplayGridlines>False</DisplayGridlines>
+    </WorksheetOptions>
+    <AutoFilter x:Range="R4C1:R${lastRow}C${colCount}" xmlns="urn:schemas-microsoft-com:office:excel"/>
+  </Worksheet>`;
 }
 
 function excelWorkbook(sheets: string[]) {
@@ -412,7 +485,24 @@ function excelWorkbook(sheets: string[]) {
  xmlns:x="urn:schemas-microsoft-com:office:excel"
  xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet">
 <Styles>
-  <Style ss:ID="Default" ss:Name="Normal"><Font ss:FontName="Calibri" ss:Size="11"/></Style>
+  <Style ss:ID="Default" ss:Name="Normal"><Alignment ss:Vertical="Center"/><Font ss:FontName="Calibri" ss:Size="10" ss:Color="#111827"/></Style>
+  <Style ss:ID="Title"><Alignment ss:Vertical="Center"/><Font ss:FontName="Calibri" ss:Size="18" ss:Bold="1" ss:Color="#FFFFFF"/><Interior ss:Color="#064E3B" ss:Pattern="Solid"/></Style>
+  <Style ss:ID="Subtitle"><Alignment ss:Vertical="Center"/><Font ss:FontName="Calibri" ss:Size="9" ss:Color="#D1FAE5"/><Interior ss:Color="#047857" ss:Pattern="Solid"/></Style>
+  <Style ss:ID="Header"><Alignment ss:Horizontal="Center" ss:Vertical="Center" ss:WrapText="1"/><Font ss:FontName="Calibri" ss:Size="9" ss:Bold="1" ss:Color="#FFFFFF"/><Interior ss:Color="#0F766E" ss:Pattern="Solid"/><Borders><Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="2" ss:Color="#064E3B"/></Borders></Style>
+  <Style ss:ID="Text"><Alignment ss:Vertical="Center" ss:WrapText="1"/><Interior ss:Color="#FFFFFF" ss:Pattern="Solid"/><Borders><Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#E5E7EB"/></Borders></Style>
+  <Style ss:ID="TextAlt"><Alignment ss:Vertical="Center" ss:WrapText="1"/><Interior ss:Color="#F8FAFC" ss:Pattern="Solid"/><Borders><Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#E5E7EB"/></Borders></Style>
+  <Style ss:ID="Number"><Alignment ss:Horizontal="Right" ss:Vertical="Center"/><NumberFormat ss:Format="#,##0"/><Interior ss:Color="#FFFFFF" ss:Pattern="Solid"/><Borders><Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#E5E7EB"/></Borders></Style>
+  <Style ss:ID="NumberAlt"><Alignment ss:Horizontal="Right" ss:Vertical="Center"/><NumberFormat ss:Format="#,##0"/><Interior ss:Color="#F8FAFC" ss:Pattern="Solid"/><Borders><Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#E5E7EB"/></Borders></Style>
+  <Style ss:ID="Currency"><Alignment ss:Horizontal="Right" ss:Vertical="Center"/><NumberFormat ss:Format="#,##0"/><Interior ss:Color="#FFFFFF" ss:Pattern="Solid"/><Borders><Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#E5E7EB"/></Borders></Style>
+  <Style ss:ID="CurrencyAlt"><Alignment ss:Horizontal="Right" ss:Vertical="Center"/><NumberFormat ss:Format="#,##0"/><Interior ss:Color="#F8FAFC" ss:Pattern="Solid"/><Borders><Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#E5E7EB"/></Borders></Style>
+  <Style ss:ID="Date"><Alignment ss:Horizontal="Center" ss:Vertical="Center"/><NumberFormat ss:Format="yyyy-mm-dd"/><Interior ss:Color="#FFFFFF" ss:Pattern="Solid"/><Borders><Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#E5E7EB"/></Borders></Style>
+  <Style ss:ID="DateAlt"><Alignment ss:Horizontal="Center" ss:Vertical="Center"/><NumberFormat ss:Format="yyyy-mm-dd"/><Interior ss:Color="#F8FAFC" ss:Pattern="Solid"/><Borders><Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#E5E7EB"/></Borders></Style>
+  <Style ss:ID="StatusGood"><Alignment ss:Horizontal="Center" ss:Vertical="Center"/><Font ss:Bold="1" ss:Color="#065F46"/><Interior ss:Color="#D1FAE5" ss:Pattern="Solid"/><Borders><Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#A7F3D0"/></Borders></Style>
+  <Style ss:ID="StatusPending"><Alignment ss:Horizontal="Center" ss:Vertical="Center"/><Font ss:Bold="1" ss:Color="#92400E"/><Interior ss:Color="#FEF3C7" ss:Pattern="Solid"/><Borders><Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#FDE68A"/></Borders></Style>
+  <Style ss:ID="StatusBad"><Alignment ss:Horizontal="Center" ss:Vertical="Center"/><Font ss:Bold="1" ss:Color="#7F1D1D"/><Interior ss:Color="#FEE2E2" ss:Pattern="Solid"/><Borders><Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#FECACA"/></Borders></Style>
+  <Style ss:ID="StatusNeutral"><Alignment ss:Horizontal="Center" ss:Vertical="Center"/><Font ss:Bold="1" ss:Color="#374151"/><Interior ss:Color="#E5E7EB" ss:Pattern="Solid"/><Borders><Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#D1D5DB"/></Borders></Style>
+  <Style ss:ID="SummaryLabel"><Alignment ss:Vertical="Center"/><Font ss:Bold="1" ss:Color="#065F46"/><Interior ss:Color="#ECFDF5" ss:Pattern="Solid"/><Borders><Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#D1FAE5"/></Borders></Style>
+  <Style ss:ID="SummaryValue"><Alignment ss:Vertical="Center"/><Font ss:Bold="1" ss:Color="#111827"/><Interior ss:Color="#FFFFFF" ss:Pattern="Solid"/><Borders><Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#D1FAE5"/></Borders></Style>
 </Styles>
 ${sheets.join("\n")}
 </Workbook>`;
@@ -526,6 +616,38 @@ export async function GET(request: Request) {
   if (action === "me") return json({ user });
   if (action === "inventory") {
     const projectId = Number(url.searchParams.get("projectId")) || 1;
+    const allProjects = url.searchParams.get("allProjects") === "1";
+    if (allProjects) {
+      if (user.role !== "admin") return json({ error: "Forbidden" }, 403);
+      const rows = await env.DB.prepare(`
+        SELECT i.data,p.id AS project_id,p.name AS project_name
+        FROM inventory i
+        LEFT JOIN projects p ON p.id=COALESCE(json_extract(i.data,'$.projectId'),1)
+        ORDER BY p.name,i.id
+      `).all<{ data: string; project_id: number; project_name: string }>();
+      const schedules = await env.DB.prepare("SELECT * FROM flight_schedules").all<any>();
+      const schedulesByProjectAsset = new Map((schedules.results as any[]).map((row) => [`${Number(row.project_id)}:${Number(row.asset_id)}`, row]));
+      return json({
+        inventory: rows.results.map((row) => {
+          const item = JSON.parse(row.data);
+          const sourceProjectId = Number(item.projectId || row.project_id || 1);
+          const sourceAssetId = Number(item.id);
+          const schedule = schedulesByProjectAsset.get(`${sourceProjectId}:${sourceAssetId}`);
+          return {
+            ...item,
+            id: sourceProjectId * 100000000 + sourceAssetId,
+            originalAssetId: sourceAssetId,
+            projectId: sourceProjectId,
+            projectName: row.project_name || `Project ${sourceProjectId}`,
+            flightStage: schedule?.stage ?? item.flightStage ?? "design",
+            flightStatus: schedule?.flight_status ?? item.flightStatus ?? "unflighted",
+            flightExpiry: schedule?.end_at ?? item.flightExpiry ?? "",
+            flightStart: schedule?.start_at ?? item.flightStart ?? "",
+            flightDurationDays: schedule?.duration_days ?? item.flightDurationDays ?? "",
+          };
+        }),
+      });
+    }
     const allowed = user.role === "admin" || Boolean(await env.DB.prepare("SELECT 1 FROM project_users WHERE project_id=? AND user_id=?").bind(projectId, user.id).first());
     if (!allowed) return json({ error: "Forbidden" }, 403);
     const rows = await env.DB.prepare("SELECT data FROM inventory WHERE COALESCE(json_extract(data,'$.projectId'),1)=? ORDER BY id").bind(projectId).all<{ data: string }>();
@@ -749,8 +871,9 @@ export async function GET(request: Request) {
       ];
     })];
     const summaryRows = [
+      ["Metric", "Value"],
       ["Project", project?.name ?? `Project ${projectId}`],
-      ["Generated", new Date().toISOString()],
+      ["Generated", new Date().toISOString().slice(0, 19).replace("T", " ")],
       ["Total Billboards", items.length],
       ["Large Format", items.filter((item) => item.mediaType === "large-format").length],
       ["Digital Screen", items.filter((item) => item.mediaType === "digital-screen").length],
@@ -758,8 +881,8 @@ export async function GET(request: Request) {
       ["Fabricated Banner", items.filter((item) => item.mediaType === "fabricated-banner").length],
       ["Flighted", schedules.results.filter((row: any) => row.flight_status === "flighted").length],
       ["Due / Expired", schedules.results.filter((row: any) => row.flight_status === "flighted" && row.end_at && Number(row.end_at) <= Date.now()).length],
-      [],
-      ["Execution dropdowns", "Artwork delivery: RECEIVED, PENDING, NOT RECEIVED, CXD; Approval: APPROVED, RETURNED, CXD; Printing: COMPLETE, IN PROGRESS, PENDING, CXD, NOT STARTED, N/A"],
+      ["Report sections", type === "comprehensive" ? "Summary, Execution Tracker, Cost Tracker, Flighting Schedule, Contacts" : type === "design" ? "Summary, Execution Tracker" : "Summary, Cost Tracker"],
+      ["Status dropdowns", "Artwork delivery: RECEIVED, PENDING, NOT RECEIVED, CXD; Approval: APPROVED, RETURNED, CXD; Printing: COMPLETE, IN PROGRESS, PENDING, CXD, NOT STARTED, N/A"],
     ];
     const contactRows = [["Name", "Scope", "Emails", "WhatsApp Phones"], ...(contacts.results as any[]).map((contact) => [contact.name, contact.project_id === 0 ? "Global" : "Project", contact.emails, contact.phones])];
     const sheets = [rowsToExcelSheet("Summary", summaryRows)];

@@ -72,6 +72,8 @@ type Billboard = {
   validatedAt?: number;
   validatedBy?: number;
   projectId?: number;
+  projectName?: string;
+  originalAssetId?: number;
   rentalPrice?: number;
   printingPrice?: number;
   transportPrice?: number;
@@ -421,7 +423,8 @@ function popupHtml(item: Billboard) {
   const image = imageUrl
     ? `<button type="button" class="asset-popup-image" data-image-url="${escapeHtml(imageUrl)}"><img src="${escapeHtml(imageUrl)}" alt="${escapeHtml(item.street)} image" loading="lazy" onerror="${imageErrorHandler()}" /><em>Image unavailable</em><span>Open image</span></button>`
     : `<div class="asset-popup-empty">No image link</div>`;
-  return `<div class="asset-popup">${image}<strong>${escapeHtml(item.street)}</strong><small>${escapeHtml(mediaTypeLabel(item.mediaType))} · ${escapeHtml(item.district)}</small><span>${escapeHtml(item.from)} → ${escapeHtml(item.to)}</span></div>`;
+  const project = item.projectName ? `<small>${escapeHtml(item.projectName)}</small>` : "";
+  return `<div class="asset-popup">${image}<strong>${escapeHtml(item.street)}</strong>${project}<small>${escapeHtml(mediaTypeLabel(item.mediaType))} · ${escapeHtml(item.district)}</small><span>${escapeHtml(item.from)} → ${escapeHtml(item.to)}</span></div>`;
 }
 
 function markImageFailed(event: React.SyntheticEvent<HTMLImageElement>) {
@@ -794,7 +797,7 @@ export default function Home() {
   }, [user]);
 
   useEffect(() => {
-    if (!user || !currentProjectId) return;
+    if (!user || currentProjectId === null || currentProjectId === undefined) return;
     let cancelled = false;
     setLoading(true);
     setBillboards([]);
@@ -804,6 +807,27 @@ export default function Home() {
     setCurrentPlanId(null);
     setPlanName("Campaign Plan 1");
     setPlanNote("");
+    if (user.role === "admin" && currentProjectId === 0) {
+      fetch("/api/app?action=inventory&allProjects=1")
+        .then((response) => response.ok ? response.json() : null)
+        .then((inventoryData) => {
+          if (cancelled) return;
+          const inventory = inventoryData?.inventory ?? [];
+          setBillboards(
+            inventory.map((item: Billboard) => ({
+              ...item,
+              district: renameDistrict(item.district),
+            })),
+          );
+          setPlans([]);
+          setFlightSchedules([]);
+          setProjectContacts([]);
+          setValidationAssignments([]);
+          setNotificationSummary({ records: 0, recipientEmails: 0, sent: 0, failed: 0, skipped: 0 });
+          setLoading(false);
+        });
+      return () => { cancelled = true; };
+    }
     Promise.all([
       fetch(`/api/app?action=inventory&projectId=${currentProjectId}`).then((response) => response.ok ? response.json() : null),
       fetch(`/api/app?action=plans&projectId=${currentProjectId}`).then((response) => response.ok ? response.json() : null),
@@ -854,7 +878,7 @@ export default function Home() {
     return billboards.filter((item) => {
       const matchesSearch =
         !term ||
-        [item.district, item.street, item.owner, item.advert]
+        [item.projectName, item.district, item.street, item.owner, item.advert]
           .join(" ")
           .toLowerCase()
           .includes(term);
@@ -1719,8 +1743,9 @@ export default function Home() {
   }
 
   const isSharedView = Boolean(sharedProject && !user);
-  const canManage = user?.role === "admin" || user?.role === "creator";
-  const canPlan = Boolean(user && user.role !== "viewer");
+  const isAllProjectsMap = Boolean(user?.role === "admin" && currentProjectId === 0);
+  const canManage = !isAllProjectsMap && (user?.role === "admin" || user?.role === "creator");
+  const canPlan = Boolean(user && user.role !== "viewer" && !isAllProjectsMap);
   const currentProject = projects.find((item) => item.id === currentProjectId);
   const canDeleteCurrentProject = Boolean(
     currentProject && (user?.role === "admin" || (user?.role === "creator" && Number(currentProject.created_by) === user.id)),
@@ -2522,6 +2547,7 @@ export default function Home() {
           {user ? <label className="project-select">
             <span>Project</span>
             <select value={currentProjectId} onChange={(event) => setCurrentProjectId(Number(event.target.value))}>
+              {user.role === "admin" && <option value={0}>All projects map</option>}
               {projects.map((project) => <option key={project.id} value={project.id}>{project.name}</option>)}
             </select>
           </label> : (
@@ -2610,7 +2636,20 @@ export default function Home() {
       </header>
 
       <nav className="tab-bar">
-        <button className={activeTab === "planner" ? "tab-btn tab-btn--active" : "tab-btn"} onClick={() => setActiveTab("planner")}>Planner</button>
+        <button
+          className={activeTab === "planner" && !isAllProjectsMap ? "tab-btn tab-btn--active" : "tab-btn"}
+          onClick={() => { if (isAllProjectsMap && projects[0]) setCurrentProjectId(projects[0].id); setActiveTab("planner"); }}
+        >
+          Planner
+        </button>
+        {user?.role === "admin" && (
+          <button
+            className={isAllProjectsMap && activeTab === "planner" ? "tab-btn tab-btn--active" : "tab-btn"}
+            onClick={() => { setCurrentProjectId(0); setActiveTab("planner"); }}
+          >
+            All Projects Map
+          </button>
+        )}
         {user && <button className={activeTab === "dashboard" ? "tab-btn tab-btn--active" : "tab-btn"} onClick={() => setActiveTab("dashboard")}>Dashboard</button>}
         <button className={activeTab === "library" ? "tab-btn tab-btn--active" : "tab-btn"} onClick={() => setActiveTab("library")}>Image Library</button>
         {canPlan && <button className={activeTab === "flighting" ? "tab-btn tab-btn--active" : "tab-btn"} onClick={() => setActiveTab("flighting")}>Flighting</button>}
@@ -2627,6 +2666,7 @@ export default function Home() {
               <div>
                 <span className="eyebrow">Billboard inventory</span>
                 {importMessage && <p className="import-message">{importMessage}</p>}
+                {isAllProjectsMap && <p className="import-message">Central map showing all projects</p>}
               </div>
               <div className="metrics-grid">
                 <Metric value={largeFormatFaces} label="Large format faces" />
@@ -2764,7 +2804,7 @@ export default function Home() {
                     <span className="row-copy">
                       <strong>{item.street}</strong>
                       <small>
-                        {item.district} · {item.from} → {item.to}
+                        {isAllProjectsMap && item.projectName ? `${item.projectName} · ` : ""}{item.district} · {item.from} → {item.to}
                       </small>
                       <span>
                         {item.width} × {item.height} m · {item.faces} faces
@@ -2892,7 +2932,7 @@ export default function Home() {
                   <span className="eyebrow">{mediaTypeLabel(selected.mediaType)} · {selected.district}</span>
                   <h2>{selected.street}</h2>
                   <p>
-                    {selected.from} → {selected.to}
+                    {isAllProjectsMap && selected.projectName ? `${selected.projectName} · ` : ""}{selected.from} → {selected.to}
                   </p>
                 </div>
               </div>
@@ -2925,6 +2965,12 @@ export default function Home() {
                   <dt>Owner</dt>
                   <dd>{selected.owner}</dd>
                 </div>
+                {isAllProjectsMap && selected.projectName && (
+                  <div>
+                    <dt>Project</dt>
+                    <dd>{selected.projectName}</dd>
+                  </div>
+                )}
                 <div>
                   <dt>Status</dt>
                   <dd>{statusLabel(selected.status)}</dd>
