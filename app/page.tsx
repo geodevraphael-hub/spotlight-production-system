@@ -632,6 +632,7 @@ export default function Home() {
   const labelsRef = useRef<TileLayer | null>(null);
   const markersRef = useRef<Map<number, LeafletMarker>>(new Map());
   const leafletRef = useRef<any>(null);
+  const lastExtentFitRef = useRef("");
   const [billboards, setBillboards] = useState<Billboard[]>([]);
   const [selected, setSelected] = useState<Billboard | null>(null);
   const [query, setQuery] = useState("");
@@ -924,6 +925,38 @@ export default function Home() {
         : filtered,
     [filtered, shortlist, showSelectedOnly],
   );
+
+  function fitMapToBillboardExtent(assets = visibleAssets, force = false) {
+    if (!mapRef.current || !mapReady || !assets.length) return;
+    const validAssets = assets.filter((item) => Number.isFinite(item.lat) && Number.isFinite(item.lng));
+    if (!validAssets.length) return;
+    const signature = validAssets
+      .map((item) => `${item.id}:${Number(item.lat).toFixed(6)},${Number(item.lng).toFixed(6)}`)
+      .join("|");
+    if (!force && signature === lastExtentFitRef.current) return;
+    lastExtentFitRef.current = signature;
+    const map = mapRef.current;
+    window.setTimeout(() => {
+      map.invalidateSize();
+      if (validAssets.length === 1) {
+        const onlyAsset = validAssets[0];
+        if (onlyAsset) map.flyTo([onlyAsset.lat, onlyAsset.lng], 17, { duration: 0.9, easeLinearity: 0.2 });
+        return;
+      }
+      const L = leafletRef.current;
+      if (!L) return;
+      const bounds = L.latLngBounds(validAssets.map((item) => [item.lat, item.lng]));
+      if (bounds.isValid()) {
+        const isMobile = typeof window !== "undefined" && window.matchMedia("(max-width: 760px)").matches;
+        map.flyToBounds(bounds, {
+          paddingTopLeft: isMobile ? [28, 110] : [sidebarOpen ? 420 : 70, 80],
+          paddingBottomRight: isMobile ? [28, 92] : [80, 80],
+          maxZoom: 16,
+          duration: force ? 0.9 : 0.75,
+        });
+      }
+    }, 120);
+  }
 
   useEffect(() => {
     setPhotoLinkDraft(selected ? billboardOriginalImageUrl(selected) : "");
@@ -1549,14 +1582,9 @@ export default function Home() {
   }, [placingAsset]);
 
   useEffect(() => {
-    if (!mapRef.current || !mapReady || !query.trim() || !visibleAssets.length) return;
-    import("leaflet").then((L) => {
-      const bounds = L.latLngBounds(visibleAssets.map((item) => [item.lat, item.lng]));
-      if (bounds.isValid()) {
-        mapRef.current?.flyToBounds(bounds, { padding: [40, 40], maxZoom: 16, duration: 1 });
-      }
-    });
-  }, [query, visibleAssets, mapReady]);
+    if (activeTab !== "planner" || !mapReady || !visibleAssets.length) return;
+    fitMapToBillboardExtent(visibleAssets, true);
+  }, [activeTab, mapReady, visibleAssets, sidebarOpen]);
 
   useEffect(() => {
     setTimeout(() => mapRef.current?.invalidateSize(), 260);
@@ -2889,8 +2917,9 @@ export default function Home() {
           </div>
           <button
             className="map-control locate"
-            onClick={() => mapRef.current?.flyTo([-6.1455, 39.2269], 14)}
-            aria-label="Reset map view"
+            onClick={() => fitMapToBillboardExtent(visibleAssets.length ? visibleAssets : billboards, true)}
+            aria-label="Zoom to billboard extent"
+            title="Zoom to billboard extent"
           >
             <LocateFixed size={18} />
           </button>
