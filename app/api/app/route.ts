@@ -194,6 +194,7 @@ async function setup() {
     db.prepare("CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, email TEXT NOT NULL UNIQUE, password_hash TEXT NOT NULL, role TEXT NOT NULL DEFAULT 'planner', created_at INTEGER NOT NULL)"),
     db.prepare("CREATE TABLE IF NOT EXISTS sessions (token TEXT PRIMARY KEY, user_id INTEGER NOT NULL, expires_at INTEGER NOT NULL)"),
     db.prepare("CREATE TABLE IF NOT EXISTS inventory (id INTEGER PRIMARY KEY AUTOINCREMENT, source_id INTEGER, data TEXT NOT NULL, latitude REAL NOT NULL, longitude REAL NOT NULL, created_at INTEGER NOT NULL)"),
+    db.prepare("CREATE TABLE IF NOT EXISTS inventory_projects (inventory_id INTEGER NOT NULL, project_id INTEGER NOT NULL, assigned_by INTEGER, assigned_at INTEGER NOT NULL, PRIMARY KEY(inventory_id,project_id))"),
     db.prepare("CREATE TABLE IF NOT EXISTS plans (user_id INTEGER PRIMARY KEY, data TEXT NOT NULL, note TEXT NOT NULL DEFAULT '', updated_at INTEGER NOT NULL)"),
     db.prepare("CREATE TABLE IF NOT EXISTS projects (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, project_type TEXT NOT NULL, share_token TEXT NOT NULL UNIQUE, share_code TEXT NOT NULL DEFAULT '', share_protected INTEGER NOT NULL DEFAULT 1, created_by INTEGER NOT NULL, created_at INTEGER NOT NULL)"),
     db.prepare("CREATE TABLE IF NOT EXISTS project_users (project_id INTEGER NOT NULL, user_id INTEGER NOT NULL, PRIMARY KEY(project_id,user_id))"),
@@ -214,6 +215,7 @@ async function setup() {
     db.prepare("CREATE INDEX IF NOT EXISTS idx_validation_assignments_project_asset ON validation_assignments(project_id,asset_id)"),
     db.prepare("CREATE INDEX IF NOT EXISTS idx_notification_audit_project_created ON notification_audit(project_id,created_at)"),
     db.prepare("CREATE INDEX IF NOT EXISTS idx_notification_audit_type_channel ON notification_audit(notification_type,channel,created_at)"),
+    db.prepare("CREATE INDEX IF NOT EXISTS idx_inventory_projects_project ON inventory_projects(project_id)"),
   ]);
   try {
     await db.prepare("ALTER TABLE projects ADD COLUMN share_code TEXT NOT NULL DEFAULT ''").run();
@@ -257,6 +259,7 @@ async function setup() {
     await db.prepare("UPDATE projects SET share_code=? WHERE id=?").bind(shareCode(), project.id).run();
   }
   await db.prepare("UPDATE field_collections SET project_id=COALESCE((SELECT project_id FROM missions WHERE missions.id=field_collections.mission_id), project_id, 1)").run();
+  await db.prepare("INSERT OR IGNORE INTO inventory_projects (inventory_id,project_id,assigned_by,assigned_at) SELECT id, COALESCE(json_extract(data,'$.projectId'),1), 1, ? FROM inventory").bind(Date.now()).run();
   await db.prepare("UPDATE flight_schedules SET flight_status='flighted' WHERE stage='flighted' AND flight_status!='flighted'").run();
   try {
     await db.prepare(`
@@ -598,7 +601,13 @@ export async function GET(request: Request) {
     if (project.share_protected !== 0 && (!code || code !== project.share_code.toUpperCase())) {
       return json({ error: "Secret code required", protected: true }, 401);
     }
-    const rows = await env.DB.prepare("SELECT data FROM inventory WHERE COALESCE(json_extract(data,'$.projectId'),1)=? ORDER BY id").bind(project.id).all<{ data: string }>();
+    const rows = await env.DB.prepare(`
+      SELECT i.id AS inventory_id,i.data
+      FROM inventory i
+      LEFT JOIN inventory_projects ip ON ip.inventory_id=i.id AND ip.project_id=?
+      WHERE ip.project_id IS NOT NULL OR COALESCE(json_extract(i.data,'$.projectId'),1)=?
+      ORDER BY i.id
+    `).bind(project.id, project.id).all<{ inventory_id: number; data: string }>();
     return json({
       project: {
         id: project.id,
@@ -608,7 +617,10 @@ export async function GET(request: Request) {
         share_code: project.share_code,
         share_protected: project.share_protected,
       },
-      inventory: rows.results.map((row) => JSON.parse(row.data)),
+      inventory: rows.results.map((row) => {
+        const item = JSON.parse(row.data);
+        return { ...item, inventoryDbId: row.inventory_id, projectId: project.id };
+      }),
     });
   }
   const user = await currentUser(request);
@@ -620,11 +632,12 @@ export async function GET(request: Request) {
     if (allProjects) {
       if (user.role !== "admin") return json({ error: "Forbidden" }, 403);
       const rows = await env.DB.prepare(`
-        SELECT i.data,p.id AS project_id,p.name AS project_name
+        SELECT i.id AS inventory_id,i.data,COALESCE(ip.project_id,COALESCE(json_extract(i.data,'$.projectId'),1)) AS project_id,p.name AS project_name
         FROM inventory i
-        LEFT JOIN projects p ON p.id=COALESCE(json_extract(i.data,'$.projectId'),1)
+        LEFT JOIN inventory_projects ip ON ip.inventory_id=i.id
+        LEFT JOIN projects p ON p.id=COALESCE(ip.project_id,COALESCE(json_extract(i.data,'$.projectId'),1))
         ORDER BY p.name,i.id
-      `).all<{ data: string; project_id: number; project_name: string }>();
+      `).all<{ inventory_id: number; data: string; project_id: number; project_name: string }>();
       const schedules = await env.DB.prepare("SELECT * FROM flight_schedules").all<any>();
       const schedulesByProjectAsset = new Map((schedules.results as any[]).map((row) => [`${Number(row.project_id)}:${Number(row.asset_id)}`, row]));
       return json({
@@ -636,6 +649,7 @@ export async function GET(request: Request) {
           return {
             ...item,
             id: sourceProjectId * 100000000 + sourceAssetId,
+            inventoryDbId: row.inventory_id,
             originalAssetId: sourceAssetId,
             projectId: sourceProjectId,
             projectName: row.project_name || `Project ${sourceProjectId}`,
@@ -650,16 +664,23 @@ export async function GET(request: Request) {
     }
     const allowed = user.role === "admin" || Boolean(await env.DB.prepare("SELECT 1 FROM project_users WHERE project_id=? AND user_id=?").bind(projectId, user.id).first());
     if (!allowed) return json({ error: "Forbidden" }, 403);
-    const rows = await env.DB.prepare("SELECT data FROM inventory WHERE COALESCE(json_extract(data,'$.projectId'),1)=? ORDER BY id").bind(projectId).all<{ data: string }>();
+    const rows = await env.DB.prepare(`
+      SELECT i.id AS inventory_id,i.data
+      FROM inventory i
+      LEFT JOIN inventory_projects ip ON ip.inventory_id=i.id AND ip.project_id=?
+      WHERE ip.project_id IS NOT NULL OR COALESCE(json_extract(i.data,'$.projectId'),1)=?
+      ORDER BY i.id
+    `).bind(projectId, projectId).all<{ inventory_id: number; data: string }>();
     const schedules = await env.DB.prepare("SELECT asset_id,stage,flight_status,start_at,end_at,duration_days FROM flight_schedules WHERE project_id=?").bind(projectId).all<any>();
     const schedulesByAsset = new Map((schedules.results as any[]).map((row) => [Number(row.asset_id), row]));
     return json({
-      inventory: rows.results.map((row: { data: string }) => {
+      inventory: rows.results.map((row: { inventory_id: number; data: string }) => {
         const item = JSON.parse(row.data);
+        const baseItem = { ...item, inventoryDbId: row.inventory_id, projectId, originalAssetId: Number(item.id) };
         const schedule = schedulesByAsset.get(Number(item.id));
-        if (!schedule) return item;
+        if (!schedule) return baseItem;
         return {
-          ...item,
+          ...baseItem,
           flightStage: schedule.stage ?? item.flightStage ?? "design",
           flightStatus: schedule.flight_status ?? item.flightStatus ?? "unflighted",
           flightExpiry: schedule.end_at ?? item.flightExpiry ?? "",
@@ -773,8 +794,10 @@ export async function GET(request: Request) {
         SELECT va.*,p.name AS project_name,i.data AS asset_data,i.latitude,i.longitude
         FROM validation_assignments va
         JOIN projects p ON p.id=va.project_id
-        LEFT JOIN inventory i ON COALESCE(json_extract(i.data,'$.projectId'),1)=va.project_id AND CAST(json_extract(i.data,'$.id') AS INTEGER)=va.asset_id
+        LEFT JOIN inventory i ON CAST(json_extract(i.data,'$.id') AS INTEGER)=va.asset_id
+        LEFT JOIN inventory_projects ip ON ip.inventory_id=i.id AND ip.project_id=va.project_id
         WHERE va.assigned_to=?
+          AND (i.id IS NULL OR ip.project_id IS NOT NULL OR COALESCE(json_extract(i.data,'$.projectId'),1)=va.project_id)
         ORDER BY CASE va.status WHEN 'assigned' THEN 0 WHEN 'in_progress' THEN 1 WHEN 'issue' THEN 2 WHEN 'ok' THEN 3 ELSE 4 END, va.updated_at DESC
       `).bind(user.id).all<any>();
       return json({ assignments: (rows.results as any[]).map((row) => ({ ...row, report: JSON.parse(row.report || "{}"), asset: row.asset_data ? JSON.parse(row.asset_data) : null })) });
@@ -787,8 +810,10 @@ export async function GET(request: Request) {
       SELECT va.*,u.name AS assignee_name,u.email AS assignee_email,i.data AS asset_data
       FROM validation_assignments va
       JOIN users u ON u.id=va.assigned_to
-      LEFT JOIN inventory i ON COALESCE(json_extract(i.data,'$.projectId'),1)=va.project_id AND CAST(json_extract(i.data,'$.id') AS INTEGER)=va.asset_id
+      LEFT JOIN inventory i ON CAST(json_extract(i.data,'$.id') AS INTEGER)=va.asset_id
+      LEFT JOIN inventory_projects ip ON ip.inventory_id=i.id AND ip.project_id=va.project_id
       WHERE va.project_id=?
+        AND (i.id IS NULL OR ip.project_id IS NOT NULL OR COALESCE(json_extract(i.data,'$.projectId'),1)=va.project_id)
       ORDER BY va.updated_at DESC
     `).bind(projectId).all<any>();
     return json({ assignments: (rows.results as any[]).map((row) => ({ ...row, report: JSON.parse(row.report || "{}"), asset: row.asset_data ? JSON.parse(row.asset_data) : null })) });
@@ -852,10 +877,16 @@ export async function GET(request: Request) {
     const allowed = user.role === "admin" || Boolean(await env.DB.prepare("SELECT 1 FROM project_users WHERE project_id=? AND user_id=?").bind(projectId, user.id).first());
     if (!allowed) return json({ error: "Forbidden" }, 403);
     const project = await env.DB.prepare("SELECT name FROM projects WHERE id=?").bind(projectId).first<{ name: string }>();
-    const inventory = await env.DB.prepare("SELECT data FROM inventory WHERE COALESCE(json_extract(data,'$.projectId'),1)=? ORDER BY id").bind(projectId).all<{ data: string }>();
+    const inventory = await env.DB.prepare(`
+      SELECT i.id AS inventory_id,i.data
+      FROM inventory i
+      LEFT JOIN inventory_projects ip ON ip.inventory_id=i.id AND ip.project_id=?
+      WHERE ip.project_id IS NOT NULL OR COALESCE(json_extract(i.data,'$.projectId'),1)=?
+      ORDER BY i.id
+    `).bind(projectId, projectId).all<{ inventory_id: number; data: string }>();
     const schedules = await env.DB.prepare("SELECT * FROM flight_schedules WHERE project_id=? ORDER BY updated_at DESC").bind(projectId).all<any>();
     const contacts = await env.DB.prepare("SELECT * FROM project_contacts WHERE project_id IN (0, ?) ORDER BY is_default DESC, name").bind(projectId).all<any>();
-    const items = inventory.results.map((row) => JSON.parse(row.data));
+    const items = inventory.results.map((row) => ({ ...JSON.parse(row.data), inventoryDbId: row.inventory_id, projectId }));
     const scheduleMap = new Map((schedules.results as any[]).map((row) => [Number(row.asset_id), row]));
     const { execution, cost, execFormulas, costFormulas } = trackerRows(items, scheduleMap);
     const flightRows = [[
@@ -929,14 +960,25 @@ export async function POST(request: Request) {
       .map((item) => ({ ...item, projectId }));
     for (const item of valid) {
       const sourceId = Number(item.id) || null;
-      const exists = await env.DB.prepare("SELECT id FROM inventory WHERE source_id=? AND COALESCE(json_extract(data,'$.projectId'),1)=?")
-        .bind(sourceId, projectId).first();
+      const exists = await env.DB.prepare(`
+        SELECT i.id
+        FROM inventory i
+        LEFT JOIN inventory_projects ip ON ip.inventory_id=i.id AND ip.project_id=?
+        WHERE i.source_id=? AND (ip.project_id IS NOT NULL OR COALESCE(json_extract(i.data,'$.projectId'),1)=?)
+        LIMIT 1
+      `).bind(projectId, sourceId, projectId).first<{ id: number }>();
+      let inventoryId = exists?.id ?? 0;
       if (!exists) {
-        await env.DB.prepare("INSERT INTO inventory (source_id,data,latitude,longitude,created_at) VALUES (?,?,?,?,?)")
+        const result = await env.DB.prepare("INSERT INTO inventory (source_id,data,latitude,longitude,created_at) VALUES (?,?,?,?,?)")
           .bind(sourceId, JSON.stringify(item), Number(item.lat), Number(item.lng), Date.now()).run();
+        inventoryId = Number(result.meta.last_row_id);
       } else {
         await env.DB.prepare("UPDATE inventory SET data=?, latitude=?, longitude=? WHERE id=?")
-          .bind(JSON.stringify(item), Number(item.lat), Number(item.lng), (exists as { id: number }).id).run();
+          .bind(JSON.stringify(item), Number(item.lat), Number(item.lng), exists.id).run();
+      }
+      if (inventoryId) {
+        await env.DB.prepare("INSERT OR IGNORE INTO inventory_projects (inventory_id,project_id,assigned_by,assigned_at) VALUES (?,?,?,?)")
+          .bind(inventoryId, projectId, user.id, Date.now()).run();
       }
     }
     return json({ imported: valid.length, rejected: items.length - valid.length });
@@ -948,6 +990,35 @@ export async function POST(request: Request) {
       .bind(String(body.name), String(body.projectType || "Outdoor media"), token, code, user.id, Date.now()).run();
     await env.DB.prepare("INSERT INTO project_users (project_id,user_id) VALUES (?,?)").bind(result.meta.last_row_id, user.id).run();
     return json({ project: { id: result.meta.last_row_id, name: body.name, project_type: body.projectType, share_token: token, share_code: code, share_protected: 1 } }, 201);
+  }
+  if (action === "assign-billboards-to-project" && (user.role === "admin" || user.role === "creator")) {
+    const sourceProjectId = Number(body.sourceProjectId) || 0;
+    const targetProjectId = Number(body.targetProjectId) || 0;
+    const assetIds = Array.isArray(body.assetIds) ? body.assetIds.map(Number).filter(Boolean) : [];
+    if (!sourceProjectId || !targetProjectId || !assetIds.length) {
+      return json({ error: "Source project, target project, and selected billboards are required" }, 400);
+    }
+    if (sourceProjectId === targetProjectId) return json({ error: "Select a different target project" }, 400);
+    const sourceAllowed = user.role === "admin" || Boolean(await env.DB.prepare("SELECT 1 FROM project_users WHERE project_id=? AND user_id=?").bind(sourceProjectId, user.id).first());
+    const targetAllowed = user.role === "admin" || Boolean(await env.DB.prepare("SELECT 1 FROM project_users WHERE project_id=? AND user_id=?").bind(targetProjectId, user.id).first());
+    if (!sourceAllowed || !targetAllowed) return json({ error: "Forbidden" }, 403);
+    const target = await env.DB.prepare("SELECT id,name FROM projects WHERE id=?").bind(targetProjectId).first<{ id: number; name: string }>();
+    if (!target) return json({ error: "Target project not found" }, 404);
+    const placeholders = assetIds.map(() => "?").join(",");
+    const rows = await env.DB.prepare(`
+      SELECT DISTINCT i.id AS inventory_id
+      FROM inventory i
+      LEFT JOIN inventory_projects ip ON ip.inventory_id=i.id AND ip.project_id=?
+      WHERE (ip.project_id IS NOT NULL OR COALESCE(json_extract(i.data,'$.projectId'),1)=?)
+        AND CAST(json_extract(i.data,'$.id') AS INTEGER) IN (${placeholders})
+    `).bind(sourceProjectId, sourceProjectId, ...assetIds).all<{ inventory_id: number }>();
+    const now = Date.now();
+    const statements = rows.results.map((row) =>
+      env.DB.prepare("INSERT OR IGNORE INTO inventory_projects (inventory_id,project_id,assigned_by,assigned_at) VALUES (?,?,?,?)")
+        .bind(row.inventory_id, targetProjectId, user.id, now),
+    );
+    if (statements.length) await env.DB.batch(statements);
+    return json({ ok: true, assigned: rows.results.length, project: target });
   }
   if (action === "project-contacts" && (user.role === "admin" || user.role === "creator")) {
     const now = Date.now();
@@ -1016,8 +1087,14 @@ export async function POST(request: Request) {
     await env.DB.prepare("UPDATE validation_assignments SET status=?,report=?,completed_at=?,updated_at=? WHERE id=?")
       .bind(verdict, JSON.stringify(report), now, now, assignmentId).run();
     if (verdict === "ok" && report.photo) {
-      const row = await env.DB.prepare("SELECT id,data FROM inventory WHERE COALESCE(json_extract(data,'$.projectId'),1)=? AND CAST(json_extract(data,'$.id') AS INTEGER)=?")
-        .bind(Number(assignment.project_id), Number(assignment.asset_id)).first<{ id: number; data: string }>();
+      const row = await env.DB.prepare(`
+        SELECT i.id,i.data
+        FROM inventory i
+        LEFT JOIN inventory_projects ip ON ip.inventory_id=i.id AND ip.project_id=?
+        WHERE (ip.project_id IS NOT NULL OR COALESCE(json_extract(i.data,'$.projectId'),1)=?)
+          AND CAST(json_extract(i.data,'$.id') AS INTEGER)=?
+        LIMIT 1
+      `).bind(Number(assignment.project_id), Number(assignment.project_id), Number(assignment.asset_id)).first<{ id: number; data: string }>();
       if (row) {
         const data = JSON.parse(row.data);
         data.photoUrl = report.photo;
@@ -1047,8 +1124,14 @@ export async function POST(request: Request) {
     };
     await env.DB.prepare("UPDATE validation_assignments SET status='ok',report=?,completed_at=?,updated_at=? WHERE id=?")
       .bind(JSON.stringify(report), now, now, assignmentId).run();
-    const row = await env.DB.prepare("SELECT id,data FROM inventory WHERE COALESCE(json_extract(data,'$.projectId'),1)=? AND CAST(json_extract(data,'$.id') AS INTEGER)=?")
-      .bind(Number(assignment.project_id), Number(assignment.asset_id)).first<{ id: number; data: string }>();
+    const row = await env.DB.prepare(`
+      SELECT i.id,i.data
+      FROM inventory i
+      LEFT JOIN inventory_projects ip ON ip.inventory_id=i.id AND ip.project_id=?
+      WHERE (ip.project_id IS NOT NULL OR COALESCE(json_extract(i.data,'$.projectId'),1)=?)
+        AND CAST(json_extract(i.data,'$.id') AS INTEGER)=?
+      LIMIT 1
+    `).bind(Number(assignment.project_id), Number(assignment.project_id), Number(assignment.asset_id)).first<{ id: number; data: string }>();
     if (row) {
       const data = JSON.parse(row.data);
       data.validationStatus = "ok";
@@ -1077,8 +1160,14 @@ export async function POST(request: Request) {
     for (const assetId of assetIds) {
       await env.DB.prepare("INSERT INTO flight_schedules (project_id,asset_id,stage,flight_status,start_at,end_at,duration_days,reminder_days,note,created_by,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(project_id,asset_id) DO UPDATE SET stage=excluded.stage,flight_status=excluded.flight_status,start_at=excluded.start_at,end_at=excluded.end_at,duration_days=excluded.duration_days,reminder_days=excluded.reminder_days,note=excluded.note,updated_at=excluded.updated_at")
         .bind(projectId, assetId, stage, flightStatus, startAt, endAt, durationDays, reminderDays, note, user.id, now, now).run();
-      const inventoryRow = await env.DB.prepare("SELECT id,data FROM inventory WHERE COALESCE(json_extract(data,'$.projectId'),1)=? AND CAST(json_extract(data,'$.id') AS INTEGER)=?")
-        .bind(projectId, assetId).first<{ id: number; data: string }>();
+      const inventoryRow = await env.DB.prepare(`
+        SELECT i.id,i.data
+        FROM inventory i
+        LEFT JOIN inventory_projects ip ON ip.inventory_id=i.id AND ip.project_id=?
+        WHERE (ip.project_id IS NOT NULL OR COALESCE(json_extract(i.data,'$.projectId'),1)=?)
+          AND CAST(json_extract(i.data,'$.id') AS INTEGER)=?
+        LIMIT 1
+      `).bind(projectId, projectId, assetId).first<{ id: number; data: string }>();
       if (inventoryRow) {
         const inventoryData = JSON.parse(inventoryRow.data);
         inventoryData.flightStatus = flightStatus;
@@ -1092,7 +1181,13 @@ export async function POST(request: Request) {
       const emails = [...new Set((contacts.results as any[]).flatMap((row) => splitContacts(row.emails)))];
       const phones = [...new Set((contacts.results as any[]).flatMap((row) => splitContacts(row.phones)))];
       const project = await env.DB.prepare("SELECT name FROM projects WHERE id=?").bind(projectId).first<{ name: string }>();
-      const inventory = await env.DB.prepare("SELECT data FROM inventory WHERE COALESCE(json_extract(data,'$.projectId'),1)=? ORDER BY id").bind(projectId).all<{ data: string }>();
+      const inventory = await env.DB.prepare(`
+        SELECT i.data
+        FROM inventory i
+        LEFT JOIN inventory_projects ip ON ip.inventory_id=i.id AND ip.project_id=?
+        WHERE ip.project_id IS NOT NULL OR COALESCE(json_extract(i.data,'$.projectId'),1)=?
+        ORDER BY i.id
+      `).bind(projectId, projectId).all<{ data: string }>();
       const items = inventory.results.map((row) => JSON.parse(row.data)).filter((item) => assetIds.includes(Number(item.id)));
       const projectName = project?.name ?? "project";
       const fallbackItems = items.length ? items : assetIds.map((assetId) => ({ id: assetId }));
@@ -1228,8 +1323,22 @@ export async function POST(request: Request) {
     const sourceId = Number(body.id);
     const projectId = Number(body.projectId) || 1;
     if (!sourceId) return json({ error: "Invalid id" }, 400);
-    await env.DB.prepare("DELETE FROM inventory WHERE source_id=? AND COALESCE(json_extract(data,'$.projectId'),1)=?")
-      .bind(sourceId, projectId).run();
+    const allowed = user.role === "admin" || Boolean(await env.DB.prepare("SELECT 1 FROM project_users WHERE project_id=? AND user_id=?").bind(projectId, user.id).first());
+    if (!allowed) return json({ error: "Forbidden" }, 403);
+    const rows = await env.DB.prepare(`
+      SELECT DISTINCT i.id
+      FROM inventory i
+      LEFT JOIN inventory_projects ip ON ip.inventory_id=i.id AND ip.project_id=?
+      WHERE i.source_id=? AND (ip.project_id IS NOT NULL OR COALESCE(json_extract(i.data,'$.projectId'),1)=?)
+    `).bind(projectId, sourceId, projectId).all<{ id: number }>();
+    if (rows.results.length) {
+      await env.DB.batch(rows.results.map((row) =>
+        env.DB.prepare("DELETE FROM inventory_projects WHERE inventory_id=? AND project_id=?").bind(row.id, projectId),
+      ));
+    } else {
+      await env.DB.prepare("DELETE FROM inventory WHERE source_id=? AND COALESCE(json_extract(data,'$.projectId'),1)=?")
+        .bind(sourceId, projectId).run();
+    }
     return json({ ok: true });
   }
   if (action === "clear-inventory" && (user.role === "admin" || user.role === "creator")) {
@@ -1237,9 +1346,14 @@ export async function POST(request: Request) {
     if (!projectId) return json({ error: "Project is required" }, 400);
     const allowed = user.role === "admin" || Boolean(await env.DB.prepare("SELECT 1 FROM project_users WHERE project_id=? AND user_id=?").bind(projectId, user.id).first());
     if (!allowed) return json({ error: "Forbidden" }, 403);
-    const count = await env.DB.prepare("SELECT COUNT(*) AS total FROM inventory WHERE COALESCE(json_extract(data,'$.projectId'),1)=?")
-      .bind(projectId).first<{ total: number }>();
-    await env.DB.prepare("DELETE FROM inventory WHERE COALESCE(json_extract(data,'$.projectId'),1)=?")
+    const count = await env.DB.prepare(`
+      SELECT COUNT(DISTINCT i.id) AS total
+      FROM inventory i
+      LEFT JOIN inventory_projects ip ON ip.inventory_id=i.id AND ip.project_id=?
+      WHERE ip.project_id IS NOT NULL OR COALESCE(json_extract(i.data,'$.projectId'),1)=?
+    `).bind(projectId, projectId).first<{ total: number }>();
+    await env.DB.prepare("DELETE FROM inventory_projects WHERE project_id=?").bind(projectId).run();
+    await env.DB.prepare("DELETE FROM inventory WHERE COALESCE(json_extract(data,'$.projectId'),1)=? AND id NOT IN (SELECT inventory_id FROM inventory_projects)")
       .bind(projectId).run();
     return json({ ok: true, deleted: count?.total ?? 0 });
   }
@@ -1252,8 +1366,12 @@ export async function POST(request: Request) {
     if (user.role !== "admin" && Number(project.created_by) !== user.id) {
       return json({ error: "Only the project creator can delete this project" }, 403);
     }
-    const inventoryCount = await env.DB.prepare("SELECT COUNT(*) AS total FROM inventory WHERE COALESCE(json_extract(data,'$.projectId'),1)=?")
-      .bind(projectId).first<{ total: number }>();
+    const inventoryCount = await env.DB.prepare(`
+      SELECT COUNT(DISTINCT i.id) AS total
+      FROM inventory i
+      LEFT JOIN inventory_projects ip ON ip.inventory_id=i.id AND ip.project_id=?
+      WHERE ip.project_id IS NOT NULL OR COALESCE(json_extract(i.data,'$.projectId'),1)=?
+    `).bind(projectId, projectId).first<{ total: number }>();
     await env.DB.batch([
       env.DB.prepare("DELETE FROM field_photos WHERE collection_id IN (SELECT id FROM field_collections WHERE COALESCE(project_id,1)=?)").bind(projectId),
       env.DB.prepare("DELETE FROM field_collections WHERE COALESCE(project_id,1)=?").bind(projectId),
@@ -1262,7 +1380,8 @@ export async function POST(request: Request) {
       env.DB.prepare("DELETE FROM project_contacts WHERE project_id=?").bind(projectId),
       env.DB.prepare("DELETE FROM campaign_plans WHERE project_id=?").bind(projectId),
       env.DB.prepare("DELETE FROM project_users WHERE project_id=?").bind(projectId),
-      env.DB.prepare("DELETE FROM inventory WHERE COALESCE(json_extract(data,'$.projectId'),1)=?").bind(projectId),
+      env.DB.prepare("DELETE FROM inventory_projects WHERE project_id=?").bind(projectId),
+      env.DB.prepare("DELETE FROM inventory WHERE COALESCE(json_extract(data,'$.projectId'),1)=? AND id NOT IN (SELECT inventory_id FROM inventory_projects)").bind(projectId),
       env.DB.prepare("DELETE FROM projects WHERE id=?").bind(projectId),
     ]);
     return json({ ok: true, deletedProject: project.name, deletedInventory: inventoryCount?.total ?? 0 });

@@ -71,6 +71,7 @@ type Billboard = {
   validationStatus?: string;
   validatedAt?: number;
   validatedBy?: number;
+  inventoryDbId?: number;
   projectId?: number;
   projectName?: string;
   originalAssetId?: number;
@@ -725,6 +726,10 @@ export default function Home() {
   const [sharePanelOpen, setSharePanelOpen] = useState(false);
   const [shareRequiresCode, setShareRequiresCode] = useState(false);
   const [shareChecking, setShareChecking] = useState(false);
+  const [assignProjectOpen, setAssignProjectOpen] = useState(false);
+  const [assignTargetProjectId, setAssignTargetProjectId] = useState("");
+  const [assignNewProjectName, setAssignNewProjectName] = useState("");
+  const [assignProjectSaving, setAssignProjectSaving] = useState(false);
   const [validationAssignments, setValidationAssignments] = useState<ValidationAssignment[]>([]);
   const [validationAssigneeId, setValidationAssigneeId] = useState("");
   const [validationSaving, setValidationSaving] = useState(false);
@@ -2237,6 +2242,54 @@ export default function Home() {
     }
   }
 
+  async function assignSelectedToProject(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!currentProjectId || !shortlist.length) return;
+    setAssignProjectSaving(true);
+    setImportMessage("");
+    try {
+      let targetProjectId = Number(assignTargetProjectId) || 0;
+      const newProjectName = assignNewProjectName.trim();
+      if (newProjectName) {
+        const createResponse = await fetch("/api/app?action=projects", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ name: newProjectName, projectType: "Outdoor media" }),
+        });
+        const created = await createResponse.json();
+        if (!createResponse.ok) throw new Error(created.error ?? "Failed to create project");
+        targetProjectId = Number(created.project?.id) || 0;
+      }
+      if (!targetProjectId) throw new Error("Choose a target project or enter a new project name");
+      const response = await fetch("/api/app?action=assign-billboards-to-project", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          sourceProjectId: currentProjectId,
+          targetProjectId,
+          assetIds: shortlist,
+        }),
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error ?? "Failed to assign billboards");
+      const refreshed = await fetch("/api/app?action=projects").then((value) => value.json());
+      setProjects(refreshed.projects ?? []);
+      setAssignProjectOpen(false);
+      setAssignTargetProjectId("");
+      setAssignNewProjectName("");
+      setShortlist([]);
+      setShowSelectedOnly(false);
+      setImportMessage(`${result.assigned ?? shortlist.length} billboard(s) assigned to ${result.project?.name ?? "target project"}`);
+      window.setTimeout(() => setImportMessage(""), 3000);
+    } catch (error) {
+      console.error(error);
+      setImportMessage(error instanceof Error ? error.message : "Failed to assign billboards");
+      window.setTimeout(() => setImportMessage(""), 3000);
+    } finally {
+      setAssignProjectSaving(false);
+    }
+  }
+
   async function importInventory(file: File) {
     const text = await file.text();
     let items: Billboard[] = [];
@@ -2610,6 +2663,11 @@ export default function Home() {
               <button className="text-button" onClick={() => setActiveTab("flighting")}>
                 <Check size={15} /> Flighting
               </button>
+              {shortlist.length > 0 && (
+                <button className="text-button" onClick={() => setAssignProjectOpen(true)}>
+                  <Plus size={15} /> Assign selected
+                </button>
+              )}
             </>
           )}
           {user && (
@@ -3310,6 +3368,14 @@ export default function Home() {
                     ? "Showing selected only on map"
                     : "Show selected only on map"}
                 </button>
+                {canManage && shortlist.length > 0 && (
+                  <button
+                    className="selected-map-toggle assign-project-toggle"
+                    onClick={() => setAssignProjectOpen(true)}
+                  >
+                    <Plus size={16} /> Assign selected billboards to another project
+                  </button>
+                )}
 
                 <div className="plan-list">
                   {!plannedAssets.length && (
@@ -4321,6 +4387,56 @@ export default function Home() {
             <button className="close-detail" onClick={() => { setPhotoViewerOpen(false); setViewingPhoto(null); }}><X size={17} /></button>
             <img src={viewingPhoto} alt="Billboard media preview" />
           </div>
+        </>
+      )}
+      {assignProjectOpen && (
+        <>
+          <button className="plan-backdrop" onClick={() => setAssignProjectOpen(false)} />
+          <form className="modal-card assign-project-card" onSubmit={assignSelectedToProject}>
+            <button type="button" className="close-detail" onClick={() => setAssignProjectOpen(false)}><X size={17} /></button>
+            <span className="eyebrow">Project assignment</span>
+            <h2>Assign {shortlist.length} selected billboard{shortlist.length === 1 ? "" : "s"}</h2>
+            <p className="share-mode-copy">
+              The billboard records stay in {projects.find((project) => project.id === currentProjectId)?.name ?? "this project"} and will also appear in the target project map, tracker, flighting, and shared views.
+            </p>
+            <div className="mapping-grid assign-project-grid">
+              <label>
+                <span>Existing target project</span>
+                <select
+                  value={assignTargetProjectId}
+                  onChange={(event) => {
+                    setAssignTargetProjectId(event.target.value);
+                    if (event.target.value) setAssignNewProjectName("");
+                  }}
+                  disabled={assignProjectSaving || Boolean(assignNewProjectName.trim())}
+                >
+                  <option value="">Select project</option>
+                  {projects
+                    .filter((project) => project.id !== currentProjectId && project.id !== 0)
+                    .map((project) => <option key={project.id} value={project.id}>{project.name}</option>)}
+                </select>
+              </label>
+              <label>
+                <span>Or create new project</span>
+                <input
+                  value={assignNewProjectName}
+                  onChange={(event) => {
+                    setAssignNewProjectName(event.target.value);
+                    if (event.target.value.trim()) setAssignTargetProjectId("");
+                  }}
+                  disabled={assignProjectSaving || Boolean(assignTargetProjectId)}
+                  placeholder="New project name"
+                />
+              </label>
+            </div>
+            <div className="assign-project-summary">
+              <strong>{shortlist.length}</strong>
+              <span>selected from the current map</span>
+            </div>
+            <button className="primary-button export-button" type="submit" disabled={assignProjectSaving || !shortlist.length || (!assignTargetProjectId && !assignNewProjectName.trim())}>
+              {assignProjectSaving ? "Assigning..." : "Assign billboards"}
+            </button>
+          </form>
         </>
       )}
       {sharePanelOpen && (
