@@ -178,9 +178,10 @@ async function recordNotificationAudit(entry: {
 }
 
 function normalizedFlightStatus(stage: string, requestedStatus: string) {
+  if (requestedStatus === "deflighted" || stage === "removed") return "deflighted";
   if (stage === "flighted") return "flighted";
-  if (stage === "removed") return "unflighted";
-  return requestedStatus === "flighted" ? "flighted" : "unflighted";
+  if (requestedStatus === "flighted") return "flighted";
+  return "unflighted";
 }
 
 function cookieToken(request: Request) {
@@ -261,6 +262,7 @@ async function setup() {
   await db.prepare("UPDATE field_collections SET project_id=COALESCE((SELECT project_id FROM missions WHERE missions.id=field_collections.mission_id), project_id, 1)").run();
   await db.prepare("INSERT OR IGNORE INTO inventory_projects (inventory_id,project_id,assigned_by,assigned_at) SELECT id, COALESCE(json_extract(data,'$.projectId'),1), 1, ? FROM inventory").bind(Date.now()).run();
   await db.prepare("UPDATE flight_schedules SET flight_status='flighted' WHERE stage='flighted' AND flight_status!='flighted'").run();
+  await db.prepare("UPDATE flight_schedules SET flight_status='deflighted' WHERE stage='removed' AND flight_status!='deflighted'").run();
   try {
     await db.prepare(`
       UPDATE inventory
@@ -473,7 +475,7 @@ function unflightNotificationHtml(items: any[], projectName: string, unflightedA
     <div style="font-family:Arial,sans-serif;color:#111827;font-size:14px;line-height:1.55">
       <h2 style="margin:0 0 14px;font-size:18px;color:#065f46">${xmlEscape(unflightNotificationSubject(first))}</h2>
       <p>Dear Team,</p>
-      <p>Please be informed that the billboard at <strong>${xmlEscape(billboardSpecificLocation(first))}</strong> has been successfully deflighted and marked as unflighted in the system.</p>
+      <p>Please be informed that the billboard at <strong>${xmlEscape(billboardSpecificLocation(first))}</strong> has been successfully deflighted and marked as deflighted in the system.</p>
       <p>The related project is <strong>${xmlEscape(projectName)}</strong>. Kindly take note of the deflighting details below for your records and follow-up.</p>
       <table border="1" cellpadding="7" cellspacing="0" style="border-collapse:collapse;font-family:Arial,sans-serif;font-size:13px;width:100%;max-width:980px">
         <thead style="background:#ecfdf5;color:#065f46">
@@ -499,7 +501,7 @@ function unflightNotificationText(item: any, projectName: string, unflightedAt: 
   const route = `${item.district || ""}${item.from ? ` - ${item.from}` : ""}${item.to ? ` to ${item.to}` : ""}`.trim() || "Not recorded";
   return [
     `Notification of Deflighting for Billboard at ${location} of Dimension ${dimension}.`,
-    `Please be informed that the billboard at ${location} has been successfully deflighted and marked as unflighted in the system.`,
+    `Please be informed that the billboard at ${location} has been successfully deflighted and marked as deflighted in the system.`,
     `Project: ${projectName}. Vendor: ${vendor}. Route/Area: ${route}.`,
     `Deflighted date: ${new Date(unflightedAt).toLocaleDateString("en-GB")}.`,
     note ? `Note: ${note}.` : "",
@@ -537,7 +539,7 @@ function excelValueStyle(value: unknown, header: unknown, rowIndex: number, colI
   if (rowIndex === 0) return "Header";
   if (sheetName === "Summary" && colIndex === 0 && value) return "SummaryLabel";
   if (sheetName === "Summary" && colIndex === 1 && value) return "SummaryValue";
-  if (text === "flighted" || text === "received" || text === "approved" || text === "sent" || text === "complete") return "StatusGood";
+  if (text === "flighted" || text === "deflighted" || text === "received" || text === "approved" || text === "sent" || text === "complete") return "StatusGood";
   if (text === "ok" || text === "validated" || text === "selected") return "StatusGood";
   if (text === "pending" || text === "in progress" || text === "not started" || text === "unflighted") return "StatusPending";
   if (text === "expired" || text === "not received" || text === "not found" || text === "returned" || text === "rejected") return "StatusBad";
@@ -1272,7 +1274,7 @@ export async function POST(request: Request) {
     const note = String(body.note ?? "");
     const previousSchedules = await env.DB.prepare(`SELECT asset_id,stage,flight_status,start_at,end_at,duration_days FROM flight_schedules WHERE project_id=?`).bind(projectId).all<any>();
     const previousByAsset = new Map((previousSchedules.results as any[]).map((row) => [Number(row.asset_id), row]));
-    const unflightedAssetIds = assetIds.filter((assetId) => previousByAsset.get(Number(assetId))?.flight_status === "flighted" && flightStatus === "unflighted");
+    const deflightedAssetIds = assetIds.filter((assetId) => previousByAsset.get(Number(assetId))?.flight_status === "flighted" && flightStatus === "deflighted");
     for (const assetId of assetIds) {
       await env.DB.prepare("INSERT INTO flight_schedules (project_id,asset_id,stage,flight_status,start_at,end_at,duration_days,reminder_days,note,created_by,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(project_id,asset_id) DO UPDATE SET stage=excluded.stage,flight_status=excluded.flight_status,start_at=excluded.start_at,end_at=excluded.end_at,duration_days=excluded.duration_days,reminder_days=excluded.reminder_days,note=excluded.note,updated_at=excluded.updated_at")
         .bind(projectId, assetId, stage, flightStatus, startAt, endAt, durationDays, reminderDays, note, user.id, now, now).run();
@@ -1351,7 +1353,7 @@ export async function POST(request: Request) {
       })));
       return json({ ok: true, whatsapp, sms: { billboards: fallbackItems.length, recipients: phones.length } });
     }
-    if (unflightedAssetIds.length) {
+    if (deflightedAssetIds.length) {
       const contacts = await env.DB.prepare("SELECT * FROM project_contacts WHERE project_id IN (0, ?)").bind(projectId).all<any>();
       const emails = [...new Set((contacts.results as any[]).flatMap((row) => splitContacts(row.emails)))];
       const phones = [...new Set((contacts.results as any[]).flatMap((row) => splitContacts(row.phones)))];
@@ -1363,16 +1365,16 @@ export async function POST(request: Request) {
         WHERE ip.project_id IS NOT NULL OR COALESCE(json_extract(i.data,'$.projectId'),1)=?
         ORDER BY i.id
       `).bind(projectId, projectId).all<{ data: string }>();
-      const items = inventory.results.map((row) => JSON.parse(row.data)).filter((item) => unflightedAssetIds.includes(Number(item.id)));
+      const items = inventory.results.map((row) => JSON.parse(row.data)).filter((item) => deflightedAssetIds.includes(Number(item.id)));
       const projectName = project?.name ?? "project";
-      const fallbackItems = items.length ? items : unflightedAssetIds.map((assetId) => ({ id: assetId }));
+      const fallbackItems = items.length ? items : deflightedAssetIds.map((assetId) => ({ id: assetId }));
       for (const item of fallbackItems) {
         const subject = unflightNotificationSubject(item);
         const emailResult: any = await sendResendEmail(emails, subject, unflightNotificationHtml([item], projectName, now, note));
         await recordNotificationAudit({
           projectId,
           assetId: Number(item.id) || null,
-          notificationType: "unflighted",
+          notificationType: "deflighted",
           channel: "email",
           recipients: emails,
           subject,
@@ -1394,7 +1396,7 @@ export async function POST(request: Request) {
         await recordNotificationAudit({
           projectId,
           assetId: Number(item.id) || null,
-          notificationType: "unflighted",
+          notificationType: "deflighted",
           channel: "sms",
           recipients: phones,
           subject: `SMS ${unflightNotificationSubject(item)}`,
@@ -1404,7 +1406,7 @@ export async function POST(request: Request) {
           createdAt: now,
         });
       }
-      const message = `Please be informed that ${fallbackItems.length} billboard(s) have been successfully deflighted and marked as unflighted in ${projectName}.`;
+      const message = `Please be informed that ${fallbackItems.length} billboard(s) have been successfully deflighted and marked as deflighted in ${projectName}.`;
       const whatsapp = await Promise.all(phones.map(async (phone) => ({
         phone,
         link: whatsappLink(phone, message),

@@ -1198,7 +1198,7 @@ export default function Home() {
     const effectiveFlightStatus = flightDraft.stage === "flighted"
       ? "flighted"
       : flightDraft.stage === "removed"
-        ? "unflighted"
+        ? "deflighted"
         : flightDraft.flightStatus;
     const response = await fetch("/api/app?action=flight-schedule", {
       method: "POST",
@@ -1833,13 +1833,15 @@ export default function Home() {
   const filteredTotalFaces = filtered.reduce((sum, item) => sum + item.faces, 0);
   const totalFaces = billboards.reduce((sum, item) => sum + item.faces, 0);
   const flightedSchedules = flightSchedules.filter((item) => item.flight_status === "flighted");
+  const deflightedSchedules = flightSchedules.filter((item) => item.flight_status === "deflighted");
   const dueFlightSchedules = flightedSchedules.filter((item) => item.end_at && item.end_at <= Date.now());
   const stagedSchedules = flightSchedules.filter((item) => item.stage && item.stage !== "flighted" && item.stage !== "removed");
   const flightScheduleStats = {
     flighted: flightedSchedules.length,
     expired: dueFlightSchedules.length,
     expiringSoon: flightedSchedules.filter((item) => item.end_at && item.end_at > Date.now() && item.end_at <= Date.now() + 7 * 86400000).length,
-    unflighted: Math.max(0, billboards.length - flightedSchedules.length),
+    deflighted: deflightedSchedules.length,
+    unflighted: Math.max(0, billboards.length - flightedSchedules.length - deflightedSchedules.length),
   };
   const validationIssues = validationAssignments.filter((assignment) => assignment.status === "issue");
   const validationOk = validationAssignments.filter((assignment) => assignment.status === "ok");
@@ -2864,6 +2866,7 @@ export default function Home() {
                       <option>All flight status</option>
                       <option value="flighted">Flighted</option>
                       <option value="unflighted">Unflighted</option>
+                      <option value="deflighted">Deflighted</option>
                       <option value="expired">Expired</option>
                     </select>
                   </label>
@@ -3109,19 +3112,27 @@ export default function Home() {
                   </div>
                   <div className="flight-grid">
                     <label><span>Stage</span>
-                      <select value={flightDraft.stage} onChange={(event) => setFlightDraft((current) => ({ ...current, stage: event.target.value, flightStatus: event.target.value === "flighted" ? "flighted" : event.target.value === "removed" ? "unflighted" : current.flightStatus }))}>
+                      <select value={flightDraft.stage} onChange={(event) => setFlightDraft((current) => ({ ...current, stage: event.target.value, flightStatus: event.target.value === "flighted" ? "flighted" : event.target.value === "removed" ? "deflighted" : current.flightStatus }))}>
                         <option value="design">Design</option>
                         <option value="printing">Printing</option>
                         <option value="transport">Transport</option>
                         <option value="ready">Ready</option>
                         <option value="flighted">Flighted</option>
-                        <option value="removed">Removed</option>
+                        <option value="removed">Deflighted / removed</option>
                       </select>
                     </label>
                     <label><span>Status</span>
-                      <select value={flightDraft.stage === "flighted" ? "flighted" : flightDraft.flightStatus} onChange={(event) => setFlightDraft((current) => ({ ...current, flightStatus: current.stage === "flighted" ? "flighted" : event.target.value }))}>
+                      <select value={flightDraft.stage === "flighted" ? "flighted" : flightDraft.flightStatus} onChange={(event) => {
+                        const value = event.target.value;
+                        setFlightDraft((current) => ({
+                          ...current,
+                          stage: value === "flighted" ? "flighted" : value === "deflighted" ? "removed" : current.stage,
+                          flightStatus: current.stage === "flighted" ? "flighted" : value,
+                        }));
+                      }}>
                         <option value="unflighted" disabled={flightDraft.stage === "flighted"}>Unflighted</option>
                         <option value="flighted">Flighted</option>
+                        <option value="deflighted" disabled={flightDraft.stage === "flighted"}>Deflighted</option>
                       </select>
                     </label>
                     <label><span>Days flighted</span><input type="number" min="0" value={flightDraft.durationDays} onChange={(event) => setFlightDraft((current) => ({ ...current, durationDays: event.target.value }))} /></label>
@@ -3668,8 +3679,8 @@ export default function Home() {
                   <small>{readyForFlightAssets.length} delivered / received billboard(s)</small>
                 </div>
                 <div className="flight-grid flight-grid--wide">
-                  <label><span>Stage</span><select value={flightDraft.stage} onChange={(event) => setFlightDraft((current) => ({ ...current, stage: event.target.value, flightStatus: event.target.value === "flighted" ? "flighted" : event.target.value === "removed" ? "unflighted" : current.flightStatus }))}><option value="design">Design</option><option value="printing">Printing</option><option value="transport">Transport</option><option value="ready">Ready</option><option value="flighted">Flighted</option><option value="removed">Removed</option></select></label>
-                  <label><span>Status</span><select value={flightDraft.stage === "flighted" ? "flighted" : flightDraft.flightStatus} onChange={(event) => setFlightDraft((current) => ({ ...current, flightStatus: current.stage === "flighted" ? "flighted" : event.target.value }))}><option value="unflighted" disabled={flightDraft.stage === "flighted"}>Unflighted</option><option value="flighted">Flighted</option></select></label>
+                  <label><span>Stage</span><select value={flightDraft.stage} onChange={(event) => setFlightDraft((current) => ({ ...current, stage: event.target.value, flightStatus: event.target.value === "flighted" ? "flighted" : event.target.value === "removed" ? "deflighted" : current.flightStatus }))}><option value="design">Design</option><option value="printing">Printing</option><option value="transport">Transport</option><option value="ready">Ready</option><option value="flighted">Flighted</option><option value="removed">Deflighted / removed</option></select></label>
+                  <label><span>Status</span><select value={flightDraft.stage === "flighted" ? "flighted" : flightDraft.flightStatus} onChange={(event) => { const value = event.target.value; setFlightDraft((current) => ({ ...current, stage: value === "flighted" ? "flighted" : value === "deflighted" ? "removed" : current.stage, flightStatus: current.stage === "flighted" ? "flighted" : value })); }}><option value="unflighted" disabled={flightDraft.stage === "flighted"}>Unflighted</option><option value="flighted">Flighted</option><option value="deflighted" disabled={flightDraft.stage === "flighted"}>Deflighted</option></select></label>
                   <label><span>Days flighted</span><input type="number" min="0" value={flightDraft.durationDays} onChange={(event) => setFlightDraft((current) => ({ ...current, durationDays: event.target.value }))} /></label>
                   <label><span>Reminder days</span><input type="number" min="0" value={flightDraft.reminderDays} onChange={(event) => setFlightDraft((current) => ({ ...current, reminderDays: event.target.value }))} /></label>
                 </div>
@@ -3735,12 +3746,13 @@ export default function Home() {
                   <option value="all">All statuses</option>
                   <option value="flighted">Flighted</option>
                   <option value="unflighted">Unflighted</option>
+                  <option value="deflighted">Deflighted</option>
                   <option value="due">Due for removal</option>
                   <option value="design">Design stage</option>
                   <option value="printing">Printing stage</option>
                   <option value="transport">Transport stage</option>
                   <option value="ready">Ready stage</option>
-                  <option value="removed">Removed</option>
+                  <option value="removed">Deflighted / removed stage</option>
                 </select>
               </div>
               <div className="billboard-flight-table">
@@ -3889,7 +3901,7 @@ export default function Home() {
                 <label><span>To vendor</span><select value={trackerFilters.artworkToVendor} onChange={(event) => setTrackerFilters((current) => ({ ...current, artworkToVendor: event.target.value }))}><option>All</option>{EXECUTION_STATUS_OPTIONS.artworkToVendor.map((option) => <option key={option}>{option}</option>)}</select></label>
                 <label><span>Printing</span><select value={trackerFilters.printingStatus} onChange={(event) => setTrackerFilters((current) => ({ ...current, printingStatus: event.target.value }))}><option>All</option>{EXECUTION_STATUS_OPTIONS.printingStatus.map((option) => <option key={option}>{option}</option>)}</select></label>
                 <label><span>Delivered</span><select value={trackerFilters.deliveredToDestination} onChange={(event) => setTrackerFilters((current) => ({ ...current, deliveredToDestination: event.target.value }))}><option>All</option>{EXECUTION_STATUS_OPTIONS.deliveredToDestination.map((option) => <option key={option}>{option}</option>)}</select></label>
-                <label><span>Flight status</span><select value={trackerFilters.flightStatus} onChange={(event) => setTrackerFilters((current) => ({ ...current, flightStatus: event.target.value }))}><option>All</option><option>flighted</option><option>unflighted</option></select></label>
+                <label><span>Flight status</span><select value={trackerFilters.flightStatus} onChange={(event) => setTrackerFilters((current) => ({ ...current, flightStatus: event.target.value }))}><option>All</option><option>flighted</option><option>unflighted</option><option>deflighted</option></select></label>
                 <label><span>Rental range</span><div className="range-filter"><input type="number" value={trackerFilters.rentalMin} onChange={(event) => setTrackerFilters((current) => ({ ...current, rentalMin: event.target.value }))} placeholder="Min" /><input type="number" value={trackerFilters.rentalMax} onChange={(event) => setTrackerFilters((current) => ({ ...current, rentalMax: event.target.value }))} placeholder="Max" /></div></label>
                 <label><span>Total range</span><div className="range-filter"><input type="number" value={trackerFilters.totalMin} onChange={(event) => setTrackerFilters((current) => ({ ...current, totalMin: event.target.value }))} placeholder="Min" /><input type="number" value={trackerFilters.totalMax} onChange={(event) => setTrackerFilters((current) => ({ ...current, totalMax: event.target.value }))} placeholder="Max" /></div></label>
                 <label><span>Remaining days range</span><div className="range-filter"><input type="number" value={trackerFilters.remainingMin} onChange={(event) => setTrackerFilters((current) => ({ ...current, remainingMin: event.target.value }))} placeholder="Min" /><input type="number" value={trackerFilters.remainingMax} onChange={(event) => setTrackerFilters((current) => ({ ...current, remainingMax: event.target.value }))} placeholder="Max" /></div></label>
@@ -3962,8 +3974,8 @@ export default function Home() {
             </div>
 
             <div className="flight-grid">
-              <label><span>Stage</span><select value={flightDraft.stage} onChange={(event) => setFlightDraft((current) => ({ ...current, stage: event.target.value, flightStatus: event.target.value === "flighted" ? "flighted" : event.target.value === "removed" ? "unflighted" : current.flightStatus }))}><option value="design">Design</option><option value="printing">Printing</option><option value="transport">Transport</option><option value="ready">Ready</option><option value="flighted">Flighted</option><option value="removed">Removed</option></select></label>
-              <label><span>Status</span><select value={flightDraft.stage === "flighted" ? "flighted" : flightDraft.flightStatus} onChange={(event) => setFlightDraft((current) => ({ ...current, flightStatus: current.stage === "flighted" ? "flighted" : event.target.value }))}><option value="unflighted" disabled={flightDraft.stage === "flighted"}>Unflighted</option><option value="flighted">Flighted</option></select></label>
+              <label><span>Stage</span><select value={flightDraft.stage} onChange={(event) => setFlightDraft((current) => ({ ...current, stage: event.target.value, flightStatus: event.target.value === "flighted" ? "flighted" : event.target.value === "removed" ? "deflighted" : current.flightStatus }))}><option value="design">Design</option><option value="printing">Printing</option><option value="transport">Transport</option><option value="ready">Ready</option><option value="flighted">Flighted</option><option value="removed">Deflighted / removed</option></select></label>
+              <label><span>Status</span><select value={flightDraft.stage === "flighted" ? "flighted" : flightDraft.flightStatus} onChange={(event) => { const value = event.target.value; setFlightDraft((current) => ({ ...current, stage: value === "flighted" ? "flighted" : value === "deflighted" ? "removed" : current.stage, flightStatus: current.stage === "flighted" ? "flighted" : value })); }}><option value="unflighted" disabled={flightDraft.stage === "flighted"}>Unflighted</option><option value="flighted">Flighted</option><option value="deflighted" disabled={flightDraft.stage === "flighted"}>Deflighted</option></select></label>
               <label><span>Days flighted</span><input type="number" min="0" value={flightDraft.durationDays} onChange={(event) => setFlightDraft((current) => ({ ...current, durationDays: event.target.value }))} /></label>
               <label><span>Reminder days</span><input type="number" min="0" value={flightDraft.reminderDays} onChange={(event) => setFlightDraft((current) => ({ ...current, reminderDays: event.target.value }))} /></label>
             </div>
@@ -4094,6 +4106,7 @@ export default function Home() {
                   <div><b>{flightScheduleStats.flighted}</b><span>Flighted</span></div>
                   <div><b>{flightScheduleStats.expired}</b><span>Expired</span></div>
                   <div><b>{flightScheduleStats.expiringSoon}</b><span>Expiring soon</span></div>
+                  <div><b>{flightScheduleStats.deflighted}</b><span>Deflighted</span></div>
                   <div><b>{flightScheduleStats.unflighted}</b><span>Unflighted</span></div>
                 </div>
               </section>
