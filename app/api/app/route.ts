@@ -455,6 +455,58 @@ function expiryReminderText(items: any[], projectName: string) {
   ].filter(Boolean).join(" ");
 }
 
+function unflightNotificationSubject(item: any) {
+  return `Notification of Deflighting for Billboard at ${billboardSpecificLocation(item)} of Dimension ${billboardDimension(item)}`;
+}
+
+function unflightNotificationHtml(items: any[], projectName: string, unflightedAt: number, note: string) {
+  const rows = items.map((item) => `
+    <tr>
+      <td>${xmlEscape(billboardSpecificLocation(item))}</td>
+      <td>${xmlEscape(billboardDimension(item))}</td>
+      <td>${xmlEscape(item.vendor || item.owner || "UNKNOWN")}</td>
+      <td>${xmlEscape(`${item.district || ""}${item.from ? ` - ${item.from}` : ""}${item.to ? ` to ${item.to}` : ""}`.trim() || "Not recorded")}</td>
+      <td>${xmlEscape(new Date(unflightedAt).toLocaleDateString("en-GB"))}</td>
+    </tr>`).join("");
+  const first = items[0] ?? {};
+  return `
+    <div style="font-family:Arial,sans-serif;color:#111827;font-size:14px;line-height:1.55">
+      <h2 style="margin:0 0 14px;font-size:18px;color:#065f46">${xmlEscape(unflightNotificationSubject(first))}</h2>
+      <p>Dear Team,</p>
+      <p>Please be informed that the billboard at <strong>${xmlEscape(billboardSpecificLocation(first))}</strong> has been successfully deflighted and marked as unflighted in the system.</p>
+      <p>The related project is <strong>${xmlEscape(projectName)}</strong>. Kindly take note of the deflighting details below for your records and follow-up.</p>
+      <table border="1" cellpadding="7" cellspacing="0" style="border-collapse:collapse;font-family:Arial,sans-serif;font-size:13px;width:100%;max-width:980px">
+        <thead style="background:#ecfdf5;color:#065f46">
+          <tr>
+            <th align="left">Specific Location</th>
+            <th align="left">Dimension</th>
+            <th align="left">Vendor</th>
+            <th align="left">Route / Area</th>
+            <th align="left">Deflighted Date</th>
+          </tr>
+        </thead>
+        <tbody>${rows}</tbody>
+      </table>
+      ${note ? `<p><strong>Note:</strong> ${xmlEscape(note)}</p>` : ""}
+      <p>Warm regards,<br/>Spotlight Billboard 360</p>
+    </div>`;
+}
+
+function unflightNotificationText(item: any, projectName: string, unflightedAt: number, note: string) {
+  const location = billboardSpecificLocation(item);
+  const dimension = billboardDimension(item);
+  const vendor = item.vendor || item.owner || "UNKNOWN";
+  const route = `${item.district || ""}${item.from ? ` - ${item.from}` : ""}${item.to ? ` to ${item.to}` : ""}`.trim() || "Not recorded";
+  return [
+    `Notification of Deflighting for Billboard at ${location} of Dimension ${dimension}.`,
+    `Please be informed that the billboard at ${location} has been successfully deflighted and marked as unflighted in the system.`,
+    `Project: ${projectName}. Vendor: ${vendor}. Route/Area: ${route}.`,
+    `Deflighted date: ${new Date(unflightedAt).toLocaleDateString("en-GB")}.`,
+    note ? `Note: ${note}.` : "",
+    "Warm regards, Spotlight Billboard 360.",
+  ].filter(Boolean).join(" ");
+}
+
 function excelColumnName(index: number) {
   let name = "";
   let value = index + 1;
@@ -1218,6 +1270,9 @@ export async function POST(request: Request) {
     const endAt = body.endAt ? Number(body.endAt) : (startAt && durationDays ? startAt + durationDays * 86400000 : null);
     const reminderDays = Number(body.reminderDays) || 0;
     const note = String(body.note ?? "");
+    const previousSchedules = await env.DB.prepare(`SELECT asset_id,stage,flight_status,start_at,end_at,duration_days FROM flight_schedules WHERE project_id=?`).bind(projectId).all<any>();
+    const previousByAsset = new Map((previousSchedules.results as any[]).map((row) => [Number(row.asset_id), row]));
+    const unflightedAssetIds = assetIds.filter((assetId) => previousByAsset.get(Number(assetId))?.flight_status === "flighted" && flightStatus === "unflighted");
     for (const assetId of assetIds) {
       await env.DB.prepare("INSERT INTO flight_schedules (project_id,asset_id,stage,flight_status,start_at,end_at,duration_days,reminder_days,note,created_by,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(project_id,asset_id) DO UPDATE SET stage=excluded.stage,flight_status=excluded.flight_status,start_at=excluded.start_at,end_at=excluded.end_at,duration_days=excluded.duration_days,reminder_days=excluded.reminder_days,note=excluded.note,updated_at=excluded.updated_at")
         .bind(projectId, assetId, stage, flightStatus, startAt, endAt, durationDays, reminderDays, note, user.id, now, now).run();
@@ -1295,6 +1350,67 @@ export async function POST(request: Request) {
         api: await sendWhatsAppText(phone, message),
       })));
       return json({ ok: true, whatsapp, sms: { billboards: fallbackItems.length, recipients: phones.length } });
+    }
+    if (unflightedAssetIds.length) {
+      const contacts = await env.DB.prepare("SELECT * FROM project_contacts WHERE project_id IN (0, ?)").bind(projectId).all<any>();
+      const emails = [...new Set((contacts.results as any[]).flatMap((row) => splitContacts(row.emails)))];
+      const phones = [...new Set((contacts.results as any[]).flatMap((row) => splitContacts(row.phones)))];
+      const project = await env.DB.prepare("SELECT name FROM projects WHERE id=?").bind(projectId).first<{ name: string }>();
+      const inventory = await env.DB.prepare(`
+        SELECT i.data
+        FROM inventory i
+        LEFT JOIN inventory_projects ip ON ip.inventory_id=i.id AND ip.project_id=?
+        WHERE ip.project_id IS NOT NULL OR COALESCE(json_extract(i.data,'$.projectId'),1)=?
+        ORDER BY i.id
+      `).bind(projectId, projectId).all<{ data: string }>();
+      const items = inventory.results.map((row) => JSON.parse(row.data)).filter((item) => unflightedAssetIds.includes(Number(item.id)));
+      const projectName = project?.name ?? "project";
+      const fallbackItems = items.length ? items : unflightedAssetIds.map((assetId) => ({ id: assetId }));
+      for (const item of fallbackItems) {
+        const subject = unflightNotificationSubject(item);
+        const emailResult: any = await sendResendEmail(emails, subject, unflightNotificationHtml([item], projectName, now, note));
+        await recordNotificationAudit({
+          projectId,
+          assetId: Number(item.id) || null,
+          notificationType: "unflighted",
+          channel: "email",
+          recipients: emails,
+          subject,
+          status: emailResult.error ? "failed" : emailResult.skipped ? "skipped" : "sent",
+          providerId: emailResult.providerId,
+          providerResponse: emailResult,
+          createdBy: user.id,
+          createdAt: now,
+        });
+      }
+      const smsResults = [];
+      for (const item of fallbackItems) {
+        const smsMessage = unflightNotificationText(item, projectName, now, note);
+        const sms = await Promise.all(phones.map(async (phone) => {
+          const smsResult: any = await sendSmsText(phone, smsMessage);
+          return { phone, api: smsResult };
+        }));
+        smsResults.push({ assetId: Number(item.id) || null, sms });
+        await recordNotificationAudit({
+          projectId,
+          assetId: Number(item.id) || null,
+          notificationType: "unflighted",
+          channel: "sms",
+          recipients: phones,
+          subject: `SMS ${unflightNotificationSubject(item)}`,
+          status: sms.some((result) => result.api?.sent) ? "sent" : sms.some((result) => result.api?.skipped) ? "skipped" : "failed",
+          providerResponse: sms,
+          createdBy: user.id,
+          createdAt: now,
+        });
+      }
+      const message = `Please be informed that ${fallbackItems.length} billboard(s) have been successfully deflighted and marked as unflighted in ${projectName}.`;
+      const whatsapp = await Promise.all(phones.map(async (phone) => ({
+        phone,
+        link: whatsappLink(phone, message),
+        api: await sendWhatsAppText(phone, message),
+      })));
+      return json({ ok: true, whatsapp, sms: { billboards: fallbackItems.length, recipients: phones.length, details: smsResults } });
     }
     return json({ ok: true });
   }
