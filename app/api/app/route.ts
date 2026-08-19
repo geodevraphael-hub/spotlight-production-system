@@ -394,6 +394,67 @@ function flightNotificationText(item: any, projectName: string, startAt: number 
   ].filter(Boolean).join(" ");
 }
 
+function reminderDaysText(remainingDays: number) {
+  if (remainingDays > 1) return `expires in ${remainingDays} days`;
+  if (remainingDays === 1) return "expires tomorrow";
+  if (remainingDays === 0) return "expires today";
+  if (remainingDays === -1) return "expired 1 day ago";
+  return `expired ${Math.abs(remainingDays)} days ago`;
+}
+
+function expiryReminderHtml(items: any[], projectName: string) {
+  const rows = items.map((item, index) => {
+    const remainingDays = Number(item.remainingDays ?? 0);
+    const expiryText = item.end_at ? new Date(Number(item.end_at)).toLocaleDateString("en-GB") : "Not set";
+    return `
+      <tr>
+        <td>${index + 1}</td>
+        <td>${xmlEscape(billboardSpecificLocation(item))}</td>
+        <td>${xmlEscape(billboardDimension(item))}</td>
+        <td>${xmlEscape(item.vendor || item.owner || "UNKNOWN")}</td>
+        <td>${xmlEscape(`${item.district || ""}${item.from ? ` - ${item.from}` : ""}${item.to ? ` to ${item.to}` : ""}`.trim() || "Not recorded")}</td>
+        <td>${xmlEscape(expiryText)}</td>
+        <td><strong>${xmlEscape(reminderDaysText(remainingDays))}</strong></td>
+      </tr>`;
+  }).join("");
+  const urgent = items.filter((item) => Number(item.remainingDays ?? 0) <= 0).length;
+  return `
+    <div style="font-family:Arial,sans-serif;color:#111827;font-size:14px;line-height:1.55">
+      <h2 style="margin:0 0 14px;font-size:18px;color:#065f46">Billboard unflighting reminder - ${xmlEscape(projectName)}</h2>
+      <p>Dear Team,</p>
+      <p>Please be informed that the billboard(s) listed below are flighted and have reached, or are within three days of, their expected unflighting date.</p>
+      <p>${urgent ? `<strong>${urgent}</strong> billboard(s) are already due for unflighting/removal. ` : ""}Kindly review the list and arrange unflighting where required.</p>
+      <table border="1" cellpadding="7" cellspacing="0" style="border-collapse:collapse;font-family:Arial,sans-serif;font-size:13px;width:100%;max-width:980px">
+        <thead style="background:#ecfdf5;color:#065f46">
+          <tr>
+            <th align="left">SN</th>
+            <th align="left">Specific Location</th>
+            <th align="left">Dimension</th>
+            <th align="left">Vendor</th>
+            <th align="left">Route / Area</th>
+            <th align="left">Expected Unflight Date</th>
+            <th align="left">Expiry Status</th>
+          </tr>
+        </thead>
+        <tbody>${rows}</tbody>
+      </table>
+      <p>Warm regards,<br/>Spotlight Billboard 360</p>
+    </div>`;
+}
+
+function expiryReminderText(items: any[], projectName: string) {
+  const lines = items.slice(0, 12).map((item, index) => {
+    const expiryText = item.end_at ? new Date(Number(item.end_at)).toLocaleDateString("en-GB") : "Not set";
+    return `${index + 1}. ${billboardSpecificLocation(item)} (${billboardDimension(item)}) - ${reminderDaysText(Number(item.remainingDays ?? 0))}; unflight date: ${expiryText}`;
+  });
+  const extra = items.length > 12 ? ` Plus ${items.length - 12} more billboard(s).` : "";
+  return [
+    `Spotlight reminder: ${items.length} flighted billboard(s) in ${projectName} are due or near due for unflighting.`,
+    ...lines,
+    `${extra}Please arrange unflighting/removal and update the system once completed.`,
+  ].filter(Boolean).join(" ");
+}
+
 function excelColumnName(index: number) {
   let name = "";
   let value = index + 1;
@@ -1240,29 +1301,58 @@ export async function POST(request: Request) {
   if (action === "send-flight-reminders" && (user.role === "admin" || user.role === "creator")) {
     const projectId = Number(body.projectId) || 0;
     const now = Date.now();
-    const rows = await env.DB.prepare("SELECT fs.*,p.name AS project_name FROM flight_schedules fs JOIN projects p ON p.id=fs.project_id WHERE fs.flight_status='flighted' AND fs.end_at IS NOT NULL AND fs.project_id=? AND fs.end_at<=? AND (fs.last_notified_at IS NULL OR fs.last_notified_at<fs.end_at)")
-      .bind(projectId, now).all<any>();
+    const threeDaysFromNow = now + 3 * 86400000;
+    const todayStart = new Date(now);
+    todayStart.setHours(0, 0, 0, 0);
+    const rows = await env.DB.prepare(`
+      SELECT fs.*,p.name AS project_name,i.data AS asset_data
+      FROM flight_schedules fs
+      JOIN projects p ON p.id=fs.project_id
+      LEFT JOIN inventory i ON CAST(json_extract(i.data,'$.id') AS INTEGER)=fs.asset_id
+      LEFT JOIN inventory_projects ip ON ip.inventory_id=i.id AND ip.project_id=fs.project_id
+      WHERE fs.flight_status='flighted'
+        AND fs.end_at IS NOT NULL
+        AND fs.project_id=?
+        AND fs.end_at<=?
+        AND (fs.last_notified_at IS NULL OR fs.last_notified_at<?)
+        AND (i.id IS NULL OR ip.project_id IS NOT NULL OR COALESCE(json_extract(i.data,'$.projectId'),1)=fs.project_id)
+      ORDER BY fs.end_at ASC
+    `).bind(projectId, threeDaysFromNow, todayStart.getTime()).all<any>();
     const contacts = await env.DB.prepare("SELECT * FROM project_contacts WHERE project_id IN (0, ?)").bind(projectId).all<any>();
     const emails = [...new Set((contacts.results as any[]).flatMap((row) => splitContacts(row.emails)))];
     const phones = [...new Set((contacts.results as any[]).flatMap((row) => splitContacts(row.phones)))];
-    const due = rows.results as any[];
+    const due = (rows.results as any[]).map((row) => {
+      const item = row.asset_data ? JSON.parse(row.asset_data) : { id: row.asset_id };
+      const diff = Number(row.end_at) - now;
+      const remainingDays = diff >= 0 ? Math.ceil(diff / 86400000) : Math.floor(diff / 86400000);
+      return {
+        ...item,
+        scheduleId: row.id,
+        projectName: row.project_name,
+        end_at: row.end_at,
+        start_at: row.start_at,
+        duration_days: row.duration_days,
+        remainingDays,
+      };
+    });
     if (due.length) {
-      const message = `Billboard 360 reminder: ${due.length} flighted billboard(s) have reached removal/expiry date.`;
-      const reminderResult: any = await sendResendEmail(emails, "Billboard removal reminder", `<p>${message}</p><p>Project: ${due[0]?.project_name ?? ""}</p>`);
+      const projectName = due[0]?.projectName ?? "project";
+      const subject = `Billboard unflighting reminder - ${projectName} (${due.length} due/near due)`;
+      const message = expiryReminderText(due, projectName);
+      const reminderResult: any = await sendResendEmail(emails, subject, expiryReminderHtml(due, projectName));
       await recordNotificationAudit({
         projectId,
         assetId: null,
         notificationType: "expiry_reminder",
         channel: "email",
         recipients: emails,
-        subject: "Billboard removal reminder",
+        subject,
         status: reminderResult.error ? "failed" : reminderResult.skipped ? "skipped" : "sent",
         providerId: reminderResult.providerId,
         providerResponse: reminderResult,
         createdBy: user.id,
         createdAt: now,
       });
-      await env.DB.batch(due.map((row) => env.DB.prepare("UPDATE flight_schedules SET last_notified_at=? WHERE id=?").bind(now, row.id)));
       const whatsapp = await Promise.all(phones.map(async (phone) => ({
         phone,
         link: whatsappLink(phone, message),
@@ -1278,15 +1368,16 @@ export async function POST(request: Request) {
         notificationType: "expiry_reminder",
         channel: "sms",
         recipients: phones,
-        subject: "SMS billboard removal reminder",
+        subject: `SMS ${subject}`,
         status: sms.some((item) => item.api?.sent) ? "sent" : sms.some((item) => item.api?.skipped) ? "skipped" : "failed",
         providerResponse: sms,
         createdBy: user.id,
         createdAt: now,
       });
-      return json({ sent: due.length, whatsapp, sms });
+      await env.DB.batch(due.map((row) => env.DB.prepare("UPDATE flight_schedules SET last_notified_at=? WHERE id=?").bind(now, row.scheduleId)));
+      return json({ sent: due.length, whatsapp, sms, email: reminderResult, message });
     }
-    return json({ sent: 0, whatsapp: [] });
+    return json({ sent: 0, whatsapp: [], sms: [], email: { skipped: true }, message: "No flighted billboards are within 3 days of expiry." });
   }
   if (action === "share-mode" && (user.role === "admin" || user.role === "creator")) {
     const projectId = Number(body.projectId) || 0;

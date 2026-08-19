@@ -1321,7 +1321,8 @@ export default function Home() {
     });
     const data = await response.json();
     if (data.whatsapp?.length) window.open(data.whatsapp[0].link, "_blank", "noopener,noreferrer");
-    setImportMessage(`${data.sent ?? 0} due flight reminder(s) processed`);
+    const smsRecipients = Array.isArray(data.sms) ? data.sms.length : 0;
+    setImportMessage(`${data.sent ?? 0} billboard(s) included in expiry reminders · SMS recipients: ${smsRecipients}`);
     window.setTimeout(() => setImportMessage(""), 3000);
     await refreshFlighting();
   }
@@ -3646,7 +3647,7 @@ export default function Home() {
                 <button className="text-button" onClick={() => exportTracker("design")}><Download size={15} /> Design tracker</button>
                 <button className="text-button" onClick={() => exportTracker("cost")}><Download size={15} /> Cost tracker</button>
                 <button className="text-button" onClick={() => exportTracker("comprehensive")}><Download size={15} /> Full workbook</button>
-                <button className="primary-button" onClick={sendDueFlightReminders}>Send due reminders</button>
+                <button className="primary-button" onClick={sendDueFlightReminders}>Send 3-day expiry reminders</button>
               </div>
             </div>
 
