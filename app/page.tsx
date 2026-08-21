@@ -2580,7 +2580,7 @@ export default function Home() {
       <main className="auth-screen">
         {shareChecking && !shareRequiresCode ? (
           <div className="login-card share-access-card">
-            <span className="brand-mark">360</span>
+            <span className="brand-mark brand-mark--logo"><img src="/favicon.svg" alt="Billboard 360" /></span>
             <span className="eyebrow">Shared map</span>
             <h1>Opening map</h1>
             <p>Checking the project sharing settings.</p>
@@ -2588,7 +2588,7 @@ export default function Home() {
           </div>
         ) : (
         <form className="login-card share-access-card" onSubmit={openSharedMap}>
-          <span className="brand-mark">360</span>
+          <span className="brand-mark brand-mark--logo"><img src="/favicon.svg" alt="Billboard 360" /></span>
           <span className="eyebrow">Shared map</span>
           <h1>Billboard 360</h1>
           <p>Enter the secret code supplied with this project map link.</p>
@@ -2616,7 +2616,7 @@ export default function Home() {
     return (
       <main className="auth-screen">
         <form className="login-card" onSubmit={login}>
-          <span className="brand-mark">S</span>
+          <span className="brand-mark brand-mark--logo"><img src="/favicon.svg" alt="Spotlight OOH" /></span>
           <span className="eyebrow">Secure access</span>
           <h1>Spotlight OOH</h1>
           <p>Sign in to manage inventory and campaign plans.</p>
@@ -2633,7 +2633,7 @@ export default function Home() {
     <main className={isSharedView ? "app-shell app-shell--shared-view" : "app-shell"}>
       <header className="topbar">
         <div className="brand">
-          <span className="brand-mark">S</span>
+          <span className="brand-mark brand-mark--logo"><img src="/favicon.svg" alt="" /></span>
           <span>
             <strong>Spotlight OOH</strong>
             <small>Inventory management</small>

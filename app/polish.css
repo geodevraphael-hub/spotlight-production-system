@@ -12,6 +12,8 @@ html, body, .app-shell, .workspace { min-width: 0; }
 }
 .brand { flex: none; gap: 12px; white-space: nowrap; }
 .brand-mark { width: 38px; height: 38px; border-radius: 8px; background: linear-gradient(145deg, var(--green-bright), var(--green-dark)); box-shadow: 0 6px 16px rgba(8,122,85,.2); }
+.brand-mark--logo { overflow: hidden; padding: 0; background: #102a43; }
+.brand-mark--logo img { display: block; width: 100%; height: 100%; object-fit: cover; }
 .topbar-actions { min-width: 0; justify-content: flex-end; flex-wrap: wrap; gap: 8px; }
 .topbar-actions > * { flex: 0 0 auto; }
 .topbar-actions button, .topbar-actions label, .topbar-actions select { white-space: nowrap; }
