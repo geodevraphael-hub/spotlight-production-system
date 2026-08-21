@@ -1,0 +1,149 @@
+/* Final layout layer: imported after the legacy component stylesheet. */
+html, body, .app-shell, .workspace { min-width: 0; }
+.app-shell { overflow: hidden; grid-template-rows: 68px 46px minmax(0, 1fr); }
+
+.topbar {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 24px;
+  min-width: 0;
+  padding: 0 22px;
+}
+.brand { flex: none; gap: 12px; white-space: nowrap; }
+.brand-mark { width: 38px; height: 38px; border-radius: 8px; background: linear-gradient(145deg, var(--green-bright), var(--green-dark)); box-shadow: 0 6px 16px rgba(8,122,85,.2); }
+.topbar-actions { min-width: 0; justify-content: flex-end; flex-wrap: wrap; gap: 8px; }
+.topbar-actions > * { flex: 0 0 auto; }
+.topbar-actions button, .topbar-actions label, .topbar-actions select { white-space: nowrap; }
+.project-select, .project-view-label, .basemap-select, .view-only-pill, .address-search { min-height: 38px; border-color: var(--line); border-radius: var(--radius); background: #fff; }
+.user-button { width: 38px; height: 38px; border: 1px solid #d6e9df; border-radius: var(--radius); }
+
+.tab-bar { gap: 2px; min-height: 46px; padding: 0 16px; border-bottom: 1px solid var(--line); background: #fff; }
+.tab-btn { position: relative; min-height: 45px; padding: 0 15px; border: 0; color: #68756e; font-size: 11px; font-weight: 750; }
+.tab-btn::after { position: absolute; right: 14px; bottom: -1px; left: 14px; height: 3px; border-radius: 3px 3px 0 0; background: transparent; content: ""; }
+.tab-btn:hover { color: var(--ink); background: var(--soft); }
+.tab-btn--active { color: var(--green-dark); background: transparent; }
+.tab-btn--active::after { background: var(--green); }
+
+.dashboard-workspace, .flighting-workspace, .field-workspace, .image-library-workspace { min-width: 0; overflow-x: hidden; }
+.dashboard-page, .flighting-page, .field-command-page, .library-panel { display: grid; gap: 14px; width: 100%; max-width: none; padding: 24px clamp(18px,2.4vw,38px) 42px; }
+.dashboard-hero, .flighting-hero, .field-command-hero, .library-head { min-height: 112px; align-items: center; padding: 22px 24px; border: 1px solid var(--line); border-radius: var(--radius); background: linear-gradient(120deg,#fff 0%,#f6faf8 100%); }
+.dashboard-hero h2, .flighting-hero h2, .field-command-hero h2, .library-head h2 { margin: 5px 0; font-size: clamp(25px,2.2vw,34px); line-height: 1.05; }
+.dashboard-hero p, .flighting-hero p, .field-command-hero p, .library-head p { max-width: 760px; font-size: 13px; line-height: 1.55; }
+
+.dashboard-kpis, .flighting-stats, .field-kpis { gap: 10px; margin: 0; }
+.dashboard-kpis .metric-card, .flighting-stats .metric, .field-kpis .metric { min-height: 88px; padding: 16px 17px; border-radius: var(--radius); }
+.dashboard-kpis .metric-card strong, .flighting-stats .metric strong, .field-kpis .metric strong { font-size: 24px; line-height: 1; }
+.dashboard-kpis .metric-card span, .flighting-stats .metric span, .field-kpis .metric span { margin-top: 9px; color: var(--muted); font-size: 9px; font-weight: 800; letter-spacing: .065em; text-transform: uppercase; }
+
+.dashboard-grid { grid-template-columns: repeat(12,minmax(0,1fr)); gap: 14px; align-items: start; }
+.dashboard-grid > .dashboard-card { grid-column: span 6; min-height: 0; padding: 18px; border-radius: var(--radius); }
+.dashboard-grid > .dashboard-card:nth-child(1) { grid-column: span 7; }
+.dashboard-grid > .dashboard-card:nth-child(2) { grid-column: span 5; }
+.dashboard-grid > .dashboard-card:nth-child(3) { grid-column: span 7; }
+.dashboard-grid > .dashboard-card:nth-child(4) { grid-column: span 5; }
+.dashboard-grid > .dashboard-card:nth-child(5) { grid-column: 1 / -1; }
+.dashboard-card-head { margin: -18px -18px 18px; padding: 15px 18px; align-items: center; }
+.dashboard-card h3 { font-size: 16px; line-height: 1.25; }
+.dashboard-pill { min-height: 30px; padding: 6px 10px; border-radius: 4px; background: var(--mint); }
+.dashboard-bars { gap: 16px; }
+.dashboard-bar-row { padding-bottom: 14px; font-size: 13px; }
+.dashboard-bar-row::after, .dashboard-bar-row i { height: 6px; }
+.dashboard-mini-grid, .issue-summary-grid { gap: 10px; }
+.dashboard-mini-grid div, .issue-summary-grid div { min-height: 84px; padding: 15px 16px; border-radius: 5px; }
+.dashboard-mini-grid b, .issue-summary-grid b { font-size: 27px; }
+.dashboard-mini-grid span, .issue-summary-grid span { display: block; margin-top: 6px; font-size: 11px; }
+.dashboard-report-list { grid-template-columns: repeat(2,minmax(0,1fr)); gap: 9px; }
+.dashboard-report-list button { min-height: 70px; border-radius: 5px; }
+
+.flighting-layout, .field-management-grid { align-items: start; gap: 14px; }
+.flighting-card, .field-panel { min-width: 0; border-radius: var(--radius); }
+.flighting-card-head, .field-panel-head { min-height: 66px; align-items: center; padding: 15px 18px; }
+.tracker-filter-card { padding: 0; overflow: hidden; }
+.tracker-filter-grid { padding: 18px; gap: 12px; }
+.tracker-filter-grid label, .filter-grid label, .flight-grid label, .mapping-grid label { gap: 7px; }
+.tracker-filter-grid label > span, .filter-grid label > span, .flight-grid label > span, .mapping-grid label > span { color: #607068; font-size: 9px; font-weight: 850; letter-spacing: .065em; }
+.tracker-filter-grid select, .tracker-filter-grid input, .filter-grid select, .filter-grid input, .flight-grid select, .flight-grid input, .mapping-grid select, .mapping-grid input { min-height: 42px; padding-inline: 12px; font-size: 12px; }
+.tracker-table-card, .billboard-flight-table-card { min-width: 0; overflow: hidden; }
+.tracker-table, .billboard-flight-table { width: 100%; scrollbar-width: thin; }
+.tracker-row, .billboard-flight-row { min-height: 52px; padding-block: 9px; }
+.tracker-row--head, .billboard-flight-row--head { min-height: 42px; }
+.tracker-row select, .billboard-flight-row select { min-height: 34px; border-radius: 4px; font-size: 10px; font-weight: 700; }
+
+.field-management-grid { grid-template-columns: minmax(0,1.45fr) minmax(340px,.55fr); }
+.field-card { padding: 16px 18px; }
+.field-card-actions button, .danger-link { min-height: 32px; padding: 6px 10px; border-radius: 4px; }
+.mission-row { min-height: 68px; align-items: center; }
+
+.library-head { position: relative; top: auto; }
+.image-library-groups { gap: 14px; }
+.image-library-area-head { min-height: 58px; align-items: center; padding: 14px 18px; }
+.image-library-grid { grid-template-columns: repeat(auto-fill,minmax(270px,1fr)); gap: 14px; padding: 16px; }
+.image-library-card { min-width: 0; overflow: hidden; border-radius: var(--radius); }
+.image-library-thumb { aspect-ratio: 16 / 10; height: auto; }
+.image-library-copy { padding: 13px 14px 5px; }
+.image-library-actions { padding: 10px 14px 14px; }
+
+.detail-card--asset { top: 14px; right: 14px; bottom: 14px; width: min(760px,calc(100vw - 44px)); max-height: none; grid-template-columns: minmax(0,.95fr) minmax(0,1.05fr); gap: 14px; border-radius: 8px; }
+.detail-card--asset .detail-title { padding: 20px 62px 18px 22px; }
+.detail-card--asset .detail-title h2 { font-size: 23px; line-height: 1.15; }
+.detail-card--asset .detail-stats { margin-inline: 22px; gap: 9px; }
+.detail-card--asset .attributes, .detail-card--asset .selected-media-panel { margin-left: 22px; }
+.detail-card--asset .flight-card, .detail-card--asset .validation-panel { margin-right: 22px; }
+.detail-card--asset .source-attributes { margin-inline: 22px; }
+.detail-card--asset .detail-actions { position: sticky; bottom: 0; padding: 13px 22px; box-shadow: 0 -8px 22px rgba(15,35,27,.06); }
+.source-attributes-grid label { min-height: 45px; align-items: center; }
+.source-attributes-actions { position: sticky; bottom: 0; padding-block: 12px; background: #fff; }
+
+.modal-card { width: min(680px,calc(100vw - 32px)); max-height: min(88dvh,900px); overflow-y: auto; padding: 28px; border-radius: 10px; scrollbar-width: thin; }
+.modal-card.asset-form, .modal-card.group-form, .modal-card.assign-project-card, .modal-card.flight-asset-modal { width: min(860px,calc(100vw - 32px)); }
+.modal-card > .close-detail { position: sticky; top: 0; float: right; z-index: 4; }
+.modal-card label > span { margin-bottom: 7px; color: #607068; font-size: 9px; font-weight: 850; letter-spacing: .065em; text-transform: uppercase; }
+.modal-card input, .modal-card select, .modal-card textarea { min-height: 42px; padding-inline: 12px; }
+.empty-state { min-height: 110px; display: grid; place-items: center; padding: 24px; border: 1px dashed var(--line-strong); border-radius: 5px; background: var(--soft); color: var(--muted); text-align: center; }
+
+@media (max-width: 1600px) {
+  .app-shell { grid-template-rows: auto 46px minmax(0,1fr); }
+  .topbar { align-items: start; gap: 14px; padding-block: 10px; }
+  .topbar-actions { row-gap: 7px; }
+  .brand { padding-top: 2px; }
+  .dashboard-page, .flighting-page, .field-command-page, .library-panel { padding: 18px; }
+}
+
+@media (max-width: 1180px) {
+  .topbar { grid-template-columns: 1fr; }
+  .brand { display: none; }
+  .topbar-actions { justify-content: flex-start; }
+  .dashboard-kpis, .flighting-stats, .field-kpis { grid-template-columns: repeat(3,minmax(0,1fr)); }
+  .dashboard-grid > .dashboard-card, .dashboard-grid > .dashboard-card:nth-child(n) { grid-column: span 6; }
+  .dashboard-grid > .dashboard-card:last-child { grid-column: 1 / -1; }
+  .field-management-grid, .flighting-layout { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 760px) {
+  .app-shell { grid-template-rows: auto auto minmax(0,1fr); }
+  .topbar { display: grid; grid-template-columns: minmax(0,1fr); gap: 7px; padding: 8px 10px 7px; }
+  .brand { display: flex; }
+  .brand small { display: none; }
+  .topbar-actions { display: flex; width: 100%; flex-wrap: nowrap; justify-content: flex-start; gap: 6px; overflow-x: auto; padding: 1px 1px 4px; scrollbar-width: none; scroll-snap-type: x proximity; }
+  .topbar-actions::-webkit-scrollbar { display: none; }
+  .topbar-actions > * { flex: 0 0 auto; scroll-snap-align: start; }
+  .topbar-actions .project-select { min-width: 172px; }
+  .topbar-actions .address-search { grid-column: auto; order: initial; width: 190px; }
+  .topbar-actions .address-search input { width: 140px; }
+  .tab-bar { gap: 0; padding: 0; }
+  .dashboard-page, .flighting-page, .field-command-page, .library-panel { padding: 10px 10px 28px; }
+  .dashboard-hero, .flighting-hero, .field-command-hero, .library-head { min-height: 0; align-items: flex-start; padding: 16px; }
+  .dashboard-hero h2, .flighting-hero h2, .field-command-hero h2, .library-head h2 { font-size: 24px; }
+  .dashboard-kpis, .flighting-stats, .field-kpis { grid-template-columns: repeat(2,minmax(0,1fr)); overflow: visible; }
+  .dashboard-kpis .metric-card, .flighting-stats .metric, .field-kpis .metric { min-width: 0; min-height: 80px; }
+  .dashboard-grid { grid-template-columns: 1fr; }
+  .dashboard-grid > .dashboard-card, .dashboard-grid > .dashboard-card:nth-child(n) { grid-column: 1; }
+  .dashboard-card { padding: 14px; }
+  .dashboard-card-head { margin: -14px -14px 14px; padding: 13px 14px; }
+  .dashboard-report-list, .tracker-filter-grid, .image-library-grid { grid-template-columns: 1fr; }
+  .image-library-grid { padding: 10px; }
+  .detail-card--asset { inset: auto 0 0; width: 100%; max-height: 82dvh; grid-template-columns: 1fr; gap: 10px; border-radius: 8px 8px 0 0; }
+  .detail-card--asset .attributes, .detail-card--asset .flight-card, .detail-card--asset .selected-media-panel, .detail-card--asset .validation-panel, .detail-card--asset .source-attributes { grid-column: 1; margin-inline: 12px; }
+  .modal-card, .modal-card.asset-form, .modal-card.group-form, .modal-card.assign-project-card, .modal-card.flight-asset-modal { width: calc(100vw - 16px); max-height: calc(100dvh - 16px); padding: 22px 16px 18px; }
+}
