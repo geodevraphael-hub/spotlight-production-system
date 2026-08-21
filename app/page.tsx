@@ -1322,7 +1322,7 @@ export default function Home() {
     const data = await response.json();
     if (data.whatsapp?.length) window.open(data.whatsapp[0].link, "_blank", "noopener,noreferrer");
     const smsRecipients = Array.isArray(data.sms) ? data.sms.length : 0;
-    setImportMessage(`${data.sent ?? 0} billboard(s) included in expiry reminders · SMS recipients: ${smsRecipients}`);
+    setImportMessage(`${data.sent ?? 0} billboard(s) checked for automatic deflighting reminders · SMS recipients: ${smsRecipients}`);
     window.setTimeout(() => setImportMessage(""), 3000);
     await refreshFlighting();
   }
@@ -3651,14 +3651,14 @@ export default function Home() {
               <div>
                 <span className="eyebrow">Project flighting</span>
                 <h2>Schedules, stages and reminders</h2>
-                <p>Manage billboard stages, flighted duration, expiry reminders, and notification contacts for the selected project.</p>
+                <p>Manage billboard stages, flighted duration, automatic daily deflighting reminders, and notification contacts for the selected project.</p>
               </div>
               <div className="flighting-hero-actions">
                 <button className="text-button" onClick={() => setActiveTab("planner")}>Back to map</button>
                 <button className="text-button" onClick={() => exportTracker("design")}><Download size={15} /> Design tracker</button>
                 <button className="text-button" onClick={() => exportTracker("cost")}><Download size={15} /> Cost tracker</button>
                 <button className="text-button" onClick={() => exportTracker("comprehensive")}><Download size={15} /> Full workbook</button>
-                <button className="primary-button" onClick={sendDueFlightReminders}>Send 3-day expiry reminders</button>
+                <button className="primary-button" onClick={sendDueFlightReminders}>Run reminder check now</button>
               </div>
             </div>
 

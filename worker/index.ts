@@ -5,6 +5,8 @@ import handler from "vinext/server/app-router-entry";
 interface Env {
   ASSETS: Fetcher;
   DB: D1Database;
+  AUTOMATION_SECRET?: string;
+  SESSION_SECRET?: string;
   IMAGES: {
     input(stream: ReadableStream): {
       transform(options: Record<string, unknown>): {
@@ -41,6 +43,15 @@ const worker = {
     }
 
     return handler.fetch(request, env, ctx);
+  },
+  async scheduled(_event: unknown, env: Env, ctx: ExecutionContext): Promise<void> {
+    const secret = env.AUTOMATION_SECRET || env.SESSION_SECRET || "";
+    if (!secret) return;
+    const request = new Request("https://spotlight.co.tz/api/app?action=auto-flight-reminders", {
+      method: "GET",
+      headers: { "x-automation-secret": secret },
+    });
+    ctx.waitUntil(handler.fetch(request, env, ctx));
   },
 };
 
