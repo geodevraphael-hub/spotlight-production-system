@@ -89,6 +89,50 @@ async function sendWhatChimpText(to: string, message: string) {
   }
 }
 
+async function sendMetaTemplateText(to: string, message: string) {
+  const accessToken = runtimeSecret("WHATSAPP_ACCESS_TOKEN");
+  const phoneNumberId = runtimeSecret("WHATSAPP_PHONE_NUMBER_ID");
+  const templateName = runtimeSecret("WHATSAPP_TEMPLATE_NAME") || "spotlight_system_notification";
+  const templateLanguage = runtimeSecret("WHATSAPP_TEMPLATE_LANGUAGE") || "en_US";
+  const recipient = whatsappDigits(to);
+  if (!accessToken || !phoneNumberId || !recipient || !templateName) {
+    return { phone: to, sent: false, skipped: true, provider: "meta-template" };
+  }
+  try {
+    const response = await fetch(`https://graph.facebook.com/v21.0/${phoneNumberId}/messages`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        messaging_product: "whatsapp",
+        recipient_type: "individual",
+        to: recipient,
+        type: "template",
+        template: {
+          name: templateName,
+          language: { code: templateLanguage },
+          components: [{
+            type: "body",
+            parameters: [
+              { type: "text", text: "the selected billboard" },
+              { type: "text", text: message.slice(0, 900) },
+            ],
+          }],
+        },
+      }),
+    });
+    const text = await response.text();
+    if (!response.ok) {
+      return { phone: to, sent: false, provider: "meta-template", error: text };
+    }
+    return { phone: to, sent: true, provider: "meta-template", response: parseProviderResponse(text) };
+  } catch (error) {
+    return { phone: to, sent: false, provider: "meta-template", error: error instanceof Error ? error.message : String(error) };
+  }
+}
+
 async function sendWhatChimpMedia(to: string, mediaUrl: string, caption: string, mediaType = "image") {
   const apiToken = runtimeSecret("WHATCHIMP_API_TOKEN");
   const phoneNumberId = runtimeSecret("WHATCHIMP_PHONE_NUMBER_ID") || runtimeSecret("WHATSAPP_PHONE_NUMBER_ID");
@@ -120,10 +164,14 @@ async function sendWhatChimpMedia(to: string, mediaUrl: string, caption: string,
 
 async function sendWhatsAppText(to: string, message: string, options: { previewUrl?: boolean } = {}) {
   const useWhatChimp = Boolean(runtimeSecret("WHATCHIMP_API_TOKEN")) || runtimeSecret("WHATSAPP_PROVIDER").toLowerCase() === "whatchimp";
+  let whatChimpResult: Awaited<ReturnType<typeof sendWhatChimpText>> | null = null;
   if (useWhatChimp) {
-    const result = await sendWhatChimpText(to, message);
-    if (result.sent || !result.skipped) return result;
+    whatChimpResult = await sendWhatChimpText(to, message);
+    if (whatChimpResult.sent) return whatChimpResult;
   }
+  const templateResult = await sendMetaTemplateText(to, message);
+  if (templateResult.sent || !templateResult.skipped) return templateResult;
+  if (whatChimpResult && !whatChimpResult.skipped) return whatChimpResult;
   const accessToken = runtimeSecret("WHATSAPP_ACCESS_TOKEN");
   const phoneNumberId = runtimeSecret("WHATSAPP_PHONE_NUMBER_ID");
   const recipient = whatsappDigits(to);
@@ -156,10 +204,14 @@ async function sendWhatsAppText(to: string, message: string, options: { previewU
 
 async function sendWhatsAppMedia(to: string, mediaUrl: string, caption: string, mediaType = "image") {
   const useWhatChimp = Boolean(runtimeSecret("WHATCHIMP_API_TOKEN")) || runtimeSecret("WHATSAPP_PROVIDER").toLowerCase() === "whatchimp";
+  let whatChimpResult: Awaited<ReturnType<typeof sendWhatChimpMedia>> | null = null;
   if (useWhatChimp) {
-    const result = await sendWhatChimpMedia(to, mediaUrl, caption, mediaType);
-    if (result.sent || !result.skipped) return result;
+    whatChimpResult = await sendWhatChimpMedia(to, mediaUrl, caption, mediaType);
+    if (whatChimpResult.sent) return whatChimpResult;
   }
+  const templateResult = await sendMetaTemplateText(to, `${caption}\nImage: ${mediaUrl}`);
+  if (templateResult.sent || !templateResult.skipped) return templateResult;
+  if (whatChimpResult && !whatChimpResult.skipped) return whatChimpResult;
   const accessToken = runtimeSecret("WHATSAPP_ACCESS_TOKEN");
   const phoneNumberId = runtimeSecret("WHATSAPP_PHONE_NUMBER_ID");
   const recipient = whatsappDigits(to);
