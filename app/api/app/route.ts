@@ -54,12 +54,81 @@ function runtimeSecret(name: string) {
   return nodeProcess?.env?.[name] ?? "";
 }
 
-async function sendWhatsAppText(to: string, message: string) {
+function parseProviderResponse(text: string) {
+  try {
+    return JSON.parse(text);
+  } catch {
+    return { raw: text };
+  }
+}
+
+async function sendWhatChimpText(to: string, message: string) {
+  const apiToken = runtimeSecret("WHATCHIMP_API_TOKEN");
+  const phoneNumberId = runtimeSecret("WHATCHIMP_PHONE_NUMBER_ID") || runtimeSecret("WHATSAPP_PHONE_NUMBER_ID");
+  const recipient = whatsappDigits(to);
+  if (!apiToken || !phoneNumberId || !recipient) {
+    return { phone: to, sent: false, skipped: true, provider: "whatchimp" };
+  }
+  try {
+    const response = await fetch("https://app.whatchimp.com/api/v1/whatsapp/send", {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({
+        apiToken,
+        phone_number_id: phoneNumberId,
+        phone_number: recipient,
+        message,
+      }),
+    });
+    const text = await response.text();
+    const providerResponse = parseProviderResponse(text);
+    const sent = response.ok && String(providerResponse.status ?? "") === "1";
+    return { phone: to, sent, provider: "whatchimp", status: response.status, response: providerResponse };
+  } catch (error) {
+    return { phone: to, sent: false, provider: "whatchimp", error: error instanceof Error ? error.message : String(error) };
+  }
+}
+
+async function sendWhatChimpMedia(to: string, mediaUrl: string, caption: string, mediaType = "image") {
+  const apiToken = runtimeSecret("WHATCHIMP_API_TOKEN");
+  const phoneNumberId = runtimeSecret("WHATCHIMP_PHONE_NUMBER_ID") || runtimeSecret("WHATSAPP_PHONE_NUMBER_ID");
+  const recipient = whatsappDigits(to);
+  if (!apiToken || !phoneNumberId || !recipient || !mediaUrl) {
+    return { phone: to, sent: false, skipped: true, provider: "whatchimp" };
+  }
+  try {
+    const response = await fetch("https://app.whatchimp.com/api/v1/whatsapp/send/file", {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({
+        apiToken,
+        phone_number_id: phoneNumberId,
+        phone_number: recipient,
+        media_url: mediaUrl,
+        media_type: mediaType,
+        media_caption_text: caption,
+      }),
+    });
+    const text = await response.text();
+    const providerResponse = parseProviderResponse(text);
+    const sent = response.ok && String(providerResponse.status ?? "") === "1";
+    return { phone: to, sent, provider: "whatchimp", status: response.status, response: providerResponse };
+  } catch (error) {
+    return { phone: to, sent: false, provider: "whatchimp", error: error instanceof Error ? error.message : String(error) };
+  }
+}
+
+async function sendWhatsAppText(to: string, message: string, options: { previewUrl?: boolean } = {}) {
+  const useWhatChimp = Boolean(runtimeSecret("WHATCHIMP_API_TOKEN")) || runtimeSecret("WHATSAPP_PROVIDER").toLowerCase() === "whatchimp";
+  if (useWhatChimp) {
+    const result = await sendWhatChimpText(to, message);
+    if (result.sent || !result.skipped) return result;
+  }
   const accessToken = runtimeSecret("WHATSAPP_ACCESS_TOKEN");
   const phoneNumberId = runtimeSecret("WHATSAPP_PHONE_NUMBER_ID");
   const recipient = whatsappDigits(to);
   if (!accessToken || !phoneNumberId || !recipient) {
-    return { phone: to, sent: false, skipped: true };
+    return { phone: to, sent: false, skipped: true, provider: "meta" };
   }
   try {
     const response = await fetch(`https://graph.facebook.com/v21.0/${phoneNumberId}/messages`, {
@@ -73,16 +142,53 @@ async function sendWhatsAppText(to: string, message: string) {
         recipient_type: "individual",
         to: recipient,
         type: "text",
-        text: { preview_url: false, body: message },
+        text: { preview_url: Boolean(options.previewUrl), body: message },
       }),
     });
     if (!response.ok) {
-      return { phone: to, sent: false, error: await response.text() };
+      return { phone: to, sent: false, provider: "meta", error: await response.text() };
     }
+    return { phone: to, sent: true, provider: "meta", response: parseProviderResponse(await response.text()) };
   } catch (error) {
-    return { phone: to, sent: false, error: error instanceof Error ? error.message : String(error) };
+    return { phone: to, sent: false, provider: "meta", error: error instanceof Error ? error.message : String(error) };
   }
-  return { phone: to, sent: true };
+}
+
+async function sendWhatsAppMedia(to: string, mediaUrl: string, caption: string, mediaType = "image") {
+  const useWhatChimp = Boolean(runtimeSecret("WHATCHIMP_API_TOKEN")) || runtimeSecret("WHATSAPP_PROVIDER").toLowerCase() === "whatchimp";
+  if (useWhatChimp) {
+    const result = await sendWhatChimpMedia(to, mediaUrl, caption, mediaType);
+    if (result.sent || !result.skipped) return result;
+  }
+  const accessToken = runtimeSecret("WHATSAPP_ACCESS_TOKEN");
+  const phoneNumberId = runtimeSecret("WHATSAPP_PHONE_NUMBER_ID");
+  const recipient = whatsappDigits(to);
+  if (!accessToken || !phoneNumberId || !recipient || !mediaUrl) {
+    return { phone: to, sent: false, skipped: true, provider: "meta" };
+  }
+  try {
+    const response = await fetch(`https://graph.facebook.com/v21.0/${phoneNumberId}/messages`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        messaging_product: "whatsapp",
+        recipient_type: "individual",
+        to: recipient,
+        type: "image",
+        image: { link: mediaUrl, caption },
+      }),
+    });
+    const text = await response.text();
+    if (!response.ok) {
+      return { phone: to, sent: false, provider: "meta", error: text };
+    }
+    return { phone: to, sent: true, provider: "meta", response: parseProviderResponse(text) };
+  } catch (error) {
+    return { phone: to, sent: false, provider: "meta", error: error instanceof Error ? error.message : String(error) };
+  }
 }
 
 async function sendSmsText(to: string, message: string) {
@@ -1193,6 +1299,35 @@ export async function POST(request: Request) {
   if (action === "logout") {
     await env.DB.prepare("DELETE FROM sessions WHERE token=?").bind(cookieToken(request)).run();
     return json({ ok: true }, 200, { "Set-Cookie": "kmk_session=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0" });
+  }
+  if (action === "whatsapp-demo" && user.role === "admin") {
+    const phone = String(body.phone ?? "").trim();
+    const mediaUrl = String(body.mediaUrl ?? "").trim();
+    const message = String(body.message ?? "").trim() || [
+      "Spotlight demo notification.",
+      "Billboard: Demo asset",
+      "Location: Demo location",
+      "Status: Flighted",
+      "Map: https://spotlight.co.tz/",
+    ].join("\n");
+    if (!phone) return json({ error: "Phone number is required" }, 400);
+    const result = mediaUrl
+      ? await sendWhatsAppMedia(phone, mediaUrl, message, String(body.mediaType ?? "image"))
+      : await sendWhatsAppText(phone, message, { previewUrl: true });
+    await recordNotificationAudit({
+      projectId: Number(body.projectId) || 0,
+      assetId: body.assetId ? Number(body.assetId) : null,
+      notificationType: "whatsapp_demo",
+      channel: "whatsapp",
+      recipients: [phone],
+      subject: "WhatsApp demo notification",
+      status: result.sent ? "sent" : result.skipped ? "skipped" : "failed",
+      providerId: result.provider,
+      providerResponse: result,
+      createdBy: user.id,
+      createdAt: Date.now(),
+    });
+    return json({ ok: result.sent, result });
   }
   if (action === "inventory") {
     const items = Array.isArray(body.items) ? body.items : [];
