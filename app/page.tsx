@@ -10,6 +10,9 @@ import {
   EyeOff,
   FileUp,
   Layers3,
+  Image as ImageIcon,
+  ClipboardList,
+  Users,
   LocateFixed,
   LockKeyhole,
   MapPin,
@@ -626,6 +629,44 @@ function miniMapUrl(item: Billboard) {
   return `https://www.openstreetmap.org/export/embed.html?bbox=${west}%2C${south}%2C${east}%2C${north}&layer=mapnik&marker=${item.lat}%2C${item.lng}`;
 }
 
+function WorkspaceActions({ children }: { children: React.ReactNode }) {
+  const [open, setOpen] = useState(false);
+  const container = useRef<HTMLDivElement>(null);
+  const trigger = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const dismissOutside = (event: PointerEvent) => {
+      if (!container.current?.contains(event.target as Node)) setOpen(false);
+    };
+    const dismissWithEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setOpen(false);
+        trigger.current?.focus();
+      }
+    };
+    document.addEventListener("pointerdown", dismissOutside);
+    document.addEventListener("keydown", dismissWithEscape);
+    return () => {
+      document.removeEventListener("pointerdown", dismissOutside);
+      document.removeEventListener("keydown", dismissWithEscape);
+    };
+  }, [open]);
+
+  return <div className="workspace-actions" ref={container} onBlur={(event) => {
+    if (event.relatedTarget && !event.currentTarget.contains(event.relatedTarget as Node)) setOpen(false);
+  }}>
+    <button ref={trigger} className="text-button workspace-actions-trigger" aria-expanded={open} aria-controls="project-tools" onClick={() => setOpen(!open)}>
+      <SlidersHorizontal size={16} /> Project tools <ChevronDown size={14} />
+    </button>
+    {open && <div id="project-tools" className="workspace-actions-panel" aria-label="Project tools" onClick={(event) => {
+      if ((event.target as HTMLElement).closest("button")) setOpen(false);
+    }} onChange={(event) => { if ((event.target as HTMLInputElement).type === "file") setOpen(false); }}>
+      {children}
+    </div>}
+  </div>;
+}
+
 export default function Home() {
   const mapNode = useRef<HTMLDivElement>(null);
   const mapRef = useRef<LeafletMap | null>(null);
@@ -652,6 +693,7 @@ export default function Home() {
   const [user, setUser] = useState<{ id: number; name: string; email: string; role: string } | null>(null);
   const [authReady, setAuthReady] = useState(false);
   const [loginError, setLoginError] = useState("");
+  const [signingIn, setSigningIn] = useState(false);
   const [adminOpen, setAdminOpen] = useState(false);
   const [users, setUsers] = useState<Array<{ id: number; name: string; email: string; role: string }>>([]);
   const [baseMap, setBaseMap] = useState("street");
@@ -2169,7 +2211,11 @@ export default function Home() {
 
   async function login(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (signingIn) return;
     const form = new FormData(event.currentTarget);
+    setSigningIn(true);
+    setLoginError("");
+    try {
     const response = await fetch("/api/app?action=login", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -2185,6 +2231,11 @@ export default function Home() {
     }
     setUser(data.user);
     setLoginError("");
+    } catch {
+      setLoginError("Unable to connect. Check your connection and try again.");
+    } finally {
+      setSigningIn(false);
+    }
   }
 
   async function logout() {
@@ -2571,6 +2622,16 @@ export default function Home() {
     setAllProjectsProjectFilter("All projects");
   }
 
+  const activeFilters = [
+    ...(query ? [{ label: `Search: ${query}`, clear: () => setQuery("") }] : []),
+    ...(district !== "All areas" ? [{ label: district, clear: () => setDistrict("All areas") }] : []),
+    ...(availability !== "All status" ? [{ label: statusLabel(availability), clear: () => setAvailability("All status") }] : []),
+    ...(boardTypeFilter !== "All types" ? [{ label: mediaTypeLabel(boardTypeFilter as BoardType), clear: () => setBoardTypeFilter("All types") }] : []),
+    ...(facesFilter !== "All faces" ? [{ label: facesFilter, clear: () => setFacesFilter("All faces") }] : []),
+    ...(mapFlightFilter !== "All flight status" ? [{ label: `Flight: ${mapFlightFilter}`, clear: () => setMapFlightFilter("All flight status") }] : []),
+    ...(isAllProjectsMap && allProjectsProjectFilter !== "All projects" ? [{ label: allProjectsProjectFilter, clear: () => setAllProjectsProjectFilter("All projects") }] : []),
+  ];
+
   if (!authReady) {
     return <main className="auth-screen"><div className="auth-loading">Loading inventory…</div></main>;
   }
@@ -2622,8 +2683,8 @@ export default function Home() {
           <p>Sign in to manage inventory and campaign plans.</p>
           <label><span>Email</span><input name="email" type="email" required autoComplete="username" /></label>
           <label><span>Password</span><input name="password" type="password" required autoComplete="current-password" /></label>
-          {loginError && <div className="login-error">{loginError}</div>}
-          <button className="primary-button" type="submit">Sign in</button>
+          {loginError && <div className="login-error" role="alert">{loginError}</div>}
+          <button className="primary-button" type="submit" disabled={signingIn} aria-busy={signingIn}>{signingIn ? "Signing in…" : "Sign in"}</button>
         </form>
       </main>
     );
@@ -2653,25 +2714,33 @@ export default function Home() {
             </div>
           )}
           {canManage && (
-            <>
-              <button className="text-button" onClick={() => setProjectOpen(true)}><Plus size={15} /> Project</button>
+            <WorkspaceActions>
+              <span className="action-section-label">Project</span>
+              <button className="text-button" onClick={() => { setActiveTab("planner"); setProjectOpen(true); }}><Plus size={15} /> Create project</button>
               {canDeleteCurrentProject && (
                 <button className="text-button clear-project-button" onClick={deleteProject}>
                   <Trash2 size={15} /> Delete project
                 </button>
               )}
-              <button className="text-button" onClick={() => { resetAssetDraft(); setPlacingAsset(true); }}>
+              <span className="action-section-label">Inventory</span>
+              <button className="text-button" onClick={() => { setActiveTab("planner"); resetAssetDraft(); setPlacingAsset(true); }}>
                 <Plus size={15} /> Add billboard
-              </button>
-              <button className="text-button" onClick={() => setActiveTab("flighting")}>
-                <Check size={15} /> Flighting
               </button>
               {shortlist.length > 0 && (
                 <button className="text-button" onClick={() => setAssignProjectOpen(true)}>
                   <Plus size={15} /> Assign selected
                 </button>
               )}
-            </>
+              {user?.role === "admin" && <>
+                <label className="text-button import-button"><FileUp size={16} /> Import billboards
+                  <input type="file" accept=".csv,.kml" onChange={(event) => { if (event.target.files?.[0]) { setActiveTab("planner"); importInventory(event.target.files[0]); } }} />
+                </label>
+                <button className="text-button" onClick={downloadCsvTemplate}><Download size={16} /> Download CSV template</button>
+                <span className="action-section-label">Administration</span>
+                <button className="text-button" onClick={() => { setActiveTab("planner"); loadUsers(); }}><UserCog size={16} /> Manage users</button>
+                <button className="text-button clear-project-button" onClick={clearProjectBillboards}><Trash2 size={16} /> Clear project inventory</button>
+              </>}
+            </WorkspaceActions>
           )}
           {user && (
             <button
@@ -2681,53 +2750,14 @@ export default function Home() {
               Share link
             </button>
           )}
-          <label className="basemap-select">
-            <Layers3 size={15} />
-            <select value={baseMap} onChange={(event) => setBaseMap(event.target.value)} aria-label="Basemap">
-              <option value="street">Street</option>
-              <option value="light">Light</option>
-              <option value="satellite">Satellite</option>
-            </select>
-          </label>
-          <form className="address-search" onSubmit={searchAddress}>
-            <Search size={15} />
-            <input
-              value={addressQuery}
-              onChange={(event) => setAddressQuery(event.target.value)}
-              placeholder="Search address"
-              aria-label="Search address"
-            />
-            <button type="submit" aria-label="Go to address"><LocateFixed size={15} /></button>
-          </form>
-          {user?.role === "admin" && (
-            <>
-              <label className="text-button import-button">
-                <FileUp size={16} /> Import
-                <input
-                  type="file"
-                  accept=".csv,.kml"
-                  onChange={(event) => event.target.files?.[0] && importInventory(event.target.files[0])}
-                />
-              </label>
-              <button className="text-button" onClick={downloadCsvTemplate}>
-                <Download size={16} /> Template
-              </button>
-              <button className="text-button clear-project-button" onClick={clearProjectBillboards}>
-                <Trash2 size={16} /> Clear
-              </button>
-              <button className="text-button" onClick={loadUsers}>
-                <UserCog size={16} /> Users
-              </button>
-            </>
-          )}
           {canPlan && (
-            <button className="primary-button" onClick={() => setPlanOpen(true)}>
+            <button className="primary-button" onClick={() => { setActiveTab("planner"); setPlanOpen(true); }}>
               <Sparkles size={16} /> Build a plan
               {shortlist.length > 0 && <span>{shortlist.length}</span>}
             </button>
           )}
           {user ? (
-            <button className="user-button" onClick={logout} title="Sign out">
+            <button className="user-button" onClick={logout} title={`Sign out · ${user.name}`} aria-label={`Sign out ${user.name}`}>
               {user.name.split(" ").map((part) => part[0]).join("").slice(0, 2)}
             </button>
           ) : (
@@ -2736,27 +2766,29 @@ export default function Home() {
         </div>
       </header>
 
-      <nav className="tab-bar">
+      <nav className="tab-bar" aria-label="Workspace navigation">
         <button
+          aria-current={activeTab === "planner" && !isAllProjectsMap ? "page" : undefined}
           className={activeTab === "planner" && !isAllProjectsMap ? "tab-btn tab-btn--active" : "tab-btn"}
           onClick={() => { if (isAllProjectsMap && projects[0]) setCurrentProjectId(projects[0].id); setActiveTab("planner"); }}
         >
-          Planner
+          <MapPin size={16} /> Planner
         </button>
         {user?.role === "admin" && (
           <button
+            aria-current={isAllProjectsMap && activeTab === "planner" ? "page" : undefined}
             className={isAllProjectsMap && activeTab === "planner" ? "tab-btn tab-btn--active" : "tab-btn"}
             onClick={() => { setCurrentProjectId(0); setActiveTab("planner"); }}
           >
-            All Projects Map
+            <Layers3 size={16} /> All Projects Map
           </button>
         )}
-        {user && <button className={activeTab === "dashboard" ? "tab-btn tab-btn--active" : "tab-btn"} onClick={() => setActiveTab("dashboard")}>Dashboard</button>}
-        <button className={activeTab === "library" ? "tab-btn tab-btn--active" : "tab-btn"} onClick={() => setActiveTab("library")}>Image Library</button>
-        {canPlan && <button className={activeTab === "flighting" ? "tab-btn tab-btn--active" : "tab-btn"} onClick={() => setActiveTab("flighting")}>Flighting</button>}
-        {canPlan && <button className={activeTab === "tracker" ? "tab-btn tab-btn--active" : "tab-btn"} onClick={() => setActiveTab("tracker")}>Execution & Cost Tracker</button>}
+        {user && <button aria-current={activeTab === "dashboard" ? "page" : undefined} className={activeTab === "dashboard" ? "tab-btn tab-btn--active" : "tab-btn"} onClick={() => setActiveTab("dashboard")}><BarChart3 size={16} /> Dashboard</button>}
+        <button aria-current={activeTab === "library" ? "page" : undefined} className={activeTab === "library" ? "tab-btn tab-btn--active" : "tab-btn"} onClick={() => setActiveTab("library")}><ImageIcon size={16} /> Image Library</button>
+        {canPlan && <button aria-current={activeTab === "flighting" ? "page" : undefined} className={activeTab === "flighting" ? "tab-btn tab-btn--active" : "tab-btn"} onClick={() => setActiveTab("flighting")}><Check size={16} /> Flighting</button>}
+        {canPlan && <button aria-current={activeTab === "tracker" ? "page" : undefined} className={activeTab === "tracker" ? "tab-btn tab-btn--active" : "tab-btn"} onClick={() => setActiveTab("tracker")}><ClipboardList size={16} /> Execution & Cost Tracker</button>}
         {canManage && (
-          <button className={activeTab === "field" ? "tab-btn tab-btn--active" : "tab-btn"} onClick={() => setActiveTab("field")}>Field Management</button>
+          <button aria-current={activeTab === "field" ? "page" : undefined} className={activeTab === "field" ? "tab-btn tab-btn--active" : "tab-btn"} onClick={() => setActiveTab("field")}><Users size={16} /> Field Management</button>
         )}
       </nav>
 
@@ -2785,6 +2817,7 @@ export default function Home() {
                   value={query}
                   onChange={(event) => setQuery(event.target.value)}
                   placeholder="Search area, street or owner"
+                  aria-label="Search billboard inventory"
                 />
                 {query && (
                   <button onClick={() => setQuery("")} aria-label="Clear search">
@@ -2795,12 +2828,14 @@ export default function Home() {
               <button
                 className={showFilters ? "filter-toggle active" : "filter-toggle"}
                 onClick={() => setShowFilters(!showFilters)}
+                aria-expanded={showFilters}
+                aria-controls="inventory-filters"
               >
-                <SlidersHorizontal size={16} /> Filters
+                <SlidersHorizontal size={16} /> Filters {activeFilters.length > 0 && <span className="filter-count">{activeFilters.length}</span>}
                 <ChevronDown size={14} />
               </button>
               {showFilters && (
-                <div className="filter-grid">
+                <div className="filter-grid" id="inventory-filters">
                   {isAllProjectsMap && (
                     <label>
                       <span>Project</span>
@@ -2874,8 +2909,11 @@ export default function Home() {
               )}
             </section>
 
+            {activeFilters.length > 0 && <div className="active-filter-list" aria-label="Active inventory filters">
+              {activeFilters.map((filter, index) => <button key={`${index}-${filter.label}`} onClick={filter.clear} aria-label={`Remove filter: ${filter.label}`}>{filter.label}<X size={13} /></button>)}
+            </div>}
             <div className="result-heading">
-              <span>{filtered.length} results</span>
+              <span role="status" aria-live="polite">{loading ? "Loading inventory…" : `${filtered.length} results`}</span>
               {(query ||
                 district !== "All areas" ||
                 availability !== "All status" ||
@@ -2959,6 +2997,16 @@ export default function Home() {
 
         <section className="map-area">
           <div ref={mapNode} className="map" />
+          <div className="map-search-toolbar" aria-label="Map tools">
+            <form className="address-search" onSubmit={searchAddress}>
+              <Search size={16} />
+              <input value={addressQuery} onChange={(event) => setAddressQuery(event.target.value)} placeholder="Search a place" aria-label="Search address" />
+              <button type="submit" aria-label="Go to address"><LocateFixed size={17} /></button>
+            </form>
+            <label className="basemap-select"><Layers3 size={16} /><select value={baseMap} onChange={(event) => setBaseMap(event.target.value)} aria-label="Basemap">
+              <option value="street">Street</option><option value="light">Light</option><option value="satellite">Satellite</option>
+            </select></label>
+          </div>
           <div className="map-key">
             <span>
               <i className="dot dot--available" /> Available
