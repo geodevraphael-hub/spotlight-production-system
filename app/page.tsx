@@ -1,6 +1,29 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import Operations from './Operations';
+import Dashboard from './Dashboard';
+import RoadStretch from './RoadStretch';
+import PoleAssignment from './PoleAssignment';
+import ImportReview from './ImportReview';
+import WorkspaceDock from './WorkspaceDock';
+import ReportBuilder from './ReportBuilder';
+import PlanningBillboard from './PlanningBillboard';
+import PlanningDecision, { type DecisionSettings } from './PlanningDecision';
+import { defaultDecision, decisionSettings } from './planning-decision.mjs';
+import { markerSize, markerHtml, markerState } from './map-symbols.mjs';
+import { InventorySummary, PlanSelectionButton, PlanningMapLegend } from './PlannerUI';
+import InventoryTable,{InventoryControls} from './InventoryTable';
+import {CentralProjects,CentralMemberships,CentralMapContext} from './CentralMap';
+import {centralProjectView} from './central-map.mjs';
+import CentralAssignment from './CentralAssignment';
+import ProjectRemoval from './ProjectRemoval';
+import './central-map.css';
+import InventoryBulkEdit from './InventoryBulkEdit';
+import AssetOverview from './AssetOverview';
+import {assetPriority,installationCount,registrationNumber,mediaGroup,attributeLabel,isTransportAttribute,PRIORITIES} from './asset-register.mjs';
+import {emptyGeoFilters,matchesGeography,inventoryGeography} from './inventory-workflow.mjs';
+import './operations.css';
 import {
   BarChart3,
   Check,
@@ -9,6 +32,7 @@ import {
   Eye,
   EyeOff,
   FileUp,
+  FileDown,
   Layers3,
   Image as ImageIcon,
   ClipboardList,
@@ -26,6 +50,10 @@ import {
   Trash2,
   UserCog,
   X,
+  RefreshCw,
+  Scan,
+  SquareDashedMousePointer,
+  Save,
 } from "lucide-react";
 import type {
   Map as LeafletMap,
@@ -40,10 +68,19 @@ const DISTRICT_RENAMES: Record<string, string> = {
 };
 
 function renameDistrict(name: string) {
-  return DISTRICT_RENAMES[name.trim()] ?? name;
+  const label = String(name ?? '').trim() || 'Unassigned area';
+  return DISTRICT_RENAMES[label] ?? label;
 }
 
 type Billboard = {
+  priority?: string;
+  registrationNumber?: string;
+  mediaGroup?: string;
+  installations?: number | null;
+  bookingStatus?: string;
+  reservedFaces?: number;
+  bookingDate?: string;
+  bookingActiveFlight?: boolean;
   id: number;
   district: string;
   street: string;
@@ -75,8 +112,13 @@ type Billboard = {
   validatedAt?: number;
   validatedBy?: number;
   inventoryDbId?: number;
+  positionSource?: string;
+  positionVerified?: boolean;
   projectId?: number;
   projectName?: string;
+  projectNames?: string[];
+  memberships?: any[];
+  centralStates?: string[];
   originalAssetId?: number;
   rentalPrice?: number;
   printingPrice?: number;
@@ -84,6 +126,7 @@ type Billboard = {
   flightingPrice?: number;
 };
 
+const estimatedPole=(b:Billboard|null)=>b?.mediaType==='lamp-post'&&b.positionSource==='estimated-road-stretch'&&b.positionVerified!==true;
 type BoardType = NonNullable<Billboard["mediaType"]>;
 
 type Project = {
@@ -105,10 +148,12 @@ type CostBreakdown = {
 
 type CampaignPlan = {
   id: number;
+  project_id?: number;
+  project_name?: string;
   name: string;
   creator?: string;
   note: string;
-  data: { shortlist: number[]; costs: Record<number, CostBreakdown> };
+  data: { shortlist: number[]; costs: Record<number, CostBreakdown>; unresolvedCount?: number; decision?: DecisionSettings };
 };
 
 type FlightSchedule = {
@@ -379,12 +424,16 @@ function applySourceAttributesToBillboard(item: Billboard, attrs: Record<string,
   const height = parseNumber(sourceAttrValue(attrs, ["HEIGHT (M)", "HEIGHT", "height"], ""));
   const width = parseNumber(sourceAttrValue(attrs, ["WIDTH (M)", "WIDTH", "width"], ""));
   const faces = parseNumber(sourceAttrValue(attrs, ["FACES", "faces"], ""));
-  const lampPosts = parseNumber(sourceAttrValue(attrs, ["LAMP POSTS", "LAMPPOSTS", "INSTALLATION", "lampPosts"], ""));
+  const lampPosts = parseNumber(sourceAttrValue(attrs, ["LAMP POSTS", "LAMPPOSTS", "lampPosts"], ""));
   const mediaType = sourceAttrValue(attrs, ["MEDIA TYPE", "TYPE", "BOARD TYPE", "mediaType"], "");
   const status = sourceAttrValue(attrs, ["STATUS", "status"], "");
   return {
     ...item,
     sourceAttributes: attrs,
+    priority: sourceAttrValue(attrs,["Priority","Priority level"],item.priority||""),
+    registrationNumber: registrationNumber({sourceAttributes:attrs})||item.registrationNumber,
+    mediaGroup: mediaGroup({sourceAttributes:attrs})||item.mediaGroup,
+    installations: installationCount({sourceAttributes:attrs})??item.installations,
     district: sourceAttrValue(attrs, ["DISTRICT", "district"], item.district),
     street: sourceAttrValue(attrs, ["SPECIFIC LOCATION", "specificLocation", "ROAD/STREET", "ROAD (From - To)", "STREET", "street"], item.street),
     owner: sourceAttrValue(attrs, ["VENDOR", "OWNER", "owner"], item.owner),
@@ -405,21 +454,6 @@ function applySourceAttributesToBillboard(item: Billboard, attrs: Record<string,
     photoUrl: normalizeImageUrl(photoUrl),
     photoOriginalUrl: photoUrl && normalizeImageUrl(photoUrl) !== photoUrl ? originalImageUrl(photoUrl) : item.photoOriginalUrl,
   };
-}
-
-function markerSize(item: Billboard) {
-  const ratio = item.height > 0 ? item.width / item.height : 1;
-  const markerWidth = Math.max(24, Math.min(58, 30 * Math.sqrt(Math.max(ratio, 0.2))));
-  const markerHeight = Math.max(22, Math.min(48, markerWidth / Math.max(ratio, 0.4)));
-  return { markerWidth, markerHeight };
-}
-
-function markerHtml(item: Billboard, active: boolean) {
-  const available = !item.occupied;
-  const flighted = String(item.flightStatus ?? "").toLowerCase() === "flighted";
-  const expired = flighted && Boolean(Number(item.flightExpiry || 0) && Number(item.flightExpiry || 0) <= Date.now());
-  const { markerWidth, markerHeight } = markerSize(item);
-  return `<span style="width:${markerWidth}px;height:${markerHeight}px" class="asset-marker ${item.mediaType === "large-format" ? "asset-marker--large" : item.mediaType === "digital-screen" ? "asset-marker--digital" : item.mediaType === "fabricated-banner" ? "asset-marker--fabricated" : "asset-marker--lamp"} ${available ? "asset-marker--available" : ""} ${flighted ? "asset-marker--flighted" : ""} ${expired ? "asset-marker--expired" : ""} ${active ? "asset-marker--active" : ""}"><i></i><b>${escapeHtml(item.faces)}</b></span>`;
 }
 
 function popupHtml(item: Billboard) {
@@ -673,9 +707,18 @@ export default function Home() {
   const tileRef = useRef<TileLayer | null>(null);
   const labelsRef = useRef<TileLayer | null>(null);
   const markersRef = useRef<Map<number, LeafletMarker>>(new Map());
+  const extentFitTimerRef = useRef<number | null>(null);
   const leafletRef = useRef<any>(null);
   const lastExtentFitRef = useRef("");
-  const [billboards, setBillboards] = useState<Billboard[]>([]);
+  const [projectBillboards, setBillboards] = useState<Billboard[]>([]);
+  const [roadOpen,setRoadOpen]=useState(false);
+  const [poleBoards,setPoleBoards]=useState<Billboard[]|null>(null);
+  const [planningInventory, setPlanningInventory] = useState<Billboard[]>([]);
+  const [planningLoading, setPlanningLoading] = useState(true);
+  const [planningLoadError, setPlanningLoadError] = useState("");
+  const [planningRevision, setPlanningRevision] = useState(0);
+  const [planTarget, setPlanTarget] = useState("");
+  const [planProjectName, setPlanProjectName] = useState("");
   const [selected, setSelected] = useState<Billboard | null>(null);
   const [query, setQuery] = useState("");
   const [district, setDistrict] = useState("All areas");
@@ -683,13 +726,20 @@ export default function Home() {
   const [boardTypeFilter, setBoardTypeFilter] = useState("All types");
   const [mapFlightFilter, setMapFlightFilter] = useState("All flight status");
   const [allProjectsProjectFilter, setAllProjectsProjectFilter] = useState("All projects");
-  const [shortlist, setShortlist] = useState<number[]>([]);
-  const [costs, setCosts] = useState<Record<number, CostBreakdown>>({});
+  const [planningShortlist, setPlanningShortlist] = useState<number[]>([]);
+  const [projectShortlist, setProjectShortlist] = useState<number[]>([]);
+  const [planningCosts, setPlanningCosts] = useState<Record<number, CostBreakdown>>({});
+  const [projectCosts, setProjectCosts] = useState<Record<number, CostBreakdown>>({});
   const [planOpen, setPlanOpen] = useState(false);
+  const [mapPurpose, setMapPurpose] = useState<"planning" | "inventory">("planning");
+  const [operationsSection,setOperationsSection]=useState<'notifications'|'history'|'issues'|'bookings'>('notifications');
+  const dashboardInventoryFilters=useRef<any>(null);
   const [showSelectedOnly, setShowSelectedOnly] = useState(false);
-  const [showFilters, setShowFilters] = useState(true);
+  const [showFilters, setShowFilters] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [loading, setLoading] = useState(true);
+  const [projectLoadError, setProjectLoadError] = useState('');
+  const [projectLoadRevision, setProjectLoadRevision] = useState(0);
   const [user, setUser] = useState<{ id: number; name: string; email: string; role: string } | null>(null);
   const [authReady, setAuthReady] = useState(false);
   const [loginError, setLoginError] = useState("");
@@ -699,6 +749,8 @@ export default function Home() {
   const [baseMap, setBaseMap] = useState("street");
   const [mapReady, setMapReady] = useState(false);
   const [planNote, setPlanNote] = useState("");
+  const [decisionOpen,setDecisionOpen]=useState(false);
+  const [decision,setDecision]=useState<DecisionSettings>(defaultDecision);
   const [importMessage, setImportMessage] = useState("");
   const [projects, setProjects] = useState<Project[]>([]);
   const [currentProjectId, setCurrentProjectId] = useState(1);
@@ -706,6 +758,10 @@ export default function Home() {
   const [plans, setPlans] = useState<CampaignPlan[]>([]);
   const [currentPlanId, setCurrentPlanId] = useState<number | null>(null);
   const [planName, setPlanName] = useState("Campaign Plan 1");
+  const [planSaving, setPlanSaving] = useState(false);
+  const [planSaveMessage, setPlanSaveMessage] = useState("");
+  const [planSaveError, setPlanSaveError] = useState(false);
+  const [planLoadWarning, setPlanLoadWarning] = useState("");
   const [compareOpen, setCompareOpen] = useState(false);
   const [flightSchedules, setFlightSchedules] = useState<FlightSchedule[]>([]);
   const [projectContacts, setProjectContacts] = useState<ProjectContact[]>([]);
@@ -736,6 +792,8 @@ export default function Home() {
   });
   const [facesFilter, setFacesFilter] = useState("All faces");
   const [csvImport, setCsvImport] = useState<{ headers: string[]; rows: string[][] } | null>(null);
+  const [importReview,setImportReview] = useState<Billboard[]|null>(null);
+  useEffect(() => { setImportReview(null); }, [currentProjectId]);
   const [csvMap, setCsvMap] = useState<Record<string, string>>({});
   const [addOpen, setAddOpen] = useState(false);
   const [editingPosition, setEditingPosition] = useState(false);
@@ -744,7 +802,33 @@ export default function Home() {
   const [assetDraft, setAssetDraft] = useState<Partial<Billboard>>({});
   const [positionHint, setPositionHint] = useState<string | null>(null);
   const [addressQuery, setAddressQuery] = useState("");
-  const [activeTab, setActiveTab] = useState<"planner" | "dashboard" | "library" | "flighting" | "tracker" | "field">("planner");
+  const [activeTab, setActiveTab] = useState<"planner" | "dashboard" | "library" | "flighting" | "tracker" | "costs" | "field" | "operations" | "reports">("planner");
+  const planningScope = activeTab === "planner" && mapPurpose === "planning" && Boolean(user && ["admin", "creator", "planner"].includes(user.role));
+  const inventoryScope = activeTab === "planner" && mapPurpose === "inventory" && Boolean(user && ["admin","creator"].includes(user.role));
+  const centralScope=inventoryScope&&user?.role==="admin"&&currentProjectId===0;
+  const [centralProject,setCentralProject]=useState("all");
+  const [centralAssignmentBoards,setCentralAssignmentBoards]=useState<Billboard[]|null>(null);
+  const [projectRemovalBoards,setProjectRemovalBoards]=useState<Billboard[]|null>(null);
+  const [inventoryEvidence,setInventoryEvidence]=useState<Record<number,any>>({});
+  const [inventoryGeo,setInventoryGeo]=useState<Record<string,string>>(emptyGeoFilters);
+  const [inventoryVendor,setInventoryVendor]=useState("");
+  const [inventoryPriority,setInventoryPriority]=useState("");
+  const [inventoryGeoLoading,setInventoryGeoLoading]=useState(false);
+  const [inventoryGeoError,setInventoryGeoError]=useState("");
+  const [inventoryView,setInventoryView]=useState("split");
+  const [inventoryMapShare,setInventoryMapShare]=useState(45);
+  const [inventoryFocusedId,setInventoryFocusedId]=useState<number|null>(null);
+  const [inventoryFocusRevision,setInventoryFocusRevision]=useState(0);
+  const [inventoryDetailCategory,setInventoryDetailCategory]=useState("overview");
+  const [bulkEditBoards,setBulkEditBoards]=useState<Billboard[]|null>(null);
+  const inventoryDetailRef=useRef<HTMLElement|null>(null);
+  const centralAllBoards=useMemo<Billboard[]>(()=>centralProjectView(projectBillboards),[projectBillboards]);
+  const centralBoards=useMemo<Billboard[]>(()=>centralProjectView(projectBillboards,centralProject,Date.now(),mapFlightFilter),[projectBillboards,centralProject,mapFlightFilter]);
+  const billboards:Billboard[] = planningScope ? planningInventory : centralScope?centralBoards:projectBillboards;
+  const shortlist = planningScope ? planningShortlist : projectShortlist;
+  const setShortlist = planningScope ? setPlanningShortlist : setProjectShortlist;
+  const costs = planningScope ? planningCosts : projectCosts;
+  const setCosts = planningScope ? setPlanningCosts : setProjectCosts;
   const [fieldCollections, setFieldCollections] = useState<any[]>([]);
   const [missions, setMissions] = useState<any[]>([]);
   const [userGroups, setUserGroups] = useState<any[]>([]);
@@ -846,19 +930,89 @@ export default function Home() {
   }, [user]);
 
   useEffect(() => {
+    setPlanningShortlist([]); setPlanningCosts({}); setCurrentPlanId(null); setPlanTarget("");
+    setPlanName("Campaign Plan 1"); setPlanNote(""); setPlans([]); setPlanningInventory([]);
+  }, [user?.id]);
+
+  useEffect(() => {
+    if (!user || !planningScope || !["admin", "creator", "planner"].includes(user.role)) return;
+    const controller = new AbortController();
+    setPlanningLoading(true); setPlanningLoadError("");
+    fetch("/api/app?action=planner-workspace", {signal:controller.signal})
+      .then(async response => {
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || "Unable to load planning inventory.");
+        if (controller.signal.aborted) return;
+        setPlanningInventory((data.inventory ?? []).map((item: Billboard) => ({...item,district:renameDistrict(item.district)})));
+        setPlans(data.plans ?? []);
+      }).catch(error => { if (!controller.signal.aborted) setPlanningLoadError(error.message); })
+      .finally(() => { if (!controller.signal.aborted) setPlanningLoading(false); });
+    return () => controller.abort();
+  }, [user?.id, planningRevision, planningScope]);
+
+  useEffect(() => {
+    setSelected(null); setEditingPosition(false); setPlacingAsset(false); setBoxSelectMode(false);
+  }, [planningScope]);
+
+  useEffect(()=>{
+    setInventoryGeo(emptyGeoFilters());setInventoryVendor("");setInventoryPriority("");
+    setInventoryFocusedId(null);
+    setBulkEditBoards(null);
+    if(inventoryScope){
+      resetFilters();
+      const filters=dashboardInventoryFilters.current;
+      if(filters){
+        setQuery(filters.query||"");setBoardTypeFilter(filters.type&&filters.type!=='other'?filters.type:"All types");
+        setMapFlightFilter(filters.flight||"All flight status");dashboardInventoryFilters.current=null;
+      }
+    }
+  },[currentProjectId,user?.id,inventoryScope]);
+  useEffect(()=>{
+    if(!inventoryScope||!selected)return;
+    setInventoryDetailCategory("overview");
+    const previous=document.activeElement as HTMLElement|null;
+    inventoryDetailRef.current?.querySelector<HTMLButtonElement>(".close-detail")?.focus();
+    return()=>{if(previous?.isConnected)previous.focus({preventScroll:true});};
+  },[inventoryScope,selected?.id]);
+  useEffect(()=>{
+    if(!inventoryScope)return;
+    const controller=new AbortController();
+    setInventoryEvidence({});setInventoryGeoLoading(true);setInventoryGeoError("");
+    fetch('/api/app?action=planning-evidence&radius=1000',{signal:controller.signal})
+      .then(async response=>{const data=await response.json();if(!response.ok)throw new Error(data.error||'Unable to load location filters.');
+        if(!controller.signal.aborted)setInventoryEvidence(data.evidence??{});})
+      .catch(error=>{if(!controller.signal.aborted)setInventoryGeoError(error.message);})
+      .finally(()=>{if(!controller.signal.aborted)setInventoryGeoLoading(false);});
+    return()=>controller.abort();
+  },[inventoryScope,user?.id,projectLoadRevision]);
+  useEffect(()=>{
+    if(!mapReady||!mapNode.current)return;
+    let frame=0;
+    const observer=new ResizeObserver(()=>{cancelAnimationFrame(frame);frame=requestAnimationFrame(()=>mapRef.current?.invalidateSize({pan:false}));});
+    observer.observe(mapNode.current);
+    return()=>{observer.disconnect();cancelAnimationFrame(frame);};
+  },[mapReady]);
+
+  useEffect(() => {
     if (!user || currentProjectId === null || currentProjectId === undefined) return;
     let cancelled = false;
+    const controller = new AbortController();
+    setProjectLoadError('');
+    const read = async (url: string) => {
+      const response = await fetch(url, { signal: controller.signal });
+      if (!response.ok) throw new Error(`Unable to load project data (${response.status})`);
+      return response.json();
+    };
     setLoading(true);
     setBillboards([]);
     setSelected(null);
-    setShortlist([]);
-    setCosts({});
-    setCurrentPlanId(null);
-    setPlanName("Campaign Plan 1");
-    setPlanNote("");
+    setProjectShortlist([]); setProjectCosts({});
+    setFlightSchedules([]);
+    setProjectContacts([]);
+    setValidationAssignments([]);
+    setNotificationSummary({ records: 0, recipientEmails: 0, sent: 0, failed: 0, skipped: 0 });
     if (user.role === "admin" && currentProjectId === 0) {
-      fetch("/api/app?action=inventory&allProjects=1")
-        .then((response) => response.ok ? response.json() : null)
+      read("/api/app?action=inventory&allProjects=1")
         .then((inventoryData) => {
           if (cancelled) return;
           const inventory = inventoryData?.inventory ?? [];
@@ -868,36 +1022,19 @@ export default function Home() {
               district: renameDistrict(item.district),
             })),
           );
-          setPlans([]);
           setFlightSchedules([]);
           setProjectContacts([]);
           setValidationAssignments([]);
           setNotificationSummary({ records: 0, recipientEmails: 0, sent: 0, failed: 0, skipped: 0 });
-          setLoading(false);
-        });
-      return () => { cancelled = true; };
+        }).catch(()=>{if(!cancelled)setProjectLoadError('Unable to load the map. Check your connection and try again.');}).finally(()=>{if(!cancelled)setLoading(false);});
+      return () => { cancelled = true; controller.abort(); };
     }
-    Promise.all([
-      fetch(`/api/app?action=inventory&projectId=${currentProjectId}`).then((response) => response.ok ? response.json() : null),
-      fetch(`/api/app?action=plans&projectId=${currentProjectId}`).then((response) => response.ok ? response.json() : null),
-      fetch(`/api/app?action=flight-schedules&projectId=${currentProjectId}`).then((response) => response.ok ? response.json() : null),
-      fetch(`/api/app?action=project-contacts&projectId=${currentProjectId}`).then((response) => response.ok ? response.json() : null),
-      fetch(`/api/app?action=validation-assignments&projectId=${currentProjectId}`).then((response) => response.ok ? response.json() : null),
-      fetch(`/api/app?action=notification-audit&projectId=${currentProjectId}&from=0&to=${Date.now()}`).then((response) => response.ok ? response.json() : null),
-    ]).then(async ([inventoryData, planData, flightData, contactData, validationData, notificationData]) => {
+    // Display the inventory as soon as it arrives; secondary panels must not
+    // hold the map behind photos, notification history, or slower requests.
+    read(`/api/app?action=inventory&projectId=${currentProjectId}`).then(async (inventoryData) => {
       if (cancelled) return;
-      let inventory = inventoryData?.inventory ?? [];
-      if (!inventory.length && currentProjectId === 1 && user.role !== "viewer") {
-        const text = await fetch("/billboards.kml").then((response) => response.text());
-        const parsed = parseCompleteInventory(text);
-        await fetch("/api/app?action=inventory", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ items: parsed, projectId: 1 }),
-        });
-        const seeded = await fetch("/api/app?action=inventory&projectId=1").then((response) => response.ok ? response.json() : null);
-        inventory = seeded?.inventory ?? parsed;
-      }
+      // Loading is read-only: an intentionally empty project stays empty.
+      const inventory = inventoryData?.inventory ?? [];
       if (cancelled) return;
       if (inventoryData) {
         setBillboards(
@@ -907,15 +1044,20 @@ export default function Home() {
           })),
         );
       }
-      if (planData) setPlans(planData.plans ?? []);
-      setFlightSchedules(flightData?.schedules ?? []);
-      setProjectContacts(contactData?.contacts ?? []);
-      setValidationAssignments(validationData?.assignments ?? []);
-      setNotificationSummary(notificationData?.summary ?? { records: 0, recipientEmails: 0, sent: 0, failed: 0, skipped: 0 });
-      setLoading(false);
-    });
-    return () => { cancelled = true; };
-  }, [user, currentProjectId]);
+    }).catch(()=>{if(!cancelled)setProjectLoadError('Unable to load the map. Check your connection and try again.');}).finally(()=>{if(!cancelled)setLoading(false);});
+    const panels: [string, (data: any)=>void][] = [
+      ['flight-schedules', data=>setFlightSchedules(data.schedules ?? [])],
+      ['project-contacts', data=>setProjectContacts(data.contacts ?? [])],
+      ['validation-assignments', data=>setValidationAssignments(data.assignments ?? [])],
+      ['notification-audit&summaryOnly=1&from=0', data=>setNotificationSummary(data.summary)],
+    ];
+    for (const [action, update] of panels) {
+      if (user.role==='viewer' && ['project-contacts','validation-assignments'].includes(action)) continue;
+      if (action.startsWith('notification-audit') && !['admin','creator'].includes(user.role)) continue;
+      void read(`/api/app?action=${action}&projectId=${currentProjectId}`).then(data=>{if(!cancelled)update(data);}).catch(()=>{if(!cancelled)setProjectLoadError('Some project panels could not load. Retry to refresh their information.');});
+    }
+    return () => { cancelled = true; controller.abort(); };
+  }, [user, currentProjectId, projectLoadRevision]);
 
   const districts = useMemo(
     () => Array.from(new Set(billboards.map((item) => item.district))).sort(),
@@ -923,26 +1065,27 @@ export default function Home() {
   );
 
   const allProjectNames = useMemo(
-    () => Array.from(new Set(billboards.map((item) => item.projectName).filter(Boolean) as string[])).sort(),
+    () => Array.from(new Set(billboards.flatMap((item) => item.projectNames ?? (item.projectName ? [item.projectName] : [])))).sort(),
     [billboards],
   );
 
   const filtered = useMemo(() => {
     const term = query.trim().toLowerCase();
-    const allProjectsMode = user?.role === "admin" && currentProjectId === 0;
+    const allProjectsMode = planningScope || (user?.role === "admin" && currentProjectId === 0);
     return billboards.filter((item) => {
       const matchesSearch =
         !term ||
-        [item.projectName, item.district, item.street, item.owner, item.advert]
+        [item.projectName, item.district, item.street, item.owner, item.advert,item.from,item.to,registrationNumber(item),
+          ...(inventoryScope?Object.values(inventoryGeography(item,inventoryEvidence)).map((area:any)=>area?.name??''):[])]
           .join(" ")
           .toLowerCase()
           .includes(term);
       const matchesDistrict =
         district === "All areas" || item.district === district;
       const matchesProject =
-        !allProjectsMode ||
+        centralScope || !allProjectsMode ||
         allProjectsProjectFilter === "All projects" ||
-        item.projectName === allProjectsProjectFilter;
+        (item.projectNames ?? [item.projectName]).includes(allProjectsProjectFilter);
       const matchesAvailability =
         availability === "All status" ||
         (availability === "not-selected" ? (item.status ?? "not-selected") === "not-selected" : item.status === availability);
@@ -954,16 +1097,15 @@ export default function Home() {
         (facesFilter === "3+ faces"
           ? item.faces >= 3
           : item.faces === Number(facesFilter.split(" ")[0]));
-      const expiry = Number(item.flightExpiry || 0);
-      const storedFlightStatus = String(item.flightStatus || "unflighted");
       const matchesFlightStatus =
         mapFlightFilter === "All flight status" ||
-        (mapFlightFilter === "expired"
-          ? storedFlightStatus === "flighted" && Boolean(expiry && expiry <= Date.now())
-          : mapFlightFilter === storedFlightStatus);
-      return matchesSearch && matchesProject && matchesDistrict && matchesAvailability && matchesBoardType && matchesFaces && matchesFlightStatus;
+        (centralScope?item.centralStates?.includes(mapFlightFilter):mapFlightFilter === markerState(item));
+      const matchesLocation=!inventoryScope||matchesGeography(item,inventoryEvidence,inventoryGeo);
+      const matchesVendor=!inventoryScope||!inventoryVendor||item.owner===inventoryVendor;
+      const matchesPriority=!inventoryScope||!inventoryPriority||(inventoryPriority==='__missing__'?!assetPriority(item):assetPriority(item)===inventoryPriority);
+      return matchesSearch && matchesProject && matchesDistrict && matchesAvailability && matchesBoardType && matchesFaces && matchesFlightStatus && matchesLocation && matchesVendor && matchesPriority;
     });
-  }, [billboards, query, user?.role, currentProjectId, allProjectsProjectFilter, district, availability, boardTypeFilter, facesFilter, mapFlightFilter]);
+  }, [billboards, query, user?.role, currentProjectId, planningScope,centralScope, allProjectsProjectFilter, district, availability, boardTypeFilter, facesFilter, mapFlightFilter,inventoryScope,inventoryEvidence,inventoryGeo,inventoryVendor,inventoryPriority]);
 
   const visibleAssets = useMemo(
     () =>
@@ -983,7 +1125,8 @@ export default function Home() {
     if (!force && signature === lastExtentFitRef.current) return;
     lastExtentFitRef.current = signature;
     const map = mapRef.current;
-    window.setTimeout(() => {
+    if(extentFitTimerRef.current)clearTimeout(extentFitTimerRef.current);
+    extentFitTimerRef.current=window.setTimeout(() => {
       map.invalidateSize();
       if (validAssets.length === 1) {
         const onlyAsset = validAssets[0];
@@ -996,8 +1139,8 @@ export default function Home() {
       if (bounds.isValid()) {
         const isMobile = typeof window !== "undefined" && window.matchMedia("(max-width: 760px)").matches;
         map.flyToBounds(bounds, {
-          paddingTopLeft: isMobile ? [28, 110] : [sidebarOpen ? 420 : 70, 80],
-          paddingBottomRight: isMobile ? [28, 92] : [80, 80],
+          paddingTopLeft: inventoryScope ? [35,55] : isMobile ? [28, 110] : [sidebarOpen ? 420 : 70, 80],
+          paddingBottomRight: inventoryScope ? [60,25] : isMobile ? [28, 92] : [80, 80],
           maxZoom: 16,
           duration: force ? 0.9 : 0.75,
         });
@@ -1006,7 +1149,8 @@ export default function Home() {
   }
 
   useEffect(() => {
-    setPhotoLinkDraft(selected ? billboardOriginalImageUrl(selected) : "");
+    const imageLink=selected ? billboardOriginalImageUrl(selected) : "";
+    setPhotoLinkDraft(/^data:/i.test(imageLink)?"":imageLink);
   }, [selected?.id, selected?.photoUrl, selected?.photoOriginalUrl]);
 
   useEffect(() => {
@@ -1108,14 +1252,18 @@ export default function Home() {
       leafletRef.current = L;
       const map = L.map(mapNode.current, {
         zoomControl: false,
-        attributionControl: false,
+        attributionControl: true,
         zoomAnimation: true,
         fadeAnimation: true,
         markerZoomAnimation: true,
         zoomAnimationThreshold: 8,
       }).setView([-6.1455, 39.2269], 14);
+      const updateSymbolDetail=()=>map.getContainer().classList.toggle("map-symbol-overview",map.getZoom()<12);
+      map.on("zoomend",updateSymbolDetail);
+      updateSymbolDetail();
       tileRef.current = L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
         maxZoom: 19,
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap contributors</a>',
       }).addTo(map);
       labelsRef.current = L.tileLayer(
         "https://services.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}",
@@ -1127,6 +1275,7 @@ export default function Home() {
     });
     return () => {
       cancelled = true;
+      if(extentFitTimerRef.current)clearTimeout(extentFitTimerRef.current);
       mapRef.current?.remove();
       mapRef.current = null;
       setMapReady(false);
@@ -1136,21 +1285,29 @@ export default function Home() {
   useEffect(() => {
     const urls: Record<string, string> = {
       street: "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
-      light: "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png",
+      light: "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
       satellite: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
     };
     tileRef.current?.setUrl(urls[baseMap]);
+    tileRef.current?.getContainer()?.classList.toggle("spotlight-light-tiles", baseMap === "light");
+    const osmAttribution = '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap contributors</a>';
+    const imageryAttribution = 'Imagery &copy; Esri, Maxar, Earthstar Geographics, and the GIS User Community';
+    mapRef.current?.attributionControl.removeAttribution(osmAttribution).removeAttribution(imageryAttribution);
+    mapRef.current?.attributionControl.addAttribution(baseMap === "satellite" ? imageryAttribution : osmAttribution);
     labelsRef.current?.setOpacity(baseMap === "satellite" ? 1 : 0);
-  }, [baseMap]);
+  }, [baseMap, mapReady]);
 
-  function focusItem(item: Billboard) {
-    setSelected(item);
+  function focusItem(item: Billboard, openDetails = true) {
+    if(extentFitTimerRef.current)clearTimeout(extentFitTimerRef.current);
+    setSelected(openDetails ? item : null);
+    if(inventoryScope){setInventoryFocusedId(item.id);setInventoryFocusRevision(v=>v+1);if(inventoryView==='table')setInventoryView('split');}
     if (typeof window !== "undefined" && window.matchMedia("(max-width: 760px)").matches) {
       setSidebarOpen(false);
     }
     mapRef.current?.flyTo([item.lat, item.lng], 17, {
       duration: 1.35,
       easeLinearity: 0.18,
+      animate: !window.matchMedia("(prefers-reduced-motion: reduce)").matches,
     });
   }
 
@@ -1159,14 +1316,19 @@ export default function Home() {
   }
 
   async function persistAsset(item: Billboard) {
+    try {
     const response = await fetch("/api/app?action=inventory", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ items: [item], projectId: currentProjectId }),
     });
     if (!response.ok) {
-      console.error("Failed to save asset", await response.text());
-      setImportMessage("Could not save asset to server");
+      throw new Error("Save failed");
+    }
+    return true;
+    } catch {
+      setImportMessage("Could not save changes. Your draft is still open; please retry.");
+      return false;
     }
   }
 
@@ -1180,11 +1342,13 @@ export default function Home() {
       photoOriginalUrl: rawPhotoUrl && normalizedPhotoUrl !== rawPhotoUrl ? originalImageUrl(rawPhotoUrl) : undefined,
     };
     setPhotoSaving(true);
+    const saved = await persistAsset(updated);
+    setPhotoSaving(false);
+    if (!saved) return;
     setBillboards((current) => current.map((item) => (item.id === updated.id ? updated : item)));
     setSelected(updated);
-    setPhotoLinkDraft(updated.photoOriginalUrl || updated.photoUrl || "");
-    await persistAsset(updated);
-    setPhotoSaving(false);
+    const imageLink=updated.photoOriginalUrl || updated.photoUrl || "";
+    setPhotoLinkDraft(/^data:/i.test(imageLink)?"":imageLink);
     setImportMessage(updated.photoUrl ? "Billboard image saved" : "Billboard image removed");
     window.setTimeout(() => setImportMessage(""), 2500);
   }
@@ -1215,10 +1379,11 @@ export default function Home() {
     );
     const updated = applySourceAttributesToBillboard(selected, cleaned);
     setSourceAttrSaving(true);
+    const saved = await persistAsset(updated);
+    setSourceAttrSaving(false);
+    if (!saved) return;
     setBillboards((current) => current.map((item) => (item.id === updated.id ? updated : item)));
     setSelected(updated);
-    await persistAsset(updated);
-    setSourceAttrSaving(false);
     setImportMessage("Uploaded attributes saved");
     window.setTimeout(() => setImportMessage(""), 2500);
   }
@@ -1310,10 +1475,11 @@ export default function Home() {
       },
     };
     setTrackerSavingId(asset.id);
+    const saved = await persistAsset(updated);
+    setTrackerSavingId(null);
+    if (!saved) return;
     setBillboards((current) => current.map((item) => (item.id === asset.id ? updated : item)));
     if (selected?.id === asset.id) setSelected(updated);
-    await persistAsset(updated);
-    setTrackerSavingId(null);
   }
 
   function exportTracker(type: "design" | "cost" | "comprehensive") {
@@ -1369,17 +1535,20 @@ export default function Home() {
     await refreshFlighting();
   }
 
-  function updateAssetPosition(item: Billboard, lat: number, lng: number) {
+  async function updateAssetPosition(item: Billboard, lat: number, lng: number) {
     const roundedLat = Math.round(lat * 1_000_000) / 1_000_000;
     const roundedLng = Math.round(lng * 1_000_000) / 1_000_000;
     const updated = { ...item, lat: roundedLat, lng: roundedLng };
+    if (!await persistAsset(updated)) {
+      markersRef.current.get(item.id)?.setLatLng([item.lat, item.lng]);
+      return;
+    }
     setBillboards((current) =>
       current.map((asset) => (asset.id === item.id ? updated : asset)),
     );
     if (selected?.id === item.id) setSelected(updated);
     setPositionHint(`Updated ${updated.street} position`);
     window.setTimeout(() => setPositionHint(null), 2500);
-    persistAsset(updated);
   }
 
   function resetAssetDraft() {
@@ -1416,6 +1585,10 @@ export default function Home() {
       street: draft.street?.trim() || "Unnamed billboard",
       district: draft.district?.trim() || "Unspecified area",
       owner: draft.owner?.trim() || "Unknown",
+      priority: draft.priority||"",
+      registrationNumber: draft.registrationNumber?.trim()||"",
+      mediaGroup: draft.mediaGroup?.trim()||"",
+      installations: draft.installations??null,
       from: draft.from?.trim() || "—",
       to: draft.to?.trim() || "—",
       brackets: "—",
@@ -1446,13 +1619,15 @@ export default function Home() {
     if (
       !Number.isFinite(newAsset.lat) ||
       !Number.isFinite(newAsset.lng) ||
-      newAsset.lat === 0 ||
-      newAsset.lng === 0
+      String(draft.lat ?? "").trim() === "" ||
+      String(draft.lng ?? "").trim() === "" ||
+      Math.abs(newAsset.lat) > 90 ||
+      Math.abs(newAsset.lng) > 180
     ) {
       setImportMessage("Please provide valid latitude and longitude");
       return;
     }
-    await persistAsset(newAsset);
+    if (!await persistAsset(newAsset)) return;
     setBillboards((current) => [...current, newAsset]);
     setSelected(newAsset);
     setAddOpen(false);
@@ -1478,15 +1653,15 @@ export default function Home() {
     visibleAssets.forEach((item) => {
       let marker = markersRef.current.get(item.id);
       if (!marker) {
-        const { markerWidth, markerHeight } = markerSize(item);
+        const { hitWidth, hitHeight } = markerSize(item);
         marker = L.marker([item.lat, item.lng], {
           icon: L.divIcon({
             className: "asset-marker-wrap",
-            html: markerHtml(item, selected?.id === item.id),
-            iconSize: [markerWidth + 18, markerHeight + 20],
-            iconAnchor: [(markerWidth + 18) / 2, (markerHeight + 20) / 2],
+            html: markerHtml(item, selected?.id === item.id, planningScope && shortlist.includes(item.id)),
+            iconSize: [hitWidth, hitHeight],
+            iconAnchor: [hitWidth / 2, hitHeight / 2],
           }),
-        });
+        }) as LeafletMarker;
         marker.on("click", (event: any) => {
           if ((event.originalEvent as MouseEvent)?.shiftKey) {
             toggleShortlist(item.id);
@@ -1508,29 +1683,36 @@ export default function Home() {
         });
         markersRef.current.set(item.id, marker);
       }
-      const active = selected?.id === item.id;
-      const { markerWidth, markerHeight } = markerSize(item);
+      const active = selected?.id === item.id || (inventoryScope && inventoryFocusedId===item.id);
+      const { hitWidth, hitHeight } = markerSize(item);
       marker.setLatLng([item.lat, item.lng]);
-      marker.setIcon(
+      const symbolHtml=markerHtml(item,active,(planningScope||inventoryScope) && shortlist.includes(item.id));
+      // Keep the DOM node and animation stable when unrelated filters/state render.
+      if ((marker as any)._spotlightSymbol !== symbolHtml) marker.setIcon(
         L.divIcon({
           className: "asset-marker-wrap",
-          html: markerHtml(item, active),
-          iconSize: [markerWidth + 18, markerHeight + 20],
-          iconAnchor: [(markerWidth + 18) / 2, (markerHeight + 20) / 2],
+          html: symbolHtml,
+          iconSize: [hitWidth, hitHeight],
+          iconAnchor: [hitWidth / 2, hitHeight / 2],
         }),
       );
+      (marker as any)._spotlightSymbol=symbolHtml;
       marker.off("click");
       marker.on("click", (event: any) => {
         if ((event.originalEvent as MouseEvent)?.shiftKey) {
           toggleShortlist(item.id);
-          setImportMessage(`${item.street} ${shortlist.includes(item.id) ? "removed from" : "added to"} plan`);
+          setImportMessage(`${item.street} ${shortlist.includes(item.id) ? "removed from" : "added to"} ${inventoryScope?'selection':'plan'}`);
+          if(inventoryScope&&inventoryView==='map')setInventoryView('split');
           window.setTimeout(() => setImportMessage(""), 1600);
           return;
         }
-        setSelected(item);
+        if(inventoryScope){
+          setSelected(null);setInventoryFocusedId(item.id);setInventoryFocusRevision(v=>v+1);
+          if(inventoryView==='map')setInventoryView('split');
+        }else setSelected(item);
       });
       marker.unbindPopup();
-      marker.bindPopup(popupHtml(item), { closeButton: false, minWidth: 210, maxWidth: 250 });
+      if (!planningScope&&!inventoryScope) marker.bindPopup(popupHtml(item), { closeButton: false, minWidth: 210, maxWidth: 250 });
       const draggable = editingPosition && active;
       const markerAny = marker as any;
       if (markerAny.dragging) {
@@ -1545,8 +1727,10 @@ export default function Home() {
         });
       }
       if (!mapRef.current!.hasLayer(marker)) marker.addTo(mapRef.current!);
+      marker.setZIndexOffset(active ? 2000 : planningScope && shortlist.includes(item.id) ? 1000 : 0);
+      marker.getElement()?.setAttribute("aria-label", `${item.street}, ${mediaTypeLabel(item.mediaType)}, ${item.faces} faces, ${markerState(item)}${active?", selected":""}${planningScope && shortlist.includes(item.id) ? ", in this plan" : ""}`);
     });
-  }, [visibleAssets, selected?.id, mapReady, editingPosition, shortlist]);
+  }, [visibleAssets, selected?.id, mapReady, editingPosition, shortlist, planningScope,inventoryScope,inventoryFocusedId,inventoryView]);
 
   useEffect(() => {
     if (!boxSelectMode || !mapRef.current || !mapReady) return;
@@ -1555,7 +1739,7 @@ export default function Home() {
     let onDownHandler: ((event: any) => void) | null = null;
     let onMoveHandler: ((event: any) => void) | null = null;
     let onUpHandler: ((event: any) => void) | null = null;
-    setImportMessage("Drag a box around billboards to add them to the current plan");
+    setImportMessage(inventoryScope?"Drag a box to select billboards in the table.":"Drag a box around billboards to add them to the current plan");
     map.dragging.disable();
     import("leaflet").then((L) => {
       if (cancelled) return;
@@ -1590,7 +1774,8 @@ export default function Home() {
         const bounds = L.latLngBounds(selectionStartRef.current, event.latlng);
         const selectedAssets = visibleAssets.filter((asset) => bounds.contains([asset.lat, asset.lng]));
         addAssetsToPlan(selectedAssets);
-        setImportMessage(`${selectedAssets.length} billboard${selectedAssets.length === 1 ? "" : "s"} added to plan`);
+        if(inventoryScope&&selectedAssets.length)setInventoryView('split');
+        setImportMessage(`${selectedAssets.length} billboard${selectedAssets.length === 1 ? "" : "s"} ${inventoryScope?'selected':'added to plan'}`);
         window.setTimeout(() => setImportMessage(""), 1800);
         selectionStartRef.current = null;
         clearBox();
@@ -1635,8 +1820,13 @@ export default function Home() {
   }, [activeTab, mapReady, visibleAssets, sidebarOpen]);
 
   useEffect(() => {
-    setTimeout(() => mapRef.current?.invalidateSize(), 260);
-  }, [sidebarOpen]);
+    const timer = setTimeout(() => mapRef.current?.invalidateSize(), 260);
+    return () => clearTimeout(timer);
+  }, [sidebarOpen, planOpen]);
+
+  useEffect(() => {
+    setPlanSaveMessage("");
+  }, [planName, planNote, shortlist, costs, currentProjectId, decision]);
 
   useEffect(() => {
     if (activeTab !== "planner") return;
@@ -1830,9 +2020,25 @@ export default function Home() {
   }
 
   const isSharedView = Boolean(sharedProject && !user);
-  const isAllProjectsMap = Boolean(user?.role === "admin" && currentProjectId === 0);
+  const isAllProjectsMap = Boolean(!planningScope && user?.role === "admin" && currentProjectId === 0);
   const canManage = !isAllProjectsMap && (user?.role === "admin" || user?.role === "creator");
-  const canPlan = Boolean(user && user.role !== "viewer" && !isAllProjectsMap);
+  const canPlan = Boolean(user && ["admin", "creator", "planner"].includes(user.role));
+  const planningContext = activeTab === "planner" && mapPurpose === "planning" && canPlan;
+  const selectedPlanCosts: CostBreakdown = selected ? {
+    rental: String(costs[selected.id]?.rental ?? selected.rentalPrice ?? ""),
+    printing: String(costs[selected.id]?.printing ?? selected.printingPrice ?? ""),
+    transport: String(costs[selected.id]?.transport ?? selected.transportPrice ?? ""),
+    flighting: String(costs[selected.id]?.flighting ?? selected.flightingPrice ?? ""),
+  } : { rental: "", printing: "", transport: "", flighting: "" };
+  useEffect(() => {
+    if (planningContext && window.matchMedia("(min-width: 1001px)").matches) setPlanOpen(true);
+  }, [planningContext, currentProjectId]);
+
+  function browsePlanInventory() {
+    if (window.matchMedia("(max-width: 1200px)").matches) setPlanOpen(false);
+    setSidebarOpen(true);
+    setSelected(null);
+  }
   const currentProject = projects.find((item) => item.id === currentProjectId);
   const canDeleteCurrentProject = Boolean(
     currentProject && (user?.role === "admin" || (user?.role === "creator" && Number(currentProject.created_by) === user.id)),
@@ -1873,38 +2079,9 @@ export default function Home() {
     .filter((item) => item.mediaType === "lamp-post")
     .reduce((sum, item) => sum + (Number(item.lampPosts) || Number(item.faces) || 1), 0);
   const filteredTotalFaces = filtered.reduce((sum, item) => sum + item.faces, 0);
-  const totalFaces = billboards.reduce((sum, item) => sum + item.faces, 0);
   const flightedSchedules = flightSchedules.filter((item) => item.flight_status === "flighted");
-  const deflightedSchedules = flightSchedules.filter((item) => item.flight_status === "deflighted");
   const dueFlightSchedules = flightedSchedules.filter((item) => item.end_at && item.end_at <= Date.now());
   const stagedSchedules = flightSchedules.filter((item) => item.stage && item.stage !== "flighted" && item.stage !== "removed");
-  const flightScheduleStats = {
-    flighted: flightedSchedules.length,
-    expired: dueFlightSchedules.length,
-    expiringSoon: flightedSchedules.filter((item) => item.end_at && item.end_at > Date.now() && item.end_at <= Date.now() + 7 * 86400000).length,
-    deflighted: deflightedSchedules.length,
-    unflighted: Math.max(0, billboards.length - flightedSchedules.length - deflightedSchedules.length),
-  };
-  const validationIssues = validationAssignments.filter((assignment) => assignment.status === "issue");
-  const validationOk = validationAssignments.filter((assignment) => assignment.status === "ok");
-  const validationPending = validationAssignments.filter((assignment) => ["assigned", "in_progress"].includes(assignment.status));
-  const rejectedCollections = fieldCollections.filter((collection) => collection.status === "rejected");
-  const dashboardIssueCount = validationIssues.length + rejectedCollections.length;
-  const issueTypeCounts = validationIssues.reduce<Record<string, number>>((acc, assignment) => {
-    const issueType = String(assignment.report?.issueType || "Unspecified issue");
-    acc[issueType] = (acc[issueType] || 0) + 1;
-    return acc;
-  }, {});
-  const mediaBreakdown = [
-    { label: "Large format", value: billboards.filter((item) => item.mediaType === "large-format").reduce((sum, item) => sum + item.faces, 0) },
-    { label: "Digital screens", value: billboards.filter((item) => item.mediaType === "digital-screen").reduce((sum, item) => sum + item.faces, 0) },
-    { label: "Fabricated banner", value: billboards.filter((item) => item.mediaType === "fabricated-banner").reduce((sum, item) => sum + item.faces, 0) },
-    { label: "Lamp posts", value: billboards.filter((item) => item.mediaType === "lamp-post").reduce((sum, item) => sum + (Number(item.lampPosts) || Number(item.faces) || 1), 0) },
-  ];
-  const recentFieldReports = [...fieldCollections]
-    .sort((a, b) => Number(b.created_at || 0) - Number(a.created_at || 0))
-    .slice(0, 8);
-  const recentValidationIssues = validationIssues.slice(0, 8);
   const filteredFlightAssets = useMemo(() => {
     const term = flightSearch.trim().toLowerCase();
     return billboards.filter((asset) => {
@@ -1992,18 +2169,18 @@ export default function Home() {
         matchesSearch &&
         (trackerFilters.type === "All" || mediaTypeLabel(asset.mediaType) === trackerFilters.type) &&
         (trackerFilters.vendor === "All" || row.vendor === trackerFilters.vendor) &&
-        (trackerFilters.artworkDelivery === "All" || trackerValue(asset, "artworkDelivery", "PENDING") === trackerFilters.artworkDelivery) &&
+        (activeTab==="costs" || ((trackerFilters.artworkDelivery === "All" || trackerValue(asset, "artworkDelivery", "PENDING") === trackerFilters.artworkDelivery) &&
         (trackerFilters.artworkApproval === "All" || trackerValue(asset, "artworkApproval", "PENDING") === trackerFilters.artworkApproval) &&
         (trackerFilters.artworkToVendor === "All" || trackerValue(asset, "artworkToVendor", "PENDING") === trackerFilters.artworkToVendor) &&
         (trackerFilters.printingStatus === "All" || trackerValue(asset, "printingStatus", "NOT STARTED") === trackerFilters.printingStatus) &&
         (trackerFilters.deliveredToDestination === "All" || trackerValue(asset, "deliveredToDestination", "PENDING") === trackerFilters.deliveredToDestination) &&
         (trackerFilters.flightStatus === "All" || row.flightStatus === trackerFilters.flightStatus) &&
-        withinRange(Number(asset.rentalPrice || 0), trackerFilters.rentalMin, trackerFilters.rentalMax) &&
-        withinRange(row.total, trackerFilters.totalMin, trackerFilters.totalMax) &&
-        withinRange(row.remaining, trackerFilters.remainingMin, trackerFilters.remainingMax)
+        withinRange(row.remaining, trackerFilters.remainingMin, trackerFilters.remainingMax))) &&
+        (activeTab!=="costs" || (withinRange(Number(asset.rentalPrice || 0), trackerFilters.rentalMin, trackerFilters.rentalMax) &&
+        withinRange(row.total, trackerFilters.totalMin, trackerFilters.totalMax)))
       );
     });
-  }, [trackerRows, trackerFilters]);
+  }, [trackerRows, trackerFilters,activeTab]);
   const trackerSummary = useMemo(() => ({
     totalRows: filteredTrackerRows.length,
     flighted: filteredTrackerRows.filter((row) => row.flightStatus === "flighted").length,
@@ -2017,10 +2194,10 @@ export default function Home() {
       setCosts((current) => ({
         ...current,
         [id]: current[id] ?? {
-          rental: String(asset?.rentalPrice || ""),
-          printing: String(asset?.printingPrice || ""),
-          transport: String(asset?.transportPrice || ""),
-          flighting: String(asset?.flightingPrice || ""),
+          rental: String(asset?.rentalPrice ?? ""),
+          printing: String(asset?.printingPrice ?? ""),
+          transport: String(asset?.transportPrice ?? ""),
+          flighting: String(asset?.flightingPrice ?? ""),
         },
       }));
     }
@@ -2038,10 +2215,10 @@ export default function Home() {
       const next = { ...current };
       assets.forEach((asset) => {
         next[asset.id] = next[asset.id] ?? {
-          rental: String(asset.rentalPrice || ""),
-          printing: String(asset.printingPrice || ""),
-          transport: String(asset.transportPrice || ""),
-          flighting: String(asset.flightingPrice || ""),
+          rental: String(asset.rentalPrice ?? ""),
+          printing: String(asset.printingPrice ?? ""),
+          transport: String(asset.transportPrice ?? ""),
+          flighting: String(asset.flightingPrice ?? ""),
         };
       });
       return next;
@@ -2058,6 +2235,11 @@ export default function Home() {
   }
 
   function exportPlan() {
+    if (shortlist.some(id => Object.values(costs[id] ?? {}).some(value => value !== "" && (!Number.isFinite(Number(value)) || Number(value) < 0)))) {
+      setPlanSaveError(true);
+      setPlanSaveMessage("Correct invalid prices before exporting.");
+      return;
+    }
     const rows = plannedAssets.map((item) => [
       item.id,
       item.street,
@@ -2067,22 +2249,29 @@ export default function Home() {
       `${item.width} x ${item.height} m`,
       item.faces,
       item.owner,
-      costs[item.id]?.rental || "0",
-      costs[item.id]?.printing || "0",
-      costs[item.id]?.transport || "0",
-      costs[item.id]?.flighting || "0",
+      costs[item.id]?.rental ?? "",
+      costs[item.id]?.printing ?? "",
+      costs[item.id]?.transport ?? "",
+      costs[item.id]?.flighting ?? "",
       itemTotal(item.id),
       item.lat,
       item.lng,
+      (["rental", "printing", "transport", "flighting"] as const).every(type => costs[item.id]?.[type] !== "" && costs[item.id]?.[type] != null) ? "Complete" : "Partial estimate",
+      planName,
+      planNote,
     ]);
     const header = [
       "ID", "Street", "Area", "From", "To", "Format", "Faces",
       "Owner", "Rental TZS", "Printing TZS", "Transport TZS",
-      "Flighting TZS", "Total TZS", "Latitude", "Longitude",
+      "Flighting TZS", "Entered total TZS", "Latitude", "Longitude", "Cost completeness", "Plan", "Plan notes",
     ];
     const csv = [header, ...rows]
       .map((row) =>
-        row.map((value) => `"${String(value).replaceAll('"', '""')}"`).join(","),
+        row.map((value) => {
+          const text = String(value);
+          const safe = typeof value === "string" && /^[\s]*[=+@-]/.test(text) ? "'" + text : text;
+          return `"${safe.replaceAll('"', '""')}"`;
+        }).join(","),
       )
       .join("\n");
     const link = document.createElement("a");
@@ -2123,6 +2312,7 @@ export default function Home() {
   }
 
   async function deleteBillboard(id: number) {
+    if (planningScope) return;
     if (!confirm("Delete this billboard?")) return;
     try {
       const response = await fetch("/api/app?action=delete-inventory", {
@@ -2244,39 +2434,97 @@ export default function Home() {
   }
 
   async function savePlan() {
-    const response = await fetch("/api/app?action=plans", {
+    if (planSaving) return;
+    if (!planName.trim()) {
+      setPlanSaveError(true);
+      setPlanSaveMessage("Give this plan a name before saving.");
+      return;
+    }
+    if (!shortlist.length || (!planTarget || (planTarget === "new" && !planProjectName.trim()))) {
+      setPlanSaveError(true);
+      setPlanSaveMessage(!shortlist.length ? "Select billboards for this plan first." : "Choose a destination project or enter a new project name.");
+      return;
+    }
+    if (shortlist.some(id => Object.values(costs[id] ?? {}).some(value => value !== "" && (!Number.isFinite(Number(value)) || Number(value) < 0)))) {
+      setPlanSaveError(true);
+      setPlanSaveMessage("Prices must be zero or a positive number.");
+      return;
+    }
+    setPlanSaving(true);
+    setPlanSaveMessage("");
+    setPlanSaveError(false);
+    let confirmedSaved = false;
+    try {
+    const response = await fetch("/api/app?action=planner-save", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         id: currentPlanId,
-        projectId: currentProjectId,
+        projectId: planTarget === "new" ? undefined : Number(planTarget),
+        newProjectName: planTarget === "new" ? planProjectName.trim() : undefined,
         name: planName,
-        data: { shortlist, costs },
+        data: { shortlist, costs: Object.fromEntries(shortlist.map(id => [id, costs[id] ?? { rental: "", printing: "", transport: "", flighting: "" }])) ,decision},
         note: planNote,
       }),
     });
     const result = await response.json();
+    if (!response.ok) throw new Error(result.error || "Could not save this plan. Try again.");
+    confirmedSaved = true;
     if (!currentPlanId && result.id) setCurrentPlanId(result.id);
-    const refreshed = await fetch(`/api/app?action=plans&projectId=${currentProjectId}`).then((value) => value.json());
+    setPlanTarget(String(result.projectId));
+    setPlanProjectName("");
+    const refreshResponse = await fetch("/api/app?action=planner-workspace");
+    if (!refreshResponse.ok) {
+      setPlanSaveMessage("Plan saved. Reopen the project to refresh the saved-plan list.");
+      return;
+    }
+    const refreshed = await refreshResponse.json();
     setPlans(refreshed.plans ?? []);
+    setPlanningInventory((refreshed.inventory ?? []).map((item: Billboard) => ({...item,district:renameDistrict(item.district)})));
+    const projectResponse = await fetch("/api/app?action=projects");
+    if (projectResponse.ok) setProjects((await projectResponse.json()).projects ?? []);
+    setPlanSaveMessage("Plan saved. Selected billboards are linked to the destination project; their original projects are unchanged.");
+    } catch (error) {
+      if (confirmedSaved) {
+        setPlanSaveMessage("Plan saved. Reopen the project to refresh the saved-plan list.");
+        return;
+      }
+      setPlanSaveError(true);
+      setPlanSaveMessage(error instanceof Error ? error.message : "Could not save this plan. Try again.");
+    } finally {
+      setPlanSaving(false);
+    }
   }
 
   function newPlan() {
+    if (shortlist.length && !window.confirm("Start a new plan? Save any changes you want to keep first.")) return;
+    setPlanSaveMessage("");
+    setPlanLoadWarning("");
     setCurrentPlanId(null);
+    setPlanTarget(""); setPlanProjectName("");
     setPlanName(`Campaign Plan ${plans.length + 1}`);
     setShortlist([]);
     setCosts({});
     setPlanNote("");
+    setDecision(defaultDecision());
     setPlanOpen(true);
   }
 
   function loadPlan(plan: CampaignPlan) {
+    setCompareOpen(false);
+    setPlanSaveMessage("");
     setCurrentPlanId(plan.id);
+    setPlanTarget(String(plan.project_id ?? "")); setPlanProjectName("");
     setPlanName(plan.name);
     setShortlist(plan.data.shortlist ?? []);
     setCosts(plan.data.costs ?? {});
     setPlanNote(plan.note ?? "");
+    try { setDecision(decisionSettings(plan.data.decision)); } catch { setDecision(defaultDecision()); }
     setPlanOpen(true);
+    const unavailable = (plan.data.shortlist ?? []).filter(id => !planningInventory.some(item => item.id === id)).length;
+    setPlanLoadWarning(plan.data.unresolvedCount || unavailable
+      ? `${(plan.data.unresolvedCount ?? 0) + unavailable} saved placements are missing or cannot be matched safely. The stored plan is unchanged. Review these before replacing it.`
+      : "");
   }
 
   async function createProject(event: React.FormEvent<HTMLFormElement>) {
@@ -2366,6 +2614,10 @@ export default function Home() {
         dimensions: ["dimensions", "dimension", "size", "format", "format size"],
         faces: ["faces", "face", "number of faces"],
         owner: ["owner", "vendor", "supplier"],
+        priority: ["priority", "priority level"],
+        registrationNumber: ["registration number", "registration no", "reg number"],
+        installations: ["installation", "installations", "number of installations"],
+        mediaGroup: ["media group"],
         mediaType: ["type", "board type", "billboard type", "media type", "format type", "screen type"],
         status: ["status", "selection status", "selected", "planning status"],
         photoUrl: ["photo url", "image url", "photo", "image", "photo_url", "image_url", "picture url", "media url"],
@@ -2453,6 +2705,10 @@ export default function Home() {
       district: renameDistrict(districtName),
       street: streetName,
       owner: ownerName,
+      priority: value(row,"priority").trim(),
+      registrationNumber: value(row,"registrationNumber").trim(),
+      mediaGroup: value(row,"mediaGroup").trim(),
+      installations: value(row,"installations").trim()===""?null:Number(value(row,"installations")),
       from: "—",
       to: "—",
       brackets: "—",
@@ -2463,8 +2719,8 @@ export default function Home() {
       faces: parseNumber(value(row, "faces")) || 1,
       arrangement: "Not recorded",
       lampPosts: 0,
-      lat: parseNumber(value(row, "latitude")),
-      lng: parseNumber(value(row, "longitude")),
+      lat: value(row,"latitude").trim() ? Number(value(row,"latitude").replace(',','.')) : NaN,
+      lng: value(row,"longitude").trim() ? Number(value(row,"longitude").replace(',','.')) : NaN,
       mediaType,
       status: normalizeUploadStatus(value(row, "status")),
       photoUrl: normalizedPhotoUrl,
@@ -2482,16 +2738,22 @@ export default function Home() {
         to: value(row, "to") || imported.to,
       };
     });
+    setImportReview(items);
+  }
+
+  async function finishReviewedImport(items: Billboard[]) {
     const response = await fetch("/api/app?action=inventory", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ items, projectId: currentProjectId }),
+      body: JSON.stringify({ items, projectId: currentProjectId, importMode:true }),
     });
     const result = await response.json();
+    if (!response.ok) throw new Error(result.error || 'Import failed');
     const all = await fetch(`/api/app?action=inventory&projectId=${currentProjectId}`).then((value) => value.json());
     setBillboards(all.inventory ?? []);
     setImportMessage(`${result.imported} imported · ${result.rejected} without GPS skipped`);
     setCsvImport(null);
+    setImportReview(null);
   }
 
   function downloadCsvTemplate() {
@@ -2502,6 +2764,9 @@ export default function Home() {
       ["Example - Digital Screen", "Masaki", "Oysterbay", "Slipway", "-6.746012", "39.279988", "Digital screen", "Selected", "6x3", "6", "3", "1", "Vendor name", "https://example.com/screen.jpg", "2200000", "0", "150000", "120000", ""],
       ["Example - Fabricated Banner", "Zanzibar", "Airport", "Kariakoo", "-6.165400", "39.202200", "Fabricated banner", "Not selected", "8x4", "8", "4", "1", "Vendor name", "", "900000", "180000", "100000", "60000", ""],
     ];
+    rows[0][12]="Vendor";
+    rows[0].push("Registration Number","Priority","Installations","Media Group");
+    rows.slice(1).forEach((row,index)=>row.push("",["A","B","C","B"][index],"1",index===2?"Digital":"Static"));
     const csv = rows.map((row) => row.map(csvEscape).join(",")).join("\n");
     const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
     const link = document.createElement("a");
@@ -2613,6 +2878,8 @@ export default function Home() {
   }
 
   function resetFilters() {
+    setCentralProject("all");
+    setInventoryGeo(emptyGeoFilters());setInventoryVendor("");setInventoryPriority("");setShowSelectedOnly(false);
     setQuery("");
     setDistrict("All areas");
     setAvailability("All status");
@@ -2620,6 +2887,17 @@ export default function Home() {
     setFacesFilter("All faces");
     setMapFlightFilter("All flight status");
     setAllProjectsProjectFilter("All projects");
+  }
+
+  function openCentralAssignment(){
+    if(!centralScope||user?.role!=="admin")return;
+    setSelected(null);
+    setCentralAssignmentBoards(centralAllBoards.filter(item=>projectShortlist.includes(item.id)));
+  }
+  function openProjectRemoval(){
+    if(!inventoryScope||user?.role!=="admin")return;
+    setSelected(null);
+    setProjectRemovalBoards((centralScope?centralAllBoards:billboards).filter(item=>projectShortlist.includes(item.id)));
   }
 
   const activeFilters = [
@@ -2692,6 +2970,7 @@ export default function Home() {
 
   return (
     <main className={isSharedView ? "app-shell app-shell--shared-view" : "app-shell"}>
+      {projectLoadError&&activeTab!=='dashboard'&&<div className="ops-error" role="alert">{projectLoadError} <button className="text-button" onClick={()=>setProjectLoadRevision(value=>value+1)}>Retry loading</button></div>}
       <header className="topbar">
         <div className="brand">
           <span className="brand-mark brand-mark--logo"><img src="/favicon.svg" alt="" /></span>
@@ -2701,7 +2980,7 @@ export default function Home() {
           </span>
         </div>
         <div className="topbar-actions">
-          {user ? <label className="project-select">
+          {activeTab==='dashboard'?<div className="project-view-label"><span>Operational overview</span><strong>{currentProject?.name||'Select a project'}</strong></div>:centralScope?<div className="project-view-label"><span>Central inventory</span><strong>All-project workspace</strong></div>:user && planningScope ? <div className="project-view-label"><span>Planning inventory</span><strong>All accessible billboards</strong></div> : user ? <label className="project-select">
             <span>Project</span>
             <select value={currentProjectId} onChange={(event) => setCurrentProjectId(Number(event.target.value))}>
               {user.role === "admin" && <option value={0}>All projects map</option>}
@@ -2713,7 +2992,7 @@ export default function Home() {
               <strong>{sharedProject?.name}</strong>
             </div>
           )}
-          {canManage && (
+          {canManage && !planningScope && activeTab!=='dashboard' && (
             <WorkspaceActions>
               <span className="action-section-label">Project</span>
               <button className="text-button" onClick={() => { setActiveTab("planner"); setProjectOpen(true); }}><Plus size={15} /> Create project</button>
@@ -2742,7 +3021,7 @@ export default function Home() {
               </>}
             </WorkspaceActions>
           )}
-          {user && (
+          {user && !planningScope && !centralScope && (
             <button
               className="text-button"
               onClick={() => setSharePanelOpen(true)}
@@ -2750,8 +3029,8 @@ export default function Home() {
               Share link
             </button>
           )}
-          {canPlan && (
-            <button className="primary-button" onClick={() => { setActiveTab("planner"); setPlanOpen(true); }}>
+          {canPlan && !centralScope && (
+            <button className="primary-button" onClick={() => { setActiveTab("planner"); setMapPurpose("planning"); setSelected(null); setPlanOpen(true); }}>
               <Sparkles size={16} /> Build a plan
               {shortlist.length > 0 && <span>{shortlist.length}</span>}
             </button>
@@ -2766,48 +3045,91 @@ export default function Home() {
         </div>
       </header>
 
-      <nav className="tab-bar" aria-label="Workspace navigation">
+      <WorkspaceDock>
+        {canPlan&&<button className={activeTab==='operations'?'tab-btn tab-btn--active':'tab-btn'} onClick={()=>setActiveTab('operations')} aria-current={activeTab==='operations'?'page':undefined}><ClipboardList size={16}/> Operations</button>}
         <button
-          aria-current={activeTab === "planner" && !isAllProjectsMap ? "page" : undefined}
-          className={activeTab === "planner" && !isAllProjectsMap ? "tab-btn tab-btn--active" : "tab-btn"}
-          onClick={() => { if (isAllProjectsMap && projects[0]) setCurrentProjectId(projects[0].id); setActiveTab("planner"); }}
+          aria-current={activeTab === "planner" && !isAllProjectsMap && mapPurpose === "planning" ? "page" : undefined}
+          className={activeTab === "planner" && !isAllProjectsMap && mapPurpose === "planning" ? "tab-btn tab-btn--active" : "tab-btn"}
+          onClick={() => { if (isAllProjectsMap && projects[0]) setCurrentProjectId(projects[0].id); setMapPurpose("planning"); setActiveTab("planner"); }}
         >
           <MapPin size={16} /> Planner
         </button>
+        {(user?.role==="admin"||user?.role==="creator") && <button aria-current={activeTab === "planner" && mapPurpose === "inventory" && !isAllProjectsMap ? "page" : undefined}
+          className={activeTab === "planner" && mapPurpose === "inventory" && !isAllProjectsMap ? "tab-btn tab-btn--active" : "tab-btn"}
+          onClick={() => {if(isAllProjectsMap&&projects[0])setCurrentProjectId(projects[0].id); setMapPurpose("inventory"); setPlanOpen(false); setSelected(null); setActiveTab("planner"); }}>
+          <ClipboardList size={16} /> Inventory
+        </button>}
         {user?.role === "admin" && (
           <button
             aria-current={isAllProjectsMap && activeTab === "planner" ? "page" : undefined}
             className={isAllProjectsMap && activeTab === "planner" ? "tab-btn tab-btn--active" : "tab-btn"}
-            onClick={() => { setCurrentProjectId(0); setActiveTab("planner"); }}
+            onClick={() => { setMapPurpose("inventory"); setInventoryView("split");setInventoryMapShare(65);setPlanOpen(false); setCurrentProjectId(0); setActiveTab("planner"); }}
           >
             <Layers3 size={16} /> All Projects Map
           </button>
         )}
-        {user && <button aria-current={activeTab === "dashboard" ? "page" : undefined} className={activeTab === "dashboard" ? "tab-btn tab-btn--active" : "tab-btn"} onClick={() => setActiveTab("dashboard")}><BarChart3 size={16} /> Dashboard</button>}
+        {canPlan && <button aria-current={activeTab === "dashboard" ? "page" : undefined} className={activeTab === "dashboard" ? "tab-btn tab-btn--active" : "tab-btn"} onClick={() => {if(!currentProjectId&&projects[0])setCurrentProjectId(projects[0].id);setActiveTab("dashboard");}}><BarChart3 size={16} /> Dashboard</button>}
         <button aria-current={activeTab === "library" ? "page" : undefined} className={activeTab === "library" ? "tab-btn tab-btn--active" : "tab-btn"} onClick={() => setActiveTab("library")}><ImageIcon size={16} /> Image Library</button>
         {canPlan && <button aria-current={activeTab === "flighting" ? "page" : undefined} className={activeTab === "flighting" ? "tab-btn tab-btn--active" : "tab-btn"} onClick={() => setActiveTab("flighting")}><Check size={16} /> Flighting</button>}
-        {canPlan && <button aria-current={activeTab === "tracker" ? "page" : undefined} className={activeTab === "tracker" ? "tab-btn tab-btn--active" : "tab-btn"} onClick={() => setActiveTab("tracker")}><ClipboardList size={16} /> Execution & Cost Tracker</button>}
+        {canPlan && <button aria-current={activeTab === "tracker" ? "page" : undefined} className={activeTab === "tracker" ? "tab-btn tab-btn--active" : "tab-btn"} onClick={() => {if(!currentProjectId&&projects[0])setCurrentProjectId(projects[0].id);setActiveTab("tracker");}}><ClipboardList size={16} /> Execution</button>}
+        {canPlan && <button aria-current={activeTab === "costs" ? "page" : undefined} className={activeTab === "costs" ? "tab-btn tab-btn--active" : "tab-btn"} onClick={() => {if(!currentProjectId&&projects[0])setCurrentProjectId(projects[0].id);setActiveTab("costs");}}><BarChart3 size={16} /> Costs</button>}
         {canManage && (
           <button aria-current={activeTab === "field" ? "page" : undefined} className={activeTab === "field" ? "tab-btn tab-btn--active" : "tab-btn"} onClick={() => setActiveTab("field")}><Users size={16} /> Field Management</button>
         )}
-      </nav>
+        {canPlan&&<button aria-current={activeTab==='reports'?'page':undefined} className={activeTab==='reports'?'tab-btn tab-btn--active':'tab-btn'} onClick={()=>{if(!currentProjectId&&projects[0])setCurrentProjectId(projects[0].id);setActiveTab('reports');}}><FileDown size={16}/> Reports</button>}
+      </WorkspaceDock>
 
-      <div className={activeTab === "planner" ? "workspace" : "workspace workspace--hidden"} aria-hidden={activeTab !== "planner"}>
+      {activeTab==='reports'&&canPlan&&<ReportBuilder key={currentProjectId} projectId={currentProjectId}/>}
+
+      {activeTab==='operations'&&canPlan&&<Operations key={`${currentProjectId}:${operationsSection}`} initialSection={operationsSection} projectId={currentProjectId} boards={billboards} role={user?.role||''}/>}
+      {importReview&&<ImportReview items={importReview} existing={billboards} onCancel={()=>setImportReview(null)} onImport={finishReviewedImport}/>}
+      <div className={`workspace planning-workspace${inventoryScope ? " inventory-workspace" : ""}${centralScope?" central-workspace":""}${planningScope ? " planner-desk" : ""}${planOpen && planningScope ? " planning-workspace--review" : ""}${activeTab !== "planner" ? " workspace--hidden" : ""}`} aria-hidden={activeTab !== "planner"}
+        data-inventory-view={inventoryScope?inventoryView:undefined}
+        style={inventoryScope?{"--inventory-map-share":`${inventoryMapShare}fr`,"--inventory-table-share":`${100-inventoryMapShare}fr`} as React.CSSProperties:undefined}>
+        {centralScope&&<CentralProjects boards={projectBillboards} projects={projects} value={centralProject} loading={loading}
+          onChange={(value:string)=>{setCentralProject(value);setAllProjectsProjectFilter("All projects");setSelected(null);setInventoryFocusedId(null);setShowSelectedOnly(false);}}
+          onOpen={(id:number)=>{setSelected(null);setCurrentProjectId(id);}}/>}
+        {inventoryScope&&<InventoryControls central={centralScope} boards={billboards} rows={filtered} evidence={inventoryEvidence} geo={inventoryGeo} onGeo={setInventoryGeo}
+          geoLoading={inventoryGeoLoading} geoError={inventoryGeoError} loading={loading} error={projectLoadError}
+          query={query} onQuery={setQuery} type={boardTypeFilter} onType={setBoardTypeFilter} status={availability} onStatus={setAvailability}
+          flight={mapFlightFilter} onFlight={setMapFlightFilter} vendor={inventoryVendor} onVendor={setInventoryVendor}
+          priority={inventoryPriority} onPriority={setInventoryPriority}
+          onRoad={()=>setRoadOpen(true)}
+          onRefresh={()=>setProjectLoadRevision(value=>value+1)} onReset={resetFilters}
+          onAdd={()=>{setInventoryView('split');resetAssetDraft();setAddOpen(true);}} onImport={(file:File)=>{setInventoryView('split');importInventory(file);}} onTemplate={downloadCsvTemplate}
+          canManage={canManage} isAdmin={user?.role==='admin'} projectFilter={allProjectsProjectFilter}
+          onProject={setAllProjectsProjectFilter} projectNames={null}
+          view={inventoryView} onView={(view:string)=>{setInventoryView(view);setSelected(null);}} message={importMessage}/>}
+        {centralScope&&<CentralMapContext name={centralProject==="all"?"All projects":centralProject==="unassigned"?"Unassigned":projects.find(p=>String(p.id)===centralProject)?.name??"Project"}
+          visible={visibleAssets.length} total={filtered.length} selected={projectShortlist.length} onlySelected={showSelectedOnly} loading={loading}
+          onOnlySelected={()=>setShowSelectedOnly(!showSelectedOnly)} onClear={()=>{setProjectShortlist([]);setShowSelectedOnly(false);}}
+          onAssign={openCentralAssignment}
+          onRemove={openProjectRemoval}
+          onFit={()=>fitMapToBillboardExtent(visibleAssets,true)}/>}
         <aside className={sidebarOpen ? "sidebar" : "sidebar sidebar--closed"}>
           <div className="sidebar-inner">
             <section className="sidebar-head">
               <div>
-                <span className="eyebrow">Billboard inventory</span>
+                <span className="eyebrow">{planningScope ? "Find billboards" : "Billboard inventory"}</span>
                 {importMessage && <p className="import-message">{importMessage}</p>}
+                {planningScope && <div className="planning-inventory-scope">
+                  <label>Browse by project
+                    <select aria-label="Planning source project" value={allProjectsProjectFilter} onChange={event=>setAllProjectsProjectFilter(event.target.value)}>
+                      <option>All projects</option>{allProjectNames.map(name=><option key={name}>{name}</option>)}
+                    </select>
+                  </label>
+                  <button className="planner-refresh" aria-label="Refresh planning inventory" title="Refresh planning inventory" disabled={planningLoading} onClick={()=>setPlanningRevision(value=>value+1)}><RefreshCw size={17} aria-hidden="true" className={planningLoading ? "planner-spinning" : ""} /><span className="planner-sr-only">{planningLoading ? "Refreshing" : "Refresh"}</span></button>
+                  {planningLoadError && <p role="alert">{planningLoadError}</p>}
+                </div>}
                 {isAllProjectsMap && <p className="import-message">Central map showing all projects</p>}
               </div>
-              <div className="metrics-grid">
+              {planningScope ? <InventorySummary faces={filteredTotalFaces} large={largeFormatFaces} digital={digitalScreenFaces} banners={fabricatedBannerFaces} lamps={filteredLampPosts} /> : <div className="metrics-grid">
                 <Metric value={largeFormatFaces} label="Large format faces" />
                 <Metric value={digitalScreenFaces} label="Digital screen faces" accent />
                 <Metric value={fabricatedBannerFaces} label="Fabricated banner faces" />
                 <Metric value={filteredLampPosts} label="Lamp posts" />
                 <Metric value={filteredTotalFaces} label="Total faces" />
-              </div>
+              </div>}
             </section>
 
             <section className="controls">
@@ -2863,7 +3185,7 @@ export default function Home() {
                     </select>
                   </label>
                   <label>
-                    <span>Status</span>
+                    <span>{planningScope ? "Inventory status" : "Status"}</span>
                     <select
                       value={availability}
                       onChange={(event) => setAvailability(event.target.value)}
@@ -2913,7 +3235,7 @@ export default function Home() {
               {activeFilters.map((filter, index) => <button key={`${index}-${filter.label}`} onClick={filter.clear} aria-label={`Remove filter: ${filter.label}`}>{filter.label}<X size={13} /></button>)}
             </div>}
             <div className="result-heading">
-              <span role="status" aria-live="polite">{loading ? "Loading inventory…" : `${filtered.length} results`}</span>
+              <span role="status" aria-live="polite">{(planningScope ? planningLoading : loading) ? "Loading inventory…" : `${filtered.length} results`}</span>
               {(query ||
                 district !== "All areas" ||
                 availability !== "All status" ||
@@ -2926,8 +3248,8 @@ export default function Home() {
             </div>
 
             <section className="result-list">
-              {loading && <div className="empty-state">Loading inventory…</div>}
-              {!loading && !filtered.length && (
+              {(planningScope ? planningLoading : loading) && <div className="empty-state">Loading inventory…</div>}
+              {!(planningScope ? planningLoading : loading) && !filtered.length && (
                 <div className="empty-state">
                   No assets match these filters.
                   <button onClick={resetFilters}>Clear filters</button>
@@ -2936,6 +3258,7 @@ export default function Home() {
               {filtered.map((item) => (
                 <div
                   key={item.id}
+                  data-in-plan={planningScope && shortlist.includes(item.id) ? "true" : undefined}
                   className={
                     selected?.id === item.id
                       ? "asset-row asset-row--selected"
@@ -2954,26 +3277,26 @@ export default function Home() {
                           : item.occupied ? "row-icon" : "row-icon row-icon--available"
                       }
                     >
-                      <MapPin size={16} />
+                      <MapPin size={16} aria-hidden="true" />
                     </span>
                     <span className="row-copy">
                       <strong>{item.street}</strong>
-                      <small>
-                        {isAllProjectsMap && item.projectName ? `${item.projectName} · ` : ""}{item.district} · {item.from} → {item.to}
-                      </small>
+                      <small>{planningScope ? item.district : `${isAllProjectsMap && item.projectName ? `${item.projectName} · ` : ""}${item.district} · ${item.from} → ${item.to}`}</small>
                       <span>
-                        {item.width} × {item.height} m · {item.faces} faces
+                        {item.width > 0 && item.height > 0 ? `${item.width} × ${item.height} m` : "Dimensions not recorded"} · {item.faces} {item.faces === 1 ? "face" : "faces"}
                       </span>
+                      {planningScope && <small className="planner-source-projects" title={item.projectName}>{item.projectName}</small>}
                     </span>
-                    <span
+                    {!planningScope && <span
                       className={
                         (item.status ?? "not-selected") === "selected" ? "status status--selected" : "status status--not-selected"
                       }
                     >
                       {statusLabel(item.status)}
-                    </span>
+                    </span>}
                   </button>
-                  {canManage && (
+                  {planningScope && <PlanSelectionButton name={item.street} selected={shortlist.includes(item.id)} disabled={planSaving} onClick={()=>toggleShortlist(item.id)} />}
+                  {canManage && !planningScope && (
                     <button
                       className="asset-row-delete"
                       onClick={(event) => { event.stopPropagation(); deleteBillboard(item.id); }}
@@ -2997,6 +3320,7 @@ export default function Home() {
 
         <section className="map-area">
           <div ref={mapNode} className="map" />
+          {centralScope&&!loading&&!visibleAssets.length&&<div className="central-map-empty" role="status"><strong>{showSelectedOnly?"No selected billboards in these results":"No billboards match this view"}</strong><span>Choose another project or clear the filters.</span><button onClick={resetFilters}>Show all billboards</button></div>}
           <div className="map-search-toolbar" aria-label="Map tools">
             <form className="address-search" onSubmit={searchAddress}>
               <Search size={16} />
@@ -3004,41 +3328,28 @@ export default function Home() {
               <button type="submit" aria-label="Go to address"><LocateFixed size={17} /></button>
             </form>
             <label className="basemap-select"><Layers3 size={16} /><select value={baseMap} onChange={(event) => setBaseMap(event.target.value)} aria-label="Basemap">
-              <option value="street">Street</option><option value="light">Light</option><option value="satellite">Satellite</option>
+              <option value="street">Street</option><option value="light">Light street</option><option value="satellite">Satellite</option>
             </select></label>
+            {planningScope && <div className="planner-map-actions">
+              <button onClick={()=>fitMapToBillboardExtent(visibleAssets.length ? visibleAssets : billboards,true)} title="Fit all visible billboards"><Scan size={16} aria-hidden="true" /> Fit billboards</button>
+              <button aria-pressed={boxSelectMode} onClick={()=>setBoxSelectMode(value=>!value)} title="Drag a rectangle to add billboards to this plan"><SquareDashedMousePointer size={16} aria-hidden="true" />{boxSelectMode ? "Cancel selection" : "Select by box"}</button>
+            </div>}
           </div>
-          <div className="map-key">
-            <span>
-              <i className="dot dot--available" /> Available
-            </span>
-            <span>
-              <i className="dot" /> Occupied
-            </span>
-            <span>
-              <i className="dot dot--large" /> Large format
-            </span>
-            <span>
-              <i className="dot dot--digital" /> Digital screen
-            </span>
-            <span>
-              <i className="dot dot--fabricated" /> Fabricated banner
-            </span>
-            <small>Number = faces</small>
-          </div>
-          <button
+          <PlanningMapLegend inventory={inventoryScope} central={centralScope&&centralProject==="all"} />
+          {!planningScope && !centralScope && <button
             className="map-control locate"
             onClick={() => fitMapToBillboardExtent(visibleAssets.length ? visibleAssets : billboards, true)}
             aria-label="Zoom to billboard extent"
             title="Zoom to billboard extent"
           >
             <LocateFixed size={18} />
-          </button>
-          {canPlan && (
+          </button>}
+          {canPlan && !planningScope && (
             <button
               className={boxSelectMode ? "map-control bulk-select active" : "map-control bulk-select"}
               onClick={() => setBoxSelectMode((current) => !current)}
               aria-label="Box select billboards"
-              title="Drag a box around billboards to add them to the plan"
+              title={inventoryScope?"Select billboards in the map and table":"Drag a box around billboards to add them to the plan"}
             >
               Box
             </button>
@@ -3070,13 +3381,26 @@ export default function Home() {
 
           {boxSelectMode && (
             <div className="position-edit-hint bulk-select-hint">
-              Drag a box around billboards to add them to the current plan. Shift-click markers for one-by-one selection.
+              {inventoryScope?"Drag a box to select billboards. Shift-click markers to select individually.":"Drag a box around billboards to add them to the current plan. Shift-click markers for one-by-one selection."}
               <button type="button" onClick={() => setBoxSelectMode(false)}>Cancel</button>
             </div>
           )}
 
-          {selected && (
-            <article className="detail-card detail-card--asset">
+          {selected && planningContext && <PlanningBillboard key={selected.id}
+            board={selected} costs={selectedPlanCosts} inPlan={shortlist.includes(selected.id)}
+            type={mediaTypeLabel(selected.mediaType)} image={billboardImageUrl(selected)}
+            flightStatus={flightByAssetId.get(selected.id)?.flight_status ?? selected.flightStatus ?? "unflighted"}
+            onCost={(category, value) => setCosts(current => ({ ...current, [selected.id]: { ...selectedPlanCosts, [category]: value } }))}
+            onToggle={() => toggleShortlist(selected.id)}
+            onReview={() => { if (!shortlist.includes(selected.id)) toggleShortlist(selected.id); setSelected(null); setPlanOpen(true); }}
+            onClose={() => setSelected(null)}
+            onLocate={() => { mapRef.current?.flyTo([selected.lat, selected.lng], 18); setSelected(null); }}
+            onPhoto={() => { setViewingPhoto(billboardImageUrl(selected)); setPhotoViewerOpen(true); }}
+          />}
+          {selected && !planningContext && !(inventoryScope&&editingPosition) && (
+            <article ref={inventoryDetailRef} className={`detail-card detail-card--asset${inventoryScope?" inventory-detail":""}`}
+              role={inventoryScope?"dialog":undefined} aria-label={inventoryScope?`${selected.street} details`:undefined}
+              data-category={inventoryDetailCategory} onKeyDown={event=>{if(inventoryScope&&event.key==="Escape"){event.stopPropagation();setSelected(null);}}}>
               <button
                 className="close-detail"
                 onClick={() => setSelected(null)}
@@ -3102,57 +3426,15 @@ export default function Home() {
                   </p>
                 </div>
               </div>
-              <div className="detail-stats">
-                <div>
-                  <span>Format</span>
-                  <strong>
-                    {selected.width} × {selected.height} m
-                  </strong>
-                </div>
-                <div>
-                  <span>Faces</span>
-                  <strong>{selected.faces}</strong>
-                </div>
-                <div>
-                  <span>Lamp posts</span>
-                  <strong>{selected.lampPosts}</strong>
-                </div>
-              </div>
-              <dl className="attributes">
-                <div>
-                  <dt>Arrangement</dt>
-                  <dd>{selected.arrangement}</dd>
-                </div>
-                <div>
-                  <dt>Brackets</dt>
-                  <dd>{selected.brackets}</dd>
-                </div>
-                <div>
-                  <dt>Owner</dt>
-                  <dd>{selected.owner}</dd>
-                </div>
-                {isAllProjectsMap && selected.projectName && (
-                  <div>
-                    <dt>Project</dt>
-                    <dd>{selected.projectName}</dd>
-                  </div>
-                )}
-                <div>
-                  <dt>Status</dt>
-                  <dd>{statusLabel(selected.status)}</dd>
-                </div>
-                <div>
-                  <dt>Current advert</dt>
-                  <dd>{selected.advert}</dd>
-                </div>
-                {billboardImageUrl(selected) && (
-                  <div>
-                    <dt>Photo URL</dt>
-                    <dd><a href={billboardOriginalImageUrl(selected)} target="_blank" rel="noreferrer">Open image</a></dd>
-                  </div>
-                )}
-              </dl>
-              {canPlan && (
+              {inventoryScope&&<nav className="inventory-detail-tabs" aria-label="Billboard detail sections">
+                {[["overview","Overview"],...canPlan&&!isAllProjectsMap?[["flight","Flighting"]]:[],...canManage?[["validation","Validation"]]:[],...selected.sourceAttributes&&Object.keys(selected.sourceAttributes).length?[["attributes","Attributes"]]:[]].map(([key,title])=>
+                  <button key={key} aria-pressed={inventoryDetailCategory===key} onClick={()=>{setInventoryDetailCategory(key);inventoryDetailRef.current?.querySelector(".inventory-detail-content")?.scrollTo({top:0});}}>{title}</button>)}
+              </nav>}
+              <div className={inventoryScope?"inventory-detail-content":"detail-content-legacy"}>
+              <AssetOverview board={selected} type={mediaTypeLabel(selected.mediaType)} flight={markerState(selected)}
+                selection={statusLabel(selected.status)} onEdit={inventoryScope&&canManage?()=>{setBulkEditBoards([selected]);setSelected(null);}:undefined}/>
+              {centralScope&&<CentralMemberships board={selected} onOpen={(id:number)=>{setSelected(null);setCurrentProjectId(id);}}/>}
+              {canPlan && !centralScope && (
                 <section className="flight-card">
                   <div className="flight-card-head">
                     <span className="eyebrow">Flight schedule</span>
@@ -3201,7 +3483,7 @@ export default function Home() {
                     <span><Eye size={14} /> Preview linked photo</span>
                   </button>
                 ) : (
-                  <div className="linked-image-empty">No image attached</div>
+                  <div className="linked-image-empty"><ImageIcon size={32}/><strong>No image attached</strong><span>{canManage?"Upload a clear billboard photo or attach an image link below.":"A billboard photo has not been added yet."}</span></div>
                 )}
                 {canManage && (
                   <div className="selected-media-tools">
@@ -3219,6 +3501,7 @@ export default function Home() {
                         value={photoLinkDraft}
                         onChange={(event) => setPhotoLinkDraft(event.target.value)}
                         placeholder="Paste image URL"
+                        aria-label="Billboard image link"
                         disabled={photoSaving}
                       />
                       <button type="submit" disabled={photoSaving}>
@@ -3240,6 +3523,7 @@ export default function Home() {
                     <strong>{selectedValidationAssignments.length}</strong>
                   </div>
                   <div className="validation-assign-row">
+                    {estimatedPole(selected)?<button className="primary-button" disabled={user?.role!=='admin'} onClick={()=>{void ensureUsersLoaded();setPoleBoards([selected]);setSelected(null);}}>Assign GPS verification</button>:<>
                     <select
                       value={validationAssigneeId}
                       onFocus={() => { void ensureUsersLoaded(); }}
@@ -3253,6 +3537,7 @@ export default function Home() {
                     <button className="primary-button" type="button" disabled={validationSaving || !validationAssigneeId} onClick={assignSelectedForValidation}>
                       {validationSaving ? "Assigning..." : "Assign"}
                     </button>
+                    </>}
                   </div>
                   <div className="validation-list">
                     {selectedValidationAssignments.map((assignment) => (
@@ -3302,10 +3587,10 @@ export default function Home() {
                   <summary>Uploaded CSV attributes · {Object.keys(sourceAttrDraft).length} fields</summary>
                   <div className="source-attributes-grid">
                     {Object.entries(sourceAttrDraft)
-                      .filter(([key, value]) => key.trim() || String(value ?? "").trim())
+                      .filter(([key, value]) => !isTransportAttribute(key)&&(key.trim() || String(value ?? "").trim()))
                       .map(([key, value]) => (
                         <label key={key}>
-                          <span>{key}</span>
+                          <span>{attributeLabel(key)}</span>
                           <input
                             value={String(value ?? "")}
                             disabled={!canManage || sourceAttrSaving}
@@ -3331,6 +3616,7 @@ export default function Home() {
                   )}
                 </details>
               )}
+              </div>
               <div className="detail-actions">
                 {canPlan && <button
                   className={
@@ -3342,19 +3628,17 @@ export default function Home() {
                 >
                   {shortlist.includes(selected.id) ? (
                     <>
-                      <Check size={16} /> Added to plan
+                      <Check size={16} /> {inventoryScope?"Selected":"Added to plan"}
                     </>
                   ) : (
                     <>
-                      <Plus size={16} /> Add to plan
+                      <Plus size={16} /> {inventoryScope?"Select billboard":"Add to plan"}
                     </>
                   )}
                 </button>}
                 <button
                   className="icon-button"
-                  onClick={() =>
-                    mapRef.current?.flyTo([selected.lat, selected.lng], 18)
-                  }
+                  onClick={() => inventoryScope?focusItem(selected,false):mapRef.current?.flyTo([selected.lat, selected.lng], 18)}
                   aria-label="Zoom to asset"
                 >
                   <Maximize2 size={17} />
@@ -3381,40 +3665,55 @@ export default function Home() {
             </article>
           )}
 
-          {planOpen && (
+          {planOpen && planningScope && (
             <>
-              <button
-                className="plan-backdrop"
-                onClick={() => setPlanOpen(false)}
-                aria-label="Close campaign plan"
-              />
-              <aside className="plan-panel">
+              <aside className="plan-panel" aria-label="Campaign planning workspace">
                 <div className="plan-head">
                   <div>
-                    <span className="eyebrow">Campaign workspace</span>
-                    <input className="plan-name-input" value={planName} onChange={(event) => setPlanName(event.target.value)} aria-label="Plan name" />
-                    <p>{plannedAssets.length} assets in this plan</p>
+                    <label className="planner-name-label" htmlFor="planner-plan-name">Your plan <span>{currentPlanId ? "Editing saved plan" : "Draft"}</span></label>
+                    <input id="planner-plan-name" className="plan-name-input" value={planName} onChange={(event) => setPlanName(event.target.value)} aria-label="Plan name" maxLength={200} disabled={planSaving} />
+                    <p>{plannedAssets.length} {plannedAssets.length === 1 ? "billboard" : "billboards"} <span aria-hidden="true">/</span> {plannedAssets.reduce((sum,item)=>sum+(Number(item.faces)||0),0)} faces in this plan</p>
                   </div>
                   <button
                     className="close-detail"
                     onClick={() => setPlanOpen(false)}
-                    aria-label="Close campaign plan"
+                    aria-label="Collapse plan workspace"
+                    title="Collapse plan workspace"
                   >
                     <X size={17} />
                   </button>
                 </div>
+                <div className="planning-panel-body">
+                <button className="decision-launch" disabled={planSaving} onClick={()=>setDecisionOpen(true)}><SlidersHorizontal size={17}/>Decision support</button>
                 <div className="plan-switcher">
-                  <select value={currentPlanId ?? ""} onChange={(event) => {
+                  <label className="planner-saved-label">Open a saved plan
+                  <select aria-label="Saved plans" disabled={planSaving} value={currentPlanId ?? ""} onChange={(event) => {
                     const plan = plans.find((item) => item.id === Number(event.target.value));
                     if (plan) loadPlan(plan);
                   }}>
                     <option value="">Current unsaved plan</option>
-                    {plans.map((plan) => <option key={plan.id} value={plan.id}>{plan.name}</option>)}
+                    {plans.map((plan) => <option key={plan.id} value={plan.id}>{plan.name}{plan.project_name ? ` — ${plan.project_name}` : ""}</option>)}
                   </select>
-                  <button onClick={newPlan}><Plus size={14} /> New</button>
+                  </label>
+                  <button onClick={newPlan} disabled={planSaving}><Plus size={14} /> New</button>
                   <button onClick={() => setCompareOpen(true)}><BarChart3 size={14} /> Compare</button>
                 </div>
+                <div className="planning-destination">
+                  {planLoadWarning && <p className="planning-notice" role="alert">{planLoadWarning}</p>}
+                  <label>Destination project
+                    <select aria-label="Plan destination project" disabled={planSaving} value={planTarget} onChange={event=>{setPlanTarget(event.target.value);setPlanSaveMessage("");}}>
+                      <option value="">Choose a project when ready</option>
+                      {projects.map(project=><option key={project.id} value={project.id}>{project.name}</option>)}
+                      {["admin","creator"].includes(user?.role ?? "") && <option value="new">+ Create a new project</option>}
+                    </select>
+                  </label>
+                  {planTarget === "new" && <label>New project name<input aria-label="New plan project name" maxLength={200} value={planProjectName} disabled={planSaving} onChange={event=>setPlanProjectName(event.target.value)} placeholder="Campaign or client name" /></label>}
+                  <small>Billboards stay in their original projects. Saving also links them here.</small>
+                </div>
 
+                {plannedAssets.length > 0 && <button className="selected-map-toggle" onClick={browsePlanInventory}>
+                  <Plus size={16} /> Add more billboards
+                </button>}
                 <button
                   className={
                     showSelectedOnly
@@ -3422,44 +3721,42 @@ export default function Home() {
                       : "selected-map-toggle"
                   }
                   onClick={() => setShowSelectedOnly(!showSelectedOnly)}
+                  aria-pressed={showSelectedOnly}
+                  disabled={!plannedAssets.length && !showSelectedOnly}
                 >
                   {showSelectedOnly ? <Eye size={16} /> : <EyeOff size={16} />}
                   {showSelectedOnly
-                    ? "Showing selected only on map"
-                    : "Show selected only on map"}
+                    ? "Map: this plan only"
+                    : "Show this plan on map"}
                 </button>
-                {canManage && shortlist.length > 0 && (
-                  <button
-                    className="selected-map-toggle assign-project-toggle"
-                    onClick={() => setAssignProjectOpen(true)}
-                  >
-                    <Plus size={16} /> Assign selected billboards to another project
-                  </button>
-                )}
-
                 <div className="plan-list">
                   {!plannedAssets.length && (
                     <div className="empty-plan">
                       <span><Plus size={19} /></span>
-                      <strong>No billboards selected</strong>
-                      <p>Close this panel and choose assets from the map or inventory.</p>
+                      <strong>Build your shortlist</strong>
+                      <p>Use Add beside a billboard, inspect a map marker, or draw a box to select several.</p>
+                      <button className="primary-button" onClick={browsePlanInventory}>Browse billboards</button>
                     </div>
                   )}
                   {plannedAssets.map((item, index) => (
                     <article className="plan-item" key={item.id}>
                       <button
                         className="plan-item-main"
-                        onClick={() => focusItem(item)}
+                        onClick={() => { if (window.matchMedia("(max-width: 1000px)").matches) setPlanOpen(false); focusItem(item); }}
                       >
                         <span className="plan-index">{index + 1}</span>
                         <span>
                           <strong>{item.street}</strong>
                           <small>
-                            {item.district} · {item.width} × {item.height} m ·{" "}
-                            {item.faces} faces
+                            {item.district} · {item.width > 0 && item.height > 0 ? `${item.width} × ${item.height} m` : "Dimensions not recorded"} ·{" "}
+                            {item.faces} {item.faces === 1 ? "face" : "faces"}
                           </small>
                         </span>
                       </button>
+                      <details className="planning-cost-details">
+                      <summary>Costs · TZS {itemTotal(item.id).toLocaleString("en-US")}
+                        <small>{(["rental", "printing", "transport", "flighting"] as const).filter(type => costs[item.id]?.[type] !== "" && costs[item.id]?.[type] != null).length}/4 entered</small>
+                      </summary>
                       <div className="cost-grid">
                         {(["rental", "printing", "transport", "flighting"] as const).map((costType) => (
                           <label key={costType}>
@@ -3467,7 +3764,8 @@ export default function Home() {
                             <input
                               type="number"
                               min="0"
-                              step="1000"
+                              step="0.01"
+                              inputMode="decimal"
                               value={costs[item.id]?.[costType] ?? ""}
                               onChange={(event) => setCosts((current) => ({
                                 ...current,
@@ -3476,13 +3774,14 @@ export default function Home() {
                                   [costType]: event.target.value,
                                 },
                               }))}
-                              placeholder="0"
+                              placeholder="Not entered"
                               aria-label={`${costType} price for ${item.street}`}
                             />
                           </label>
                         ))}
                         <strong className="item-cost-total">TZS {itemTotal(item.id).toLocaleString("en-US")}</strong>
                       </div>
+                      </details>
                       <button
                         className="remove-plan"
                         onClick={() => removeFromPlan(item.id)}
@@ -3494,7 +3793,8 @@ export default function Home() {
                   ))}
                 </div>
 
-                <footer className="plan-footer">
+                  <details className="planning-cost-details">
+                  <summary>Planning notes {planNote && <small>Note added</small>}</summary>
                   <label className="plan-note">
                     <span>Planning memo / notes</span>
                     <textarea
@@ -3503,15 +3803,21 @@ export default function Home() {
                       placeholder="Add placement notes, approvals, deadlines or reminders…"
                     />
                   </label>
+                  </details>
+                </div>
+                <footer className="plan-footer">
                   <div className="plan-total">
-                    <span>Total campaign cost</span>
+                    <span>Entered campaign cost</span>
                     <strong>TZS {totalCost.toLocaleString("en-US")}</strong>
                   </div>
-                  <div className="cost-digest">
+                  {plannedAssets.some(item => (["rental", "printing", "transport", "flighting"] as const).some(type => costs[item.id]?.[type] === "" || costs[item.id]?.[type] == null)) &&
+                    <p className="planning-notice">Some prices are missing. This is a partial total; enter 0 only when a cost does not apply.</p>}
+                  <details className="planner-cost-breakdown"><summary>Cost breakdown <ChevronDown size={14} aria-hidden="true" /></summary><div className="cost-digest">
                     {(["rental", "printing", "transport", "flighting"] as const).map((type) => (
                       <span key={type}><small>{type}</small><strong>{plannedAssets.reduce((sum, item) => sum + Number(costs[item.id]?.[type] || 0), 0).toLocaleString("en-US")}</strong></span>
                     ))}
-                  </div>
+                  </div></details>
+                  <div className="planning-actions">
                   <button
                     className="primary-button export-button"
                     onClick={exportPlan}
@@ -3519,9 +3825,11 @@ export default function Home() {
                   >
                     <Download size={16} /> Export plan
                   </button>
-                  <button className="save-plan-button" onClick={savePlan}>
-                    <Check size={15} /> Save plan
+                  <button className="save-plan-button" onClick={savePlan} disabled={planSaving} aria-busy={planSaving}>
+                    <Save size={16} aria-hidden="true" /> {planSaving ? "Saving…" : "Save plan"}
                   </button>
+                  </div>
+                  {planSaveMessage && <div className="planning-save-state" data-error={planSaveError} role={planSaveError ? "alert" : "status"}>{planSaveMessage}</div>}
                 </footer>
               </aside>
             </>
@@ -3584,7 +3892,11 @@ export default function Home() {
                 <div className="mapping-grid">
                   <label><span>Street / name *</span><input name="street" value={assetDraft.street ?? ""} onChange={(event) => setAssetDraft((current) => ({ ...current, street: event.target.value }))} required /></label>
                   <label><span>Area / district</span><input name="district" value={assetDraft.district ?? ""} onChange={(event) => setAssetDraft((current) => ({ ...current, district: event.target.value }))} /></label>
-                  <label><span>Owner / vendor</span><input name="owner" value={assetDraft.owner ?? ""} onChange={(event) => setAssetDraft((current) => ({ ...current, owner: event.target.value }))} /></label>
+                  <label><span>Vendor</span><input name="owner" value={assetDraft.owner ?? ""} onChange={(event) => setAssetDraft((current) => ({ ...current, owner: event.target.value }))} /></label>
+                  <label><span>Registration number (provided by KM)</span><input maxLength={300} value={assetDraft.registrationNumber??""} onChange={e=>setAssetDraft(d=>({...d,registrationNumber:e.target.value}))}/></label>
+                  <label><span>Priority</span><select value={assetDraft.priority??""} onChange={e=>setAssetDraft(d=>({...d,priority:e.target.value}))}><option value="">Not assigned</option>{PRIORITIES.map(([value,label]:any)=><option key={value} value={value}>{label}</option>)}</select></label>
+                  <label><span>Media group</span><input maxLength={300} value={assetDraft.mediaGroup??""} onChange={e=>setAssetDraft(d=>({...d,mediaGroup:e.target.value}))}/></label>
+                  <label><span>Installations</span><input type="number" min="0" max="100000" step="1" placeholder="Not recorded" value={assetDraft.installations??""} onChange={e=>setAssetDraft(d=>({...d,installations:e.target.value===""?null:Number(e.target.value)}))}/></label>
                   <label><span>From</span><input name="from" value={assetDraft.from ?? ""} onChange={(event) => setAssetDraft((current) => ({ ...current, from: event.target.value }))} /></label>
                   <label><span>To</span><input name="to" value={assetDraft.to ?? ""} onChange={(event) => setAssetDraft((current) => ({ ...current, to: event.target.value }))} /></label>
                   <label><span>Media type</span>
@@ -3618,7 +3930,6 @@ export default function Home() {
                 <div className="mapping-grid">
                   <label><span>Rental price (TZS)</span><input type="number" min="0" step="1000" value={assetDraft.rentalPrice ?? ""} onChange={(event) => setAssetDraft((current) => ({ ...current, rentalPrice: Number(event.target.value) }))} /></label>
                   <label><span>Printing price (TZS)</span><input type="number" min="0" step="1000" value={assetDraft.printingPrice ?? ""} onChange={(event) => setAssetDraft((current) => ({ ...current, printingPrice: Number(event.target.value) }))} /></label>
-                  <label><span>Transport price (TZS)</span><input type="number" min="0" step="1000" value={assetDraft.transportPrice ?? ""} onChange={(event) => setAssetDraft((current) => ({ ...current, transportPrice: Number(event.target.value) }))} /></label>
                   <label><span>Flighting price (TZS)</span><input type="number" min="0" step="1000" value={assetDraft.flightingPrice ?? ""} onChange={(event) => setAssetDraft((current) => ({ ...current, flightingPrice: Number(event.target.value) }))} /></label>
                 </div>
                 <div className="asset-form-actions">
@@ -3645,7 +3956,8 @@ export default function Home() {
                     ["from", "From"], ["to", "To"],
                     ["latitude", "Latitude *"], ["longitude", "Longitude *"],
                     ["dimensions", "Dimensions"], ["width", "Width"], ["height", "Height"], ["faces", "Faces"],
-                    ["owner", "Owner / vendor"], ["mediaType", "Media type"], ["status", "Status"],
+                    ["owner", "Vendor"], ["mediaType", "Media type"], ["status", "Planning selection"],
+                    ["registrationNumber", "Registration number (KM)"], ["priority", "Priority A / B / C"], ["installations", "Installations"], ["mediaGroup", "Media group"],
                     ["photoUrl", "Photo / image URL"],
                     ["rental", "Rental / space price"], ["printing", "Printing price"],
                     ["transport", "Transport price"], ["flighting", "Flighting price"],
@@ -3656,7 +3968,7 @@ export default function Home() {
                     </select></label>
                   ))}
                 </div>
-                <button className="primary-button mapping-import" disabled={!csvMap.latitude || !csvMap.longitude} onClick={commitMappedCsv}>Import mapped billboards</button>
+                <button className="primary-button mapping-import" disabled={!csvMap.latitude || !csvMap.longitude} onClick={commitMappedCsv}>Review mapped billboards</button>
               </aside>
             </>
           )}
@@ -3664,7 +3976,7 @@ export default function Home() {
           {compareOpen && (
             <>
               <button className="plan-backdrop" onClick={() => setCompareOpen(false)} aria-label="Close plan comparison" />
-              <aside className="compare-panel">
+              <aside className="compare-panel" role="dialog" aria-label="Plan comparison" onKeyDown={event=>{if(event.key==="Escape")setCompareOpen(false);}}>
                 <div className="plan-head">
                   <span className="eyebrow">Plan comparison</span>
                   <h2>Campaign cost analysis</h2>
@@ -3675,14 +3987,15 @@ export default function Home() {
                   {!plans.length && <div className="empty-plan"><strong>No saved plans yet</strong><p>Save two or more plans to compare their cost structure.</p></div>}
                   {plans.map((plan) => {
                     const digest = (["rental", "printing", "transport", "flighting"] as const).reduce((acc, type) => {
-                      acc[type] = Object.values(plan.data.costs ?? {}).reduce((sum, cost) => sum + Number(cost[type] || 0), 0);
+                      acc[type] = (plan.data.shortlist ?? []).reduce((sum, id) => sum + Number(plan.data.costs?.[id]?.[type] || 0), 0);
                       return acc;
                     }, {} as Record<string, number>);
                     const total = Object.values(digest).reduce((sum, value) => sum + value, 0);
-                    return <article key={plan.id} onClick={() => loadPlan(plan)}>
-                      <div><strong>{plan.name}</strong><small>{plan.data.shortlist?.length ?? 0} billboards · {plan.creator ?? "Creator"}</small></div>
+                    return <article key={plan.id}>
+                      <div><strong>{plan.name}</strong><small>{plan.project_name} · {plan.data.shortlist?.length ?? 0} billboards · {plan.creator ?? "Creator"}</small></div>
                       <b>TZS {total.toLocaleString("en-US")}</b>
                       <div className="comparison-bars">{Object.entries(digest).map(([type, value]) => <span key={type}><i style={{ width: `${total ? Math.max(3, value / total * 100) : 0}%` }} /><small>{type} · {value.toLocaleString("en-US")}</small></span>)}</div>
+                      <button className="text-button" onClick={()=>loadPlan(plan)}>Open {plan.name}</button>
                     </article>;
                   })}
                 </div>
@@ -3690,7 +4003,61 @@ export default function Home() {
             </>
           )}
         </section>
+        {inventoryScope&&<div className="inventory-divider" role="separator" tabIndex={0} aria-label="Resize map and table" aria-orientation="horizontal" aria-valuemin={25} aria-valuemax={65} aria-valuenow={inventoryMapShare}
+          onDoubleClick={()=>setInventoryMapShare(45)}
+          onKeyDown={event=>{if(['ArrowUp','ArrowDown','Home','End'].includes(event.key)){event.preventDefault();setInventoryMapShare(v=>event.key==='Home'?25:event.key==='End'?65:Math.max(25,Math.min(65,v+(event.key==='ArrowDown'?5:-5))));}}}
+          onPointerDown={event=>{event.currentTarget.setPointerCapture(event.pointerId);}}
+          onPointerMove={event=>{if(!event.currentTarget.hasPointerCapture(event.pointerId))return;const parent=event.currentTarget.parentElement!;const box=parent.getBoundingClientRect();const controls=parent.querySelector(".inventory-controls")?.getBoundingClientRect().height??0;setInventoryMapShare(Math.max(25,Math.min(65,100*(event.clientY-box.top-controls)/(box.height-controls-10))));}}
+          onPointerUp={event=>event.currentTarget.releasePointerCapture(event.pointerId)}><span/></div>}
+        {inventoryScope&&<InventoryTable central={centralScope} boards={centralScope?centralAllBoards:billboards} rows={filtered} evidence={inventoryEvidence} loading={loading}
+          onVerifyGps={!centralScope&&user?.role==='admin'?()=>{void ensureUsersLoaded();setSelected(null);setPoleBoards(billboards.filter(b=>projectShortlist.includes(b.id)&&estimatedPole(b)));}:undefined}
+          onRemove={user?.role==="admin"?openProjectRemoval:undefined}
+          selected={projectShortlist} onSelection={setProjectShortlist} onOpen={focusItem}
+          onLocate={(item:Billboard)=>focusItem(item,false)} focusedId={inventoryFocusedId} focusRevision={inventoryFocusRevision} onReset={resetFilters}
+          onAssign={()=>centralScope?openCentralAssignment():setAssignProjectOpen(true)} canAssign={canManage||centralScope} onBulkEdit={()=>{setSelected(null);setBulkEditBoards(billboards.filter(item=>projectShortlist.includes(item.id)));}} canManage={canManage} isAdmin={user?.role==='admin'}
+          projectName={isAllProjectsMap?'All projects':projects.find(p=>p.id===currentProjectId)?.name??'Current project'}
+          projectFilter={allProjectsProjectFilter} onProject={setAllProjectsProjectFilter} projectNames={isAllProjectsMap?allProjectNames:null}/>}
       </div>
+
+      {roadOpen&&inventoryScope&&canManage&&<RoadStretch key={currentProjectId} projectId={currentProjectId} projectName={projects.find(p=>p.id===currentProjectId)?.name}
+        center={projectBillboards[0]} onClose={()=>setRoadOpen(false)} onSaved={(result:any)=>{setRoadOpen(false);setProjectLoadRevision(v=>v+1);setPlanningRevision(v=>v+1);setImportMessage(`${result.count} estimated lamp-post locations added for ${result.name}. Field GPS verification is required.`);}}/>}
+      {poleBoards&&user?.role==='admin'&&<PoleAssignment key={currentProjectId} boards={poleBoards} projectId={currentProjectId} projectName={projects.find(p=>p.id===currentProjectId)?.name} users={fieldUsers} onClose={()=>setPoleBoards(null)} onSaved={(result:any)=>{setPoleBoards(null);setProjectShortlist([]);setProjectLoadRevision(v=>v+1);setImportMessage(`${result.assigned} poles assigned for GPS verification. ${result.alreadyAssigned} already assigned to this field user.`);}}/>}
+      {inventoryScope&&user?.role==="admin"&&projectRemovalBoards&&<ProjectRemoval boards={projectRemovalBoards} projects={projects}
+        initialProjectId={centralScope?Number(centralProject)||0:currentProjectId} lockedProject={!centralScope}
+        hiddenCount={projectRemovalBoards.filter(item=>!filtered.some(row=>row.id===item.id)).length}
+        onClose={()=>setProjectRemovalBoards(null)} onSaved={(result:any)=>{
+          setProjectRemovalBoards(null);setProjectShortlist([]);setShowSelectedOnly(false);setSelected(null);
+          setProjectLoadRevision(value=>value+1);setPlanningRevision(value=>value+1);
+          setImportMessage(`${result.removed} billboard${result.removed===1?"":"s"} removed from ${result.project.name}. Central inventory and other projects preserved.${result.skipped?` ${result.skipped} not linked; skipped.`:""}`);
+        }}/>}
+      {centralScope&&user?.role==="admin"&&centralAssignmentBoards&&<CentralAssignment boards={centralAssignmentBoards} projects={projects}
+        hiddenCount={centralAssignmentBoards.filter(item=>!filtered.some(row=>row.id===item.id)).length}
+        onClose={()=>setCentralAssignmentBoards(null)} onSaved={(result:any)=>{
+          setCentralAssignmentBoards(null);setProjectShortlist([]);setShowSelectedOnly(false);setSelected(null);
+          setProjects(current=>current.some(p=>p.id===result.project.id)?current:[...current,result.project]);
+          setProjectLoadRevision(value=>value+1);setPlanningRevision(value=>value+1);
+          setImportMessage(`${result.assigned} billboard${result.assigned===1?"":"s"} added to ${result.project.name}. ${result.alreadyAssigned?`${result.alreadyAssigned} already linked. `:""}Current project memberships preserved.`);
+        }}/>}
+      {inventoryScope&&canManage&&bulkEditBoards&&<InventoryBulkEdit boards={bulkEditBoards} projectId={currentProjectId}
+        projectName={projects.find(p=>p.id===currentProjectId)?.name??'Current project'}
+        hiddenCount={bulkEditBoards.filter(item=>!filtered.some(row=>row.id===item.id)).length}
+        onClose={()=>setBulkEditBoards(null)}
+        onSaved={(result:any)=>{
+          const updates=new Map<number,any>(result.updates.map((row:any)=>[row.inventoryDbId,row.values]));
+          setBillboards(current=>current.map(item=>({...item,...updates.get(item.inventoryDbId??-1)})));
+          setPlanningRevision(value=>value+1);
+          setBulkEditBoards(null);
+          setImportMessage(`${result.changedCount} billboard${result.changedCount===1?'':'s'} updated. ${result.unchangedCount} unchanged. Changes recorded in Activity history.`);
+        }}/>}
+      {planningScope && decisionOpen && <PlanningDecision boards={filtered} allBoards={planningInventory} costs={planningCosts} selected={planningShortlist} settings={decision} onSettings={setDecision}
+        onClose={()=>setDecisionOpen(false)} onLocate={board=>{setDecisionOpen(false);focusItem(board as Billboard);}}
+        onAdd={ids=>{
+          const additions=ids.filter(id=>planningInventory.some(board=>board.id===id));
+          setPlanningShortlist(current=>[...new Set([...current,...additions])]);
+          setPlanningCosts(current=>{const next={...current};for(const id of additions){const board=planningInventory.find(item=>item.id===id)!;next[id]={
+            rental:String(current[id]?.rental??board.rentalPrice??""),printing:String(current[id]?.printing??board.printingPrice??""),
+            transport:String(current[id]?.transport??board.transportPrice??""),flighting:String(current[id]?.flighting??board.flightingPrice??"")};}return next;});
+        }}/>}
 
       {activeTab === "flighting" && canPlan && (
         <div className="workspace flighting-workspace">
@@ -3892,14 +4259,13 @@ export default function Home() {
         </div>
       )}
 
-      {activeTab === "tracker" && canPlan && (
-        <div className="workspace flighting-workspace tracker-workspace">
+      {(activeTab === "tracker" || activeTab === "costs") && canPlan && (
+        <div className={`workspace flighting-workspace tracker-workspace tracker-workspace--${activeTab}`}>
           <section className="flighting-page tracker-page">
             <div className="flighting-hero tracker-hero">
               <div>
-                <span className="eyebrow">Project execution</span>
-                <h2>Execution and cost tracker</h2>
-                <p>Track artwork, printing, delivery, expiry dates, remaining days, and project costs in one clean working table.</p>
+                <h2>{activeTab==="costs"?"Cost tracker":"Execution tracker"}</h2>
+                <p>{activeTab==="costs"?"Review inventory rates separately from artwork and delivery tasks. Existing transport costs remain included in totals.":"Track artwork, printing, delivery and flight dates for the selected project."}</p>
               </div>
               <div className="flighting-hero-actions">
                 <button className="text-button" onClick={() => setActiveTab("flighting")}>Flighting schedule</button>
@@ -3913,7 +4279,7 @@ export default function Home() {
               <Metric value={trackerSummary.totalRows} label="Filtered rows" />
               <Metric value={trackerSummary.flighted} label="Flighted" accent />
               <Metric value={trackerSummary.due} label="Due / expired" />
-              <Metric value={`TZS ${trackerSummary.totalCost.toLocaleString("en-US")}`} label="Filtered cost" />
+              {activeTab==="costs"&&<Metric value={`TZS ${trackerSummary.totalCost.toLocaleString("en-US")}`} label="Filtered cost" />}
             </div>
 
             <section className="flighting-card tracker-filter-card">
@@ -3944,15 +4310,17 @@ export default function Home() {
                 <label className="search-box tracker-search"><Search size={16} /><input value={trackerFilters.search} onChange={(event) => setTrackerFilters((current) => ({ ...current, search: event.target.value }))} placeholder="Search billboard, location, vendor" /></label>
                 <label><span>Board type</span><select value={trackerFilters.type} onChange={(event) => setTrackerFilters((current) => ({ ...current, type: event.target.value }))}><option>All</option>{trackerFilterOptions.types.map((option) => <option key={option}>{option}</option>)}</select></label>
                 <label><span>Vendor</span><select value={trackerFilters.vendor} onChange={(event) => setTrackerFilters((current) => ({ ...current, vendor: event.target.value }))}><option>All</option>{trackerFilterOptions.vendors.map((option) => <option key={option}>{option}</option>)}</select></label>
-                <label><span>Artwork delivery</span><select value={trackerFilters.artworkDelivery} onChange={(event) => setTrackerFilters((current) => ({ ...current, artworkDelivery: event.target.value }))}><option>All</option>{EXECUTION_STATUS_OPTIONS.artworkDelivery.map((option) => <option key={option}>{option}</option>)}</select></label>
+                {activeTab==="tracker"&&<><label><span>Artwork delivery</span><select value={trackerFilters.artworkDelivery} onChange={(event) => setTrackerFilters((current) => ({ ...current, artworkDelivery: event.target.value }))}><option>All</option>{EXECUTION_STATUS_OPTIONS.artworkDelivery.map((option) => <option key={option}>{option}</option>)}</select></label>
                 <label><span>Approval</span><select value={trackerFilters.artworkApproval} onChange={(event) => setTrackerFilters((current) => ({ ...current, artworkApproval: event.target.value }))}><option>All</option>{EXECUTION_STATUS_OPTIONS.artworkApproval.map((option) => <option key={option}>{option}</option>)}</select></label>
                 <label><span>To vendor</span><select value={trackerFilters.artworkToVendor} onChange={(event) => setTrackerFilters((current) => ({ ...current, artworkToVendor: event.target.value }))}><option>All</option>{EXECUTION_STATUS_OPTIONS.artworkToVendor.map((option) => <option key={option}>{option}</option>)}</select></label>
                 <label><span>Printing</span><select value={trackerFilters.printingStatus} onChange={(event) => setTrackerFilters((current) => ({ ...current, printingStatus: event.target.value }))}><option>All</option>{EXECUTION_STATUS_OPTIONS.printingStatus.map((option) => <option key={option}>{option}</option>)}</select></label>
                 <label><span>Delivered</span><select value={trackerFilters.deliveredToDestination} onChange={(event) => setTrackerFilters((current) => ({ ...current, deliveredToDestination: event.target.value }))}><option>All</option>{EXECUTION_STATUS_OPTIONS.deliveredToDestination.map((option) => <option key={option}>{option}</option>)}</select></label>
                 <label><span>Flight status</span><select value={trackerFilters.flightStatus} onChange={(event) => setTrackerFilters((current) => ({ ...current, flightStatus: event.target.value }))}><option>All</option><option>flighted</option><option>unflighted</option><option>deflighted</option></select></label>
-                <label><span>Rental range</span><div className="range-filter"><input type="number" value={trackerFilters.rentalMin} onChange={(event) => setTrackerFilters((current) => ({ ...current, rentalMin: event.target.value }))} placeholder="Min" /><input type="number" value={trackerFilters.rentalMax} onChange={(event) => setTrackerFilters((current) => ({ ...current, rentalMax: event.target.value }))} placeholder="Max" /></div></label>
+                </>}
+                {activeTab==="costs"&&<><label><span>Rental range</span><div className="range-filter"><input type="number" value={trackerFilters.rentalMin} onChange={(event) => setTrackerFilters((current) => ({ ...current, rentalMin: event.target.value }))} placeholder="Min" /><input type="number" value={trackerFilters.rentalMax} onChange={(event) => setTrackerFilters((current) => ({ ...current, rentalMax: event.target.value }))} placeholder="Max" /></div></label>
                 <label><span>Total range</span><div className="range-filter"><input type="number" value={trackerFilters.totalMin} onChange={(event) => setTrackerFilters((current) => ({ ...current, totalMin: event.target.value }))} placeholder="Min" /><input type="number" value={trackerFilters.totalMax} onChange={(event) => setTrackerFilters((current) => ({ ...current, totalMax: event.target.value }))} placeholder="Max" /></div></label>
-                <label><span>Remaining days range</span><div className="range-filter"><input type="number" value={trackerFilters.remainingMin} onChange={(event) => setTrackerFilters((current) => ({ ...current, remainingMin: event.target.value }))} placeholder="Min" /><input type="number" value={trackerFilters.remainingMax} onChange={(event) => setTrackerFilters((current) => ({ ...current, remainingMax: event.target.value }))} placeholder="Max" /></div></label>
+                </>}
+                {activeTab==="tracker"&&<label><span>Remaining days range</span><div className="range-filter"><input type="number" value={trackerFilters.remainingMin} onChange={(event) => setTrackerFilters((current) => ({ ...current, remainingMin: event.target.value }))} placeholder="Min" /><input type="number" value={trackerFilters.remainingMax} onChange={(event) => setTrackerFilters((current) => ({ ...current, remainingMax: event.target.value }))} placeholder="Max" /></div></label>}
               </div>
             </section>
 
@@ -3966,13 +4334,13 @@ export default function Home() {
               </div>
               <div className="tracker-table">
                 <div className="tracker-row tracker-row--head">
-                  <span>Billboard</span><span>Vendor</span><span>Artwork delivery</span><span>Approval</span><span>To vendor</span><span>Printing</span><span>Delivered</span><span>Flight status</span><span>Expiry date</span><span>Remaining days</span><span>Rental</span><span>Printing cost</span><span>Flighting cost</span><span>Transport</span><span>Total</span><span>Action</span>
+                  <span>Asset</span><span>Vendor</span>{activeTab==="tracker"?<><span>Artwork delivery</span><span>Approval</span><span>To vendor</span><span>Printing</span><span>Delivered</span><span>Flight status</span><span>Expiry date</span><span>Remaining days</span><span>Action</span></>:<><span>Rental</span><span>Printing cost</span><span>Flighting cost</span><span>Total incl. stored transport</span></>}
                 </div>
                 {filteredTrackerRows.map(({ asset, schedule, total, vendor }) => (
                   <div className="tracker-row" key={`tracker-${asset.id}`}>
                     <span><strong>{asset.street}</strong><small>{asset.district} · {mediaTypeLabel(asset.mediaType)}</small></span>
                     <span>{vendor}</span>
-                    <select value={trackerValue(asset, "artworkDelivery", "PENDING")} onChange={(event) => saveTrackerField(asset, "artworkDelivery", event.target.value)}>{EXECUTION_STATUS_OPTIONS.artworkDelivery.map((option) => <option key={option} value={option}>{option}</option>)}</select>
+                    {activeTab==="tracker"?<><select value={trackerValue(asset, "artworkDelivery", "PENDING")} onChange={(event) => saveTrackerField(asset, "artworkDelivery", event.target.value)}>{EXECUTION_STATUS_OPTIONS.artworkDelivery.map((option) => <option key={option} value={option}>{option}</option>)}</select>
                     <select value={trackerValue(asset, "artworkApproval", "PENDING")} onChange={(event) => saveTrackerField(asset, "artworkApproval", event.target.value)}>{EXECUTION_STATUS_OPTIONS.artworkApproval.map((option) => <option key={option} value={option}>{option}</option>)}</select>
                     <select value={trackerValue(asset, "artworkToVendor", "PENDING")} onChange={(event) => saveTrackerField(asset, "artworkToVendor", event.target.value)}>{EXECUTION_STATUS_OPTIONS.artworkToVendor.map((option) => <option key={option} value={option}>{option}</option>)}</select>
                     <select value={trackerValue(asset, "printingStatus", "NOT STARTED")} onChange={(event) => saveTrackerField(asset, "printingStatus", event.target.value)}>{EXECUTION_STATUS_OPTIONS.printingStatus.map((option) => <option key={option} value={option}>{option}</option>)}</select>
@@ -3980,12 +4348,13 @@ export default function Home() {
                     <span className={schedule?.flight_status === "flighted" ? "flight-pill flight-pill--on" : "flight-pill"}>{schedule?.flight_status ?? "unflighted"}</span>
                     <span>{shortDate(schedule?.end_at)}</span>
                     <strong>{remainingDays(schedule?.end_at)}</strong>
+                    <button onClick={() => openFlightAsset(asset)}>Update flight</button>
+                    </>:<>
                     <span>{Number(asset.rentalPrice || 0).toLocaleString("en-US")}</span>
                     <span>{Number(asset.printingPrice || 0).toLocaleString("en-US")}</span>
                     <span>{Number(asset.flightingPrice || 0).toLocaleString("en-US")}</span>
-                    <span>{Number(asset.transportPrice || 0).toLocaleString("en-US")}</span>
                     <strong>{total.toLocaleString("en-US")}</strong>
-                    <button onClick={() => openFlightAsset(asset)}>Update flight</button>
+                    </>}
                   </div>
                 ))}
                 {!filteredTrackerRows.length && <div className="empty-state">No tracker rows match the current filters.</div>}
@@ -4099,175 +4468,18 @@ export default function Home() {
         </div>
       )}
 
-      {activeTab === "dashboard" && (
-        <div className="workspace dashboard-workspace dashboard-workspace--summary">
-          <section className="dashboard-page">
-            <div className="dashboard-hero">
-              <div>
-                <span className="eyebrow">Project dashboard</span>
-                <h2>{currentProject?.name ?? "Selected project"}</h2>
-                <p>Operational view for inventory, flighting, validation issues, field reports, and notifications.</p>
-              </div>
-              <button className="text-button" onClick={() => setActiveTab("planner")}><MapPin size={15} /> Open planning map</button>
-            </div>
-
-            <div className="dashboard-kpis">
-              <Metric value={billboards.length} label="Mapped assets" />
-              <Metric value={totalFaces} label="Total faces" accent />
-              <Metric value={flightScheduleStats.flighted} label="Flighted" />
-              <Metric value={dashboardIssueCount} label="Validation issues" />
-              <Metric value={notificationSummary.sent} label="Notifications sent" accent />
-            </div>
-
-            <div className="dashboard-grid">
-              <section className="dashboard-card">
-                <div className="dashboard-card-head">
-                  <div>
-                    <span className="eyebrow">Inventory mix</span>
-                    <h3>Faces by board type</h3>
-                  </div>
-                  <span className="dashboard-pill">{totalFaces} total faces</span>
-                </div>
-                <div className="dashboard-bars">
-                  {mediaBreakdown.map((row) => {
-                    const percent = totalFaces ? Math.max(4, Math.round((row.value / totalFaces) * 100)) : 0;
-                    return (
-                      <div className="dashboard-bar-row" key={row.label}>
-                        <span>{row.label}</span>
-                        <strong>{row.value}</strong>
-                        <i style={{ width: `${percent}%` }} />
-                      </div>
-                    );
-                  })}
-                </div>
-              </section>
-
-              <section className="dashboard-card">
-                <div className="dashboard-card-head">
-                  <div>
-                    <span className="eyebrow">Flighting</span>
-                    <h3>Status control</h3>
-                  </div>
-                  <button className="text-button" onClick={() => setActiveTab("flighting")}>Manage</button>
-                </div>
-                <div className="dashboard-mini-grid">
-                  <div><b>{flightScheduleStats.flighted}</b><span>Flighted</span></div>
-                  <div><b>{flightScheduleStats.expired}</b><span>Expired</span></div>
-                  <div><b>{flightScheduleStats.expiringSoon}</b><span>Expiring soon</span></div>
-                  <div><b>{flightScheduleStats.deflighted}</b><span>Deflighted</span></div>
-                  <div><b>{flightScheduleStats.unflighted}</b><span>Unflighted</span></div>
-                </div>
-              </section>
-
-              <section className="dashboard-card dashboard-card--wide">
-                <div className="dashboard-card-head">
-                  <div>
-                    <span className="eyebrow">Field validation</span>
-                    <h3>Issues reported by field users</h3>
-                  </div>
-                  <span className="dashboard-pill">{validationAssignments.length} assignments</span>
-                </div>
-                <div className="issue-summary-grid">
-                  <div><b>{validationOk.length}</b><span>Confirmed okay</span></div>
-                  <div><b>{validationPending.length}</b><span>Pending / in progress</span></div>
-                  <div><b>{validationIssues.length}</b><span>Billboard issues</span></div>
-                  <div><b>{rejectedCollections.length}</b><span>Rejected collections</span></div>
-                </div>
-                <div className="issue-type-list">
-                  {Object.entries(issueTypeCounts).map(([label, value]) => (
-                    <span key={label}><b>{value}</b>{label}</span>
-                  ))}
-                  {!Object.keys(issueTypeCounts).length && <small>No structured validation issues reported yet.</small>}
-                </div>
-              </section>
-
-              <section className="dashboard-card">
-                <div className="dashboard-card-head">
-                  <div>
-                    <span className="eyebrow">Notifications</span>
-                    <h3>Email and SMS audit</h3>
-                  </div>
-                  <span className="dashboard-pill">{notificationSummary.records} batches</span>
-                </div>
-                <div className="dashboard-mini-grid">
-                  <div><b>{notificationSummary.sent}</b><span>Sent</span></div>
-                  <div><b>{notificationSummary.failed}</b><span>Failed</span></div>
-                  <div><b>{notificationSummary.skipped}</b><span>Skipped</span></div>
-                  <div><b>{notificationSummary.recipientEmails}</b><span>Recipients</span></div>
-                </div>
-              </section>
-
-              <section className="dashboard-card dashboard-card--wide">
-                <div className="dashboard-card-head">
-                  <div>
-                    <span className="eyebrow">Recent field reports</span>
-                    <h3>Collected and validation records</h3>
-                  </div>
-                  <button className="text-button" onClick={() => setActiveTab("field")}>Open field work</button>
-                </div>
-                <div className="dashboard-report-list">
-                  {recentValidationIssues.map((assignment) => (
-                    <button key={`validation-${assignment.id}`} onClick={() => {
-                      if (!assignment.asset) return;
-                      setActiveTab("planner");
-                      window.setTimeout(() => focusItem(assignment.asset!), 120);
-                    }}>
-                      <span className="status status--occupied">Issue</span>
-                      <strong>{assignment.asset ? (assignment.asset.street || `${assignment.asset.from} → ${assignment.asset.to}`) : `Assignment #${assignment.id}`}</strong>
-                      <small>{String(assignment.report?.issueType || "Issue reported")} · {String(assignment.report?.issueDetail || "No detail")} · {assignment.assignee_name ?? "Field user"}</small>
-                    </button>
-                  ))}
-                  {recentFieldReports.map((collection) => (
-                    <button key={`collection-${collection.id}`} onClick={() => {
-                      setSelectedCollection(collection);
-                      fetch(`/api/app?action=collection-photos&collectionId=${collection.id}`).then((r) => r.json()).then((d) => setCollectionPhotos(d.photos ?? []));
-                    }}>
-                      <span className={`status ${collection.status === "validated" ? "" : "status--occupied"}`}>{collection.status}</span>
-                      <strong>{collection.data?.specificLocation || collection.data?.street || collection.data?.district || `Collection #${collection.id}`}</strong>
-                      <small>{collection.collector} ? {new Date(collection.created_at).toLocaleDateString()}</small>
-                    </button>
-                  ))}
-                  {!recentValidationIssues.length && !recentFieldReports.length && <div className="empty-state">No field reports yet.</div>}
-                </div>
-              </section>
-            </div>
-
-            {selectedCollection && (
-              <aside className="dashboard-inspector">
-                <button className="close-detail" onClick={() => setSelectedCollection(null)}><X size={17} /></button>
-                <span className="eyebrow">{selectedCollection.status} ? {selectedCollection.collector}</span>
-                <h3>{selectedCollection.data?.specificLocation || selectedCollection.data?.street || selectedCollection.data?.district || `Collection #${selectedCollection.id}`}</h3>
-                <div className="detail-stats">
-                  <div><span>Latitude</span><strong>{selectedCollection.latitude?.toFixed(6)}</strong></div>
-                  <div><span>Longitude</span><strong>{selectedCollection.longitude?.toFixed(6)}</strong></div>
-                  <div><span>Accuracy</span><strong>{selectedCollection.accuracy?.toFixed(1)}m</strong></div>
-                </div>
-                {selectedCollection.data && (
-                  <dl className="attributes">
-                    {Object.entries(selectedCollection.data).filter(([k]) => !["lat","lng","projectId"].includes(k)).map(([key, value]) => (
-                      <div key={key}><dt>{key}</dt><dd>{String(value)}</dd></div>
-                    ))}
-                  </dl>
-                )}
-                <div className="photo-grid">
-                  {collectionPhotos.map((p) => (
-                    <button key={p.id} className="photo-thumb" onClick={() => loadPhoto(p.id)}>
-                      <Eye size={14} /> <span>{p.photo_type}</span>
-                    </button>
-                  ))}
-                  {!collectionPhotos.length && <small>No photos attached</small>}
-                </div>
-                {canManage && selectedCollection.status === "pending" && (
-                  <div className="validation-actions">
-                    <button className="primary-button" onClick={() => validateCollection(selectedCollection.id, "validated")}><Check size={15} /> Validate</button>
-                    <button className="text-button" onClick={() => validateCollection(selectedCollection.id, "rejected")}>Reject</button>
-                  </div>
-                )}
-              </aside>
-            )}
-          </section>
-        </div>
-      )}
+      {activeTab === "dashboard" && canPlan && <Dashboard projectId={currentProjectId} projects={projects} onProject={setCurrentProjectId}
+        onNavigate={(destination:string,filters:any={})=>{
+          if(destination==='history'||destination==='notifications'||destination==='bookings'){
+            setOperationsSection(destination);setActiveTab('operations');return;
+          }
+          if(destination==='inventory'){
+            dashboardInventoryFilters.current=filters;
+            setMapPurpose("inventory");setPlanOpen(false);setInventoryView("split");setSelected(null);setActiveTab("planner");return;
+          }
+          if(destination==='field'&&!canManage){setActiveTab('operations');setOperationsSection('issues');return;}
+          setActiveTab(destination as typeof activeTab);
+        }}/>}
 
       {activeTab === "field" && canManage && (
         <div className="workspace field-workspace field-workspace--command">
@@ -4444,9 +4656,12 @@ export default function Home() {
       )}
       {photoViewerOpen && viewingPhoto && (
         <>
-          <button className="plan-backdrop" onClick={() => { setPhotoViewerOpen(false); setViewingPhoto(null); }} />
-          <div className="photo-viewer">
-            <button className="close-detail" onClick={() => { setPhotoViewerOpen(false); setViewingPhoto(null); }}><X size={17} /></button>
+          <button className="plan-backdrop" tabIndex={-1} aria-label="Close photo preview backdrop" onClick={() => { setPhotoViewerOpen(false); setViewingPhoto(null); }} />
+          <div className="photo-viewer" role="dialog" aria-modal="true" aria-label="Billboard photo preview" onKeyDown={event=>{
+            if(event.key==="Tab"){event.preventDefault();}
+            if(event.key==="Escape"){event.stopPropagation();setPhotoViewerOpen(false);setViewingPhoto(null);inventoryDetailRef.current?.querySelector<HTMLButtonElement>(".linked-image-preview")?.focus();}
+          }}>
+            <button autoFocus className="close-detail" aria-label="Close photo preview" onClick={() => { setPhotoViewerOpen(false); setViewingPhoto(null); inventoryDetailRef.current?.querySelector<HTMLButtonElement>(".linked-image-preview")?.focus(); }}><X size={17} /></button>
             <img src={viewingPhoto} alt="Billboard media preview" />
           </div>
         </>

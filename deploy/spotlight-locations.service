@@ -1,0 +1,7 @@
+[Unit]
+Description=Spotlight automatic district and village lookup
+After=docker.service
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/python3 /srv/apps/spotlight-planner/releases/20261020-planning-ui/deploy/populate-locations.py
+TimeoutStartSec=100

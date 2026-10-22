@@ -1,0 +1,8 @@
+FROM spotlight-planner:20261020-cross-project-planning-r13c
+WORKDIR /app
+COPY app/page.tsx app/layout.tsx app/WorkspaceDock.tsx app/PlanningBillboard.tsx app/PlannerUI.tsx app/planning-ui.css app/planner-desk.css ./app/
+COPY tests/planner-ui.test.mjs ./tests/planner-ui.test.mjs
+COPY app/api/app/route.ts ./app/api/app/route.ts
+COPY app/planning-store.mjs ./app/planning-store.mjs
+COPY tests/planning-store.test.mjs ./tests/planning-store.test.mjs
+RUN npm test && node --test tests/planner-ui.test.mjs tests/planning-store.test.mjs && npm run build && tar -C public --exclude=downloads -cf - . | tar -C dist/client -xf -

@@ -1155,3 +1155,8 @@ button { touch-action: manipulation; }
     padding-top: calc(12px + env(safe-area-inset-top));
   }
 }
+ .field-followup{padding:16px;border:1px solid #dce5e0;background:white;margin-bottom:18px}.field-followup h2{font-size:18px;font-weight:700}.field-followup p{margin:10px 0;font-size:13px;overflow-wrap:anywhere}.field-followup article{padding:14px;margin-top:14px}.field-followup label{display:grid;gap:6px;margin:12px 0}.field-followup textarea,.field-followup input{border:1px solid #ccd8d1;padding:10px;width:100%;font-size:16px}.field-followup textarea{min-height:90px}
+.pole-gps-card {border-left:4px solid #087f63;background:#f5f8f6;}
+.pole-gps-accuracy {display:block;font-size:1.45rem;color:#087f63;margin:12px 0;}
+.pole-gps-confirm {display:flex!important;align-items:flex-start;gap:12px;line-height:1.5;}
+.pole-gps-confirm input {width:20px!important;height:20px;flex:0 0 20px;margin-top:3px;}

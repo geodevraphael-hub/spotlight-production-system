@@ -1,4 +1,20 @@
 import { env } from "cloudflare:workers";
+import {sharedReport} from '../../report-store.mjs';
+import {assignPoleGps,submitPoleGps} from '../../pole-verification.mjs';
+import {populateLocations} from '../../automatic-location.mjs';
+import { auditedDatabase } from '../../activity-audit.mjs';
+import { setupOperations, enqueue, deliverJobs, type DeliveryContext } from '../../operations-store';
+import { validCoordinates, dayKey, inventoryFingerprint } from '../../operations-rules.mjs';
+import { initializeOnce } from '../../initialize-once.mjs';
+import { parseSmsAcknowledgement } from '../../sms-provider.mjs';
+import { planningWorkspace, savePlanningWorkspace } from '../../planning-store.mjs';
+import { readLocationEvidence, enrichLocation } from '../../location-evidence.mjs';
+import { bulkInventoryEdit } from '../../inventory-bulk.mjs';
+import { validateRegisterFields } from '../../asset-register.mjs';
+import { assetBookings } from '../../asset-booking.mjs';
+import { centralInventory } from '../../central-map.mjs';
+import { assignCentralInventory } from '../../central-assignment.mjs';
+import { removeProjectInventory, inventoryMembershipBackfill } from '../../project-removal.mjs';
 
 type User = { id: number; name: string; email: string; role: string };
 
@@ -71,6 +87,7 @@ async function sendWhatChimpText(to: string, message: string) {
   }
   try {
     const response = await fetch("https://app.whatchimp.com/api/v1/whatsapp/send", {
+      signal: AbortSignal.timeout(25000),
       method: "POST",
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
       body: new URLSearchParams({
@@ -100,6 +117,7 @@ async function sendMetaTemplateText(to: string, message: string) {
   }
   try {
     const response = await fetch(`https://graph.facebook.com/v21.0/${phoneNumberId}/messages`, {
+      signal: AbortSignal.timeout(25000),
       method: "POST",
       headers: {
         Authorization: `Bearer ${accessToken}`,
@@ -125,9 +143,14 @@ async function sendMetaTemplateText(to: string, message: string) {
     });
     const text = await response.text();
     if (!response.ok) {
-      return { phone: to, sent: false, provider: "meta-template", error: text };
+      const code = Number(parseProviderResponse(text)?.error?.code);
+      return { phone: to, sent: false, provider: "meta-template", error: text,
+        permanent: [10,100,190,200,131005,131008,131009,132001,133010].includes(code) };
     }
-    return { phone: to, sent: true, provider: "meta-template", response: parseProviderResponse(text) };
+    const parsed = parseProviderResponse(text);
+    const providerId = parsed?.messages?.[0]?.id;
+    return { phone: to, sent: Boolean(providerId), provider: "meta-template", providerId, response: parsed,
+      ...(!providerId ? {error:'Meta returned no message acknowledgement',ambiguous:true} : {}) };
   } catch (error) {
     return { phone: to, sent: false, provider: "meta-template", error: error instanceof Error ? error.message : String(error) };
   }
@@ -142,6 +165,7 @@ async function sendWhatChimpMedia(to: string, mediaUrl: string, caption: string,
   }
   try {
     const response = await fetch("https://app.whatchimp.com/api/v1/whatsapp/send/file", {
+      signal: AbortSignal.timeout(25000),
       method: "POST",
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
       body: new URLSearchParams({
@@ -162,7 +186,7 @@ async function sendWhatChimpMedia(to: string, mediaUrl: string, caption: string,
   }
 }
 
-async function sendWhatsAppText(to: string, message: string, options: { previewUrl?: boolean } = {}) {
+async function rawWhatsAppText(to: string, message: string, options: { previewUrl?: boolean } = {}) {
   const useWhatChimp = Boolean(runtimeSecret("WHATCHIMP_API_TOKEN")) || runtimeSecret("WHATSAPP_PROVIDER").toLowerCase() === "whatchimp";
   let whatChimpResult: Awaited<ReturnType<typeof sendWhatChimpText>> | null = null;
   if (useWhatChimp) {
@@ -180,6 +204,7 @@ async function sendWhatsAppText(to: string, message: string, options: { previewU
   }
   try {
     const response = await fetch(`https://graph.facebook.com/v21.0/${phoneNumberId}/messages`, {
+      signal: AbortSignal.timeout(25000),
       method: "POST",
       headers: {
         Authorization: `Bearer ${accessToken}`,
@@ -220,6 +245,7 @@ async function sendWhatsAppMedia(to: string, mediaUrl: string, caption: string, 
   }
   try {
     const response = await fetch(`https://graph.facebook.com/v21.0/${phoneNumberId}/messages`, {
+      signal: AbortSignal.timeout(25000),
       method: "POST",
       headers: {
         Authorization: `Bearer ${accessToken}`,
@@ -243,14 +269,14 @@ async function sendWhatsAppMedia(to: string, mediaUrl: string, caption: string, 
   }
 }
 
-async function sendSmsText(to: string, message: string) {
+async function rawSmsText(to: string, message: string) {
   const user = runtimeSecret("MSHASTRA_USER");
   const password = runtimeSecret("MSHASTRA_PASSWORD");
   const senderId = runtimeSecret("MSHASTRA_SENDER_ID") || "Spotlight";
   const countryCode = runtimeSecret("MSHASTRA_COUNTRY_CODE") || "255";
   const recipient = smsDigits(to);
   if (!user || !password || !recipient) {
-    return { phone: to, sent: false, skipped: true };
+    return { phone: to, sent: false, skipped: true, provider:'mshastra', error:'SMS credentials or recipient are missing' };
   }
   const params = new URLSearchParams({
     user,
@@ -261,24 +287,19 @@ async function sendSmsText(to: string, message: string) {
     CountryCode: countryCode,
   });
   try {
-    const response = await fetch(`https://mshastra.com/sendurl.aspx?${params.toString()}`);
+    const response = await fetch(`https://mshastra.com/sendurl.aspx?${params.toString()}`, {signal:AbortSignal.timeout(25000)});
     const text = await response.text();
-    const failed = /error|invalid|fail|not allowed|denied|unauthori[sz]ed/i.test(text);
-    return {
-      phone: to,
-      sent: response.ok && !failed,
-      status: response.status,
-      response: text,
-    };
+    return { phone: to, ...parseSmsAcknowledgement(response.status,text,recipient) };
   } catch (error) {
-    return { phone: to, sent: false, error: error instanceof Error ? error.message : String(error) };
+    return { phone: to, sent: false, provider:'mshastra', error: error instanceof Error ? error.message : String(error) };
   }
 }
 
-async function sendResendEmail(to: string[], subject: string, html: string) {
+async function rawResendEmail(to: string[], subject: string, html: string) {
   const apiKey = runtimeSecret("RESEND_API_KEY");
   if (!apiKey || !to.length) return { sent: 0, skipped: true };
   const response = await fetch("https://api.resend.com/emails", {
+    signal: AbortSignal.timeout(25000),
     method: "POST",
     headers: {
       Authorization: `Bearer ${apiKey}`,
@@ -300,6 +321,20 @@ async function sendResendEmail(to: string[], subject: string, html: string) {
     providerId = "";
   }
   return { sent: to.length, providerId, response: text };
+}
+
+async function sendWhatsAppText(to: string, message: string, options: { previewUrl?: boolean } = {}, context: DeliveryContext = {}) {
+  return enqueue('whatsapp',whatsappDigits(to),'WhatsApp notification',{message,...options},context);
+}
+async function sendSmsText(to: string, message: string, context: DeliveryContext = {}) {
+  return enqueue('sms',smsDigits(to),'SMS notification',{message},context);
+}
+async function sendResendEmail(to: string[], subject: string, html: string, context: DeliveryContext = {}) {
+  for (const recipient of [...new Set(to.map(value => value.trim().toLowerCase()).filter(Boolean))]) await enqueue('email',recipient,subject,{html},context);
+  return {sent:0,queued:to.length,skipped:!to.length};
+}
+export async function processNotifications() {
+  return deliverJobs(job => job.channel === 'email' ? rawResendEmail([job.recipient],job.subject,job.payload.html) : job.channel === 'sms' ? rawSmsText(job.recipient,job.payload.message) : rawWhatsAppText(job.recipient,job.payload.message,job.payload));
 }
 
 async function recordNotificationAudit(entry: {
@@ -327,7 +362,7 @@ async function recordNotificationAudit(entry: {
     entry.recipients.join(","),
     entry.recipients.length,
     entry.subject,
-    entry.status,
+    JSON.stringify(entry.providerResponse ?? {}).includes('"queued":') ? 'queued' : entry.status,
     entry.providerId ?? "",
     JSON.stringify(entry.providerResponse ?? {}),
     entry.createdBy ?? null,
@@ -347,13 +382,15 @@ function cookieToken(request: Request) {
   return bearer ?? request.headers.get("cookie")?.match(/kmk_session=([^;]+)/)?.[1] ?? "";
 }
 
-async function setup() {
+const setup = initializeOnce(async () => {
   const db = env.DB;
   await db.batch([
     db.prepare("CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, email TEXT NOT NULL UNIQUE, password_hash TEXT NOT NULL, role TEXT NOT NULL DEFAULT 'planner', created_at INTEGER NOT NULL)"),
     db.prepare("CREATE TABLE IF NOT EXISTS sessions (token TEXT PRIMARY KEY, user_id INTEGER NOT NULL, expires_at INTEGER NOT NULL)"),
     db.prepare("CREATE TABLE IF NOT EXISTS inventory (id INTEGER PRIMARY KEY AUTOINCREMENT, source_id INTEGER, data TEXT NOT NULL, latitude REAL NOT NULL, longitude REAL NOT NULL, created_at INTEGER NOT NULL)"),
     db.prepare("CREATE TABLE IF NOT EXISTS inventory_projects (inventory_id INTEGER NOT NULL, project_id INTEGER NOT NULL, assigned_by INTEGER, assigned_at INTEGER NOT NULL, PRIMARY KEY(inventory_id,project_id))"),
+    db.prepare("CREATE TABLE IF NOT EXISTS project_removal_requests (request_id TEXT PRIMARY KEY, user_id INTEGER NOT NULL, payload TEXT NOT NULL, result TEXT NOT NULL, created_at INTEGER NOT NULL)"),
+    db.prepare("CREATE TABLE IF NOT EXISTS central_assignment_requests (request_id TEXT PRIMARY KEY,user_id INTEGER NOT NULL,payload TEXT NOT NULL,result TEXT NOT NULL,created_at INTEGER NOT NULL)"),
     db.prepare("CREATE TABLE IF NOT EXISTS plans (user_id INTEGER PRIMARY KEY, data TEXT NOT NULL, note TEXT NOT NULL DEFAULT '', updated_at INTEGER NOT NULL)"),
     db.prepare("CREATE TABLE IF NOT EXISTS projects (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, project_type TEXT NOT NULL, share_token TEXT NOT NULL UNIQUE, share_code TEXT NOT NULL DEFAULT '', share_protected INTEGER NOT NULL DEFAULT 1, created_by INTEGER NOT NULL, created_at INTEGER NOT NULL)"),
     db.prepare("CREATE TABLE IF NOT EXISTS project_users (project_id INTEGER NOT NULL, user_id INTEGER NOT NULL, PRIMARY KEY(project_id,user_id))"),
@@ -418,7 +455,7 @@ async function setup() {
     await db.prepare("UPDATE projects SET share_code=? WHERE id=?").bind(shareCode(), project.id).run();
   }
   await db.prepare("UPDATE field_collections SET project_id=COALESCE((SELECT project_id FROM missions WHERE missions.id=field_collections.mission_id), project_id, 1)").run();
-  await db.prepare("INSERT OR IGNORE INTO inventory_projects (inventory_id,project_id,assigned_by,assigned_at) SELECT id, COALESCE(json_extract(data,'$.projectId'),1), 1, ? FROM inventory").bind(Date.now()).run();
+  await db.prepare(inventoryMembershipBackfill).bind(Date.now()).run();
   await db.prepare("UPDATE flight_schedules SET flight_status='flighted' WHERE stage='flighted' AND flight_status!='flighted'").run();
   await db.prepare("UPDATE flight_schedules SET flight_status='deflighted' WHERE stage='removed' AND flight_status!='deflighted'").run();
   try {
@@ -438,10 +475,11 @@ async function setup() {
   } catch {
     // Older runtimes without JSON mutation functions can still use flight_schedules directly.
   }
-}
+});
 
-async function currentUser(request: Request): Promise<User | null> {
+export async function currentUser(request: Request): Promise<User | null> {
   await setup();
+  await setupOperations();
   const token = cookieToken(request);
   if (!token) return null;
   return (await env.DB.prepare(
@@ -617,8 +655,7 @@ function expiryReminderText(items: any[], projectName: string) {
 
 async function runFlightExpiryReminderCheck(projectId = 0, createdBy: number | null = null) {
   const now = Date.now();
-  const todayStart = new Date(now);
-  todayStart.setHours(0, 0, 0, 0);
+  const todayStart = new Date(`${dayKey(now)}T00:00:00+03:00`);
   const rows = await env.DB.prepare(`
     SELECT fs.*,p.name AS project_name,i.data AS asset_data
     FROM flight_schedules fs
@@ -635,8 +672,7 @@ async function runFlightExpiryReminderCheck(projectId = 0, createdBy: number | n
   `).bind(projectId, projectId, now, todayStart.getTime()).all<any>();
   const due = (rows.results as any[]).map((row) => {
     const item = row.asset_data ? JSON.parse(row.asset_data) : { id: row.asset_id };
-    const diff = Number(row.end_at) - now;
-    const remainingDays = diff >= 0 ? Math.ceil(diff / 86400000) : Math.floor(diff / 86400000);
+    const remainingDays = Math.round((Date.parse(dayKey(Number(row.end_at)))-Date.parse(dayKey(now)))/86400000);
     return {
       ...item,
       scheduleId: row.id,
@@ -682,7 +718,8 @@ async function runFlightExpiryReminderCheck(projectId = 0, createdBy: number | n
       ? `Overdue billboard deflighting reminder - ${projectName} (${overdueCount} overdue)`
       : `Billboard deflighting reminder - ${projectName} (${dueTodayCount || items.length} due/near due)`;
     const message = expiryReminderText(items, projectName);
-    const reminderResult: any = await sendResendEmail(emails, subject, expiryReminderHtml(items, projectName));
+    const context = {projectId:currentProjectId,eventKey:`reminder:${currentProjectId}:${dayKey(now)}`};
+    const reminderResult: any = await sendResendEmail(emails, subject, expiryReminderHtml(items, projectName),context);
     emailResults.push({ projectId: currentProjectId, result: reminderResult });
     await recordNotificationAudit({
       projectId: currentProjectId,
@@ -700,11 +737,11 @@ async function runFlightExpiryReminderCheck(projectId = 0, createdBy: number | n
     const whatsapp = await Promise.all(phones.map(async (phone) => ({
       phone,
       link: whatsappLink(phone, message),
-      api: await sendWhatsAppText(phone, message),
+      api: await sendWhatsAppText(phone, message,{},context),
     })));
     allWhatsapp.push(...whatsapp.map((item) => ({ ...item, projectId: currentProjectId })));
     const sms = await Promise.all(phones.map(async (phone) => {
-      const smsResult: any = await sendSmsText(phone, message);
+      const smsResult: any = await sendSmsText(phone, message,context);
       return { phone, api: smsResult };
     }));
     allSms.push(...sms.map((item) => ({ ...item, projectId: currentProjectId })));
@@ -984,16 +1021,20 @@ export async function GET(request: Request) {
   await setup();
   const url = new URL(request.url);
   const action = url.searchParams.get("action") ?? "me";
-  if (action === "auto-flight-reminders") {
+  if (action === "auto-flight-reminders" || action === 'process-notifications' || action==='populate-locations') {
     const configuredSecret = runtimeSecret("AUTOMATION_SECRET") || runtimeSecret("SESSION_SECRET");
     const suppliedSecret = request.headers.get("x-automation-secret") || url.searchParams.get("secret") || "";
     if (!configuredSecret || suppliedSecret !== configuredSecret) return json({ error: "Unauthorized" }, 401);
+    if(action==='populate-locations')return json(await populateLocations(env.DB,runtimeSecret('LOCATIONIQ_KEY'),runtimeSecret('LOCATIONIQ_PAUSED_REASON')));
     const projectId = Number(url.searchParams.get("projectId") || 0) || 0;
-    return json(await runFlightExpiryReminderCheck(projectId, null));
+    await setupOperations();
+    const reminders = action === 'auto-flight-reminders' ? await runFlightExpiryReminderCheck(projectId, null) : null;
+    return json({reminders,delivery:await processNotifications()});
   }
   if (action === "shared-project") {
     const token = String(url.searchParams.get("token") ?? "");
     const code = String(url.searchParams.get("code") ?? "").trim().toUpperCase();
+    if(token.startsWith('r_')){try{return json(await sharedReport(env.DB,token,code));}catch(e:any){return json({error:e.status?e.message:'Report map unavailable',protected:e.protected===true},e.status||500);}}
     const project = await env.DB.prepare("SELECT id,name,project_type,share_token,share_code,share_protected FROM projects WHERE share_token=?")
       .bind(token).first<{ id: number; name: string; project_type: string; share_token: string; share_code: string; share_protected: number }>();
     if (!project) return json({ error: "Shared map not found" }, 404);
@@ -1025,40 +1066,33 @@ export async function GET(request: Request) {
   const user = await currentUser(request);
   if (!user) return json({ error: "Unauthorized" }, 401);
   if (action === "me") return json({ user });
+  if (action === "planning-evidence") {
+    try {
+      const data=await readLocationEvidence(env.DB,user,Number(url.searchParams.get("radius")),Boolean(runtimeSecret("LOCATIONIQ_KEY")),url.searchParams.has("id")?Number(url.searchParams.get("id")):null);
+      const paused=runtimeSecret("LOCATIONIQ_PAUSED_REASON");
+      return json(paused?{...data,blocked:true,message:paused}:data);
+    }
+    catch(error:any) { return json({error:error.status ? error.message : "Unable to load location evidence."},error.status || 500); }
+  }
+  if (action === "planner-workspace") {
+    try { return json(await planningWorkspace(env.DB,user)); }
+    catch (error: any) { return json({error:error.status ? error.message : 'Unable to load planning inventory.'},error.status || 500); }
+  }
   if (action === "inventory") {
     const projectId = Number(url.searchParams.get("projectId")) || 1;
     const allProjects = url.searchParams.get("allProjects") === "1";
     if (allProjects) {
       if (user.role !== "admin") return json({ error: "Forbidden" }, 403);
       const rows = await env.DB.prepare(`
-        SELECT i.id AS inventory_id,i.data,COALESCE(ip.project_id,COALESCE(json_extract(i.data,'$.projectId'),1)) AS project_id,p.name AS project_name
+        SELECT i.id AS inventory_id,i.data,p.id AS project_id,p.name AS project_name
         FROM inventory i
-        LEFT JOIN inventory_projects ip ON ip.inventory_id=i.id
-        LEFT JOIN projects p ON p.id=COALESCE(ip.project_id,COALESCE(json_extract(i.data,'$.projectId'),1))
+        LEFT JOIN projects p ON p.id=COALESCE(json_extract(i.data,'$.projectId'),1)
+          OR p.id IN (SELECT ip.project_id FROM inventory_projects ip WHERE ip.inventory_id=i.id)
         ORDER BY p.name,i.id
       `).all<{ inventory_id: number; data: string; project_id: number; project_name: string }>();
       const schedules = await env.DB.prepare("SELECT * FROM flight_schedules").all<any>();
-      const schedulesByProjectAsset = new Map((schedules.results as any[]).map((row) => [`${Number(row.project_id)}:${Number(row.asset_id)}`, row]));
       return json({
-        inventory: rows.results.map((row) => {
-          const item = JSON.parse(row.data);
-          const sourceProjectId = Number(item.projectId || row.project_id || 1);
-          const sourceAssetId = Number(item.id);
-          const schedule = schedulesByProjectAsset.get(`${sourceProjectId}:${sourceAssetId}`);
-          return {
-            ...item,
-            id: sourceProjectId * 100000000 + sourceAssetId,
-            inventoryDbId: row.inventory_id,
-            originalAssetId: sourceAssetId,
-            projectId: sourceProjectId,
-            projectName: row.project_name || `Project ${sourceProjectId}`,
-            flightStage: schedule?.stage ?? item.flightStage ?? "design",
-            flightStatus: schedule?.flight_status ?? item.flightStatus ?? "unflighted",
-            flightExpiry: schedule?.end_at ?? item.flightExpiry ?? "",
-            flightStart: schedule?.start_at ?? item.flightStart ?? "",
-            flightDurationDays: schedule?.duration_days ?? item.flightDurationDays ?? "",
-          };
-        }),
+        inventory: await (async()=>{const bookings=await assetBookings(env.DB);return centralInventory(rows.results,schedules.results).map(item=>({...item,...bookings.get(item.inventoryDbId)}));})(),
       });
     }
     const allowed = user.role === "admin" || Boolean(await env.DB.prepare("SELECT 1 FROM project_users WHERE project_id=? AND user_id=?").bind(projectId, user.id).first());
@@ -1072,10 +1106,11 @@ export async function GET(request: Request) {
     `).bind(projectId, projectId).all<{ inventory_id: number; data: string }>();
     const schedules = await env.DB.prepare("SELECT asset_id,stage,flight_status,start_at,end_at,duration_days FROM flight_schedules WHERE project_id=?").bind(projectId).all<any>();
     const schedulesByAsset = new Map((schedules.results as any[]).map((row) => [Number(row.asset_id), row]));
+    const bookingByInventory=await assetBookings(env.DB);
     return json({
       inventory: rows.results.map((row: { inventory_id: number; data: string }) => {
         const item = JSON.parse(row.data);
-        const baseItem = { ...item, inventoryDbId: row.inventory_id, projectId, originalAssetId: Number(item.id) };
+        const baseItem = { ...item, ...bookingByInventory.get(row.inventory_id), inventoryDbId: row.inventory_id, projectId, originalAssetId: Number(item.id) };
         const schedule = schedulesByAsset.get(Number(item.id));
         if (!schedule) return baseItem;
         return {
@@ -1199,7 +1234,7 @@ export async function GET(request: Request) {
           AND (i.id IS NULL OR ip.project_id IS NOT NULL OR COALESCE(json_extract(i.data,'$.projectId'),1)=va.project_id)
         ORDER BY CASE va.status WHEN 'assigned' THEN 0 WHEN 'in_progress' THEN 1 WHEN 'issue' THEN 2 WHEN 'ok' THEN 3 ELSE 4 END, va.updated_at DESC
       `).bind(user.id).all<any>();
-      return json({ assignments: (rows.results as any[]).map((row) => ({ ...row, report: JSON.parse(row.report || "{}"), asset: row.asset_data ? JSON.parse(row.asset_data) : null })) });
+      return json({ assignments: (rows.results as any[]).map(({asset_data,report,...row}) => ({ ...row, report: JSON.parse(report || "{}"), asset: asset_data ? JSON.parse(asset_data) : null })) });
     }
     if (user.role !== "admin" && user.role !== "creator") return json({ error: "Forbidden" }, 403);
     if (!projectId) return json({ assignments: [] });
@@ -1215,7 +1250,7 @@ export async function GET(request: Request) {
         AND (i.id IS NULL OR ip.project_id IS NOT NULL OR COALESCE(json_extract(i.data,'$.projectId'),1)=va.project_id)
       ORDER BY va.updated_at DESC
     `).bind(projectId).all<any>();
-    return json({ assignments: (rows.results as any[]).map((row) => ({ ...row, report: JSON.parse(row.report || "{}"), asset: row.asset_data ? JSON.parse(row.asset_data) : null })) });
+    return json({ assignments: (rows.results as any[]).map(({asset_data,report,...row}) => ({ ...row, report: JSON.parse(report || "{}"), asset: asset_data ? JSON.parse(asset_data) : null })) });
   }
   if (action === "photo") {
     const photoId = Number(url.searchParams.get("id")) || 0;
@@ -1250,20 +1285,35 @@ export async function GET(request: Request) {
     const projectId = Number(url.searchParams.get("projectId")) || 0;
     const from = Number(url.searchParams.get("from")) || 0;
     const to = Number(url.searchParams.get("to")) || Date.now();
+    if (!projectId && user.role !== 'admin') return json({error:'Select an accessible project'},403);
     if (projectId) {
       const allowed = user.role === "admin" || Boolean(await env.DB.prepare("SELECT 1 FROM project_users WHERE project_id=? AND user_id=?").bind(projectId, user.id).first());
       if (!allowed) return json({ error: "Forbidden" }, 403);
     }
+    if (url.searchParams.get('summaryOnly') === '1') {
+      const summary = await env.DB.prepare(`SELECT COUNT(*) AS records,
+        COALESCE(SUM(CASE WHEN channel='email' THEN recipient_count ELSE 0 END),0) AS recipientEmails,
+        COALESCE(SUM(status IN ('sent','accepted','delivered','read')),0) AS sent,
+        COALESCE(SUM(status='failed'),0) AS failed,COALESCE(SUM(status='skipped'),0) AS skipped
+        FROM (
+          SELECT channel,recipient_count,status FROM notification_audit WHERE (?=0 OR project_id=?) AND created_at BETWEEN ? AND ? AND status!='queued'
+          UNION ALL SELECT channel,1,status FROM notification_jobs WHERE (?=0 OR project_id=?) AND created_at BETWEEN ? AND ?
+        )`).bind(projectId,projectId,from,to,projectId,projectId,from,to).first();
+      return json({summary});
+    }
     const rows = projectId
       ? await env.DB.prepare("SELECT * FROM notification_audit WHERE project_id=? AND created_at BETWEEN ? AND ? ORDER BY created_at DESC").bind(projectId, from, to).all<any>()
       : await env.DB.prepare("SELECT * FROM notification_audit WHERE created_at BETWEEN ? AND ? ORDER BY created_at DESC").bind(from, to).all<any>();
-    const results = rows.results as any[];
+    const jobs = projectId
+      ? await env.DB.prepare('SELECT id,project_id,asset_id,event_key AS notification_type,channel,recipient AS recipients,1 AS recipient_count,subject,status,provider_id,last_error AS provider_response,created_at FROM notification_jobs WHERE project_id=? AND created_at BETWEEN ? AND ? ORDER BY created_at DESC').bind(projectId,from,to).all<any>()
+      : await env.DB.prepare('SELECT id,project_id,asset_id,event_key AS notification_type,channel,recipient AS recipients,1 AS recipient_count,subject,status,provider_id,last_error AS provider_response,created_at FROM notification_jobs WHERE created_at BETWEEN ? AND ? ORDER BY created_at DESC').bind(from,to).all<any>();
+    const results = [...(rows.results as any[]).filter(row=>row.status!=='queued'),...(jobs.results as any[])].sort((a,b)=>b.created_at-a.created_at);
     return json({
       audit: results,
       summary: {
         records: results.length,
         recipientEmails: results.filter((row) => row.channel === "email").reduce((sum, row) => sum + Number(row.recipient_count || 0), 0),
-        sent: results.filter((row) => ["sent", "delivered"].includes(String(row.status))).length,
+        sent: results.filter((row) => ["sent", "accepted", "delivered", "read"].includes(String(row.status))).length,
         failed: results.filter((row) => row.status === "failed").length,
         skipped: results.filter((row) => row.status === "skipped").length,
       },
@@ -1348,8 +1398,33 @@ export async function POST(request: Request) {
   }
   const user = await currentUser(request);
   if (!user) return json({ error: "Unauthorized" }, 401);
+  const db = auditedDatabase(env.DB,user);
+  if(action === "remove-project-inventory"){
+    try{return json(await removeProjectInventory(db,user,body));}
+    catch(error:any){return json({error:error.status?error.message:"Unable to remove billboards from the project."},error.status||500);}
+  }
+  if(action === "assign-central-inventory"){
+    try{return json(await assignCentralInventory(db,user,body));}
+    catch(error:any){return json({error:error.status?error.message:"Unable to assign billboards."},error.status||500);}
+  }
+  if (action === "inventory-bulk-preview" || action === "inventory-bulk-save") {
+    try { return json(await bulkInventoryEdit(db,user,body,action === "inventory-bulk-save")); }
+    catch(error:any) { return json({error:error.status ? error.message : "Unable to process the bulk edit. Review again before retrying."},error.status || 500); }
+  }
+  if (action === "planning-enrich") {
+    try {
+      if(!["admin","creator","planner"].includes(user.role))return json({error:"Forbidden"},403);
+      if(runtimeSecret("LOCATIONIQ_PAUSED_REASON"))return json({error:runtimeSecret("LOCATIONIQ_PAUSED_REASON")},503);
+      return json(await enrichLocation(env.DB,user,body,runtimeSecret("LOCATIONIQ_KEY")));
+    }
+    catch(error:any) { return json({error:error.status ? error.message : "Unable to enrich this billboard. No inventory data was changed."},error.status || 500); }
+  }
+  if (action === "planner-save") {
+    try { return json(await savePlanningWorkspace(db,user,body)); }
+    catch (error: any) { return json({error:error.status ? error.message : 'Unable to save the plan. No partial changes were applied.'},error.status || 500); }
+  }
   if (action === "logout") {
-    await env.DB.prepare("DELETE FROM sessions WHERE token=?").bind(cookieToken(request)).run();
+    await db.prepare("DELETE FROM sessions WHERE token=?").bind(cookieToken(request)).run();
     return json({ ok: true }, 200, { "Set-Cookie": "kmk_session=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0" });
   }
   if (action === "whatsapp-demo" && user.role === "admin") {
@@ -1384,11 +1459,35 @@ export async function POST(request: Request) {
   if (action === "inventory") {
     const items = Array.isArray(body.items) ? body.items : [];
     const projectId = Number(body.projectId) || 1;
-    const valid = items.filter((item) => Number.isFinite(Number(item.lat)) && Number.isFinite(Number(item.lng)) && Number(item.lat) !== 0 && Number(item.lng) !== 0)
-      .map((item) => ({ ...item, projectId }));
+    if (!['admin','creator','planner'].includes(user.role) || (user.role !== 'admin' && !await db.prepare('SELECT 1 FROM project_users WHERE project_id=? AND user_id=?').bind(projectId,user.id).first())) return json({error:'Forbidden'},403);
+    let valid;
+    try {
+      valid = items.filter((item) => validCoordinates(item.lat,item.lng))
+        .map((item) => ({ ...validateRegisterFields(item), projectId,lastEditedBy:user.id }));
+    } catch(error) { return json({error:error instanceof Error?error.message:'Invalid asset registration fields'},400); }
+    if (body.importMode) {
+      if (valid.length!==items.length) return json({error:'Some rows have invalid GPS. Correct them in the review before importing.'},400);
+      const stored = await db.prepare('SELECT i.data FROM inventory i JOIN inventory_projects ip ON ip.inventory_id=i.id WHERE ip.project_id=?').bind(projectId).all<{data:string}>();
+      const fingerprints = new Set(stored.results.map((row:{data:string})=>inventoryFingerprint(JSON.parse(row.data))));
+      for (const [index,item] of valid.entries()) {
+        const fingerprint=inventoryFingerprint(item);
+        if(fingerprints.has(fingerprint)) return json({error:`Row ${index+2} duplicates an existing or imported billboard. Review the name, GPS and board type.`},409);
+        if(!String(item.street||'').trim())return json({error:`Row ${index+2} needs a name`},400);
+        if(!['lamp-post','large-format','digital-screen','fabricated-banner'].includes(item.mediaType))return json({error:`Row ${index+2} needs a supported board type`},400);
+        fingerprints.add(fingerprint);
+      }
+      const importedAt=Date.now();
+      const writes=valid.flatMap(item=>{
+        const serialized=JSON.stringify(item);
+        return [db.prepare('INSERT INTO inventory(source_id,data,latitude,longitude,created_at) VALUES(?,?,?,?,?)').bind(Number(item.id)||null,serialized,Number(item.lat),Number(item.lng),importedAt),
+          db.prepare('INSERT INTO inventory_projects(inventory_id,project_id,assigned_by,assigned_at) SELECT id,?,?,? FROM inventory WHERE data=? AND created_at=? ORDER BY id DESC LIMIT 1').bind(projectId,user.id,importedAt,serialized,importedAt)];
+      });
+      if(writes.length)await db.batch(writes);
+      return json({imported:valid.length,rejected:0});
+    }
     for (const item of valid) {
       const sourceId = Number(item.id) || null;
-      const exists = await env.DB.prepare(`
+      const exists = await db.prepare(`
         SELECT i.id
         FROM inventory i
         LEFT JOIN inventory_projects ip ON ip.inventory_id=i.id AND ip.project_id=?
@@ -1397,15 +1496,15 @@ export async function POST(request: Request) {
       `).bind(projectId, sourceId, projectId).first<{ id: number }>();
       let inventoryId = exists?.id ?? 0;
       if (!exists) {
-        const result = await env.DB.prepare("INSERT INTO inventory (source_id,data,latitude,longitude,created_at) VALUES (?,?,?,?,?)")
+        const result = await db.prepare("INSERT INTO inventory (source_id,data,latitude,longitude,created_at) VALUES (?,?,?,?,?)")
           .bind(sourceId, JSON.stringify(item), Number(item.lat), Number(item.lng), Date.now()).run();
         inventoryId = Number(result.meta.last_row_id);
       } else {
-        await env.DB.prepare("UPDATE inventory SET data=?, latitude=?, longitude=? WHERE id=?")
+        await db.prepare("UPDATE inventory SET data=?, latitude=?, longitude=? WHERE id=?")
           .bind(JSON.stringify(item), Number(item.lat), Number(item.lng), exists.id).run();
       }
       if (inventoryId) {
-        await env.DB.prepare("INSERT OR IGNORE INTO inventory_projects (inventory_id,project_id,assigned_by,assigned_at) VALUES (?,?,?,?)")
+        await db.prepare("INSERT OR IGNORE INTO inventory_projects (inventory_id,project_id,assigned_by,assigned_at) VALUES (?,?,?,?)")
           .bind(inventoryId, projectId, user.id, Date.now()).run();
       }
     }
@@ -1414,9 +1513,9 @@ export async function POST(request: Request) {
   if (action === "projects" && (user.role === "admin" || user.role === "creator")) {
     const token = crypto.randomUUID().replaceAll("-", "");
     const code = shareCode();
-    const result = await env.DB.prepare("INSERT INTO projects (name,project_type,share_token,share_code,created_by,created_at) VALUES (?,?,?,?,?,?)")
+    const result = await db.prepare("INSERT INTO projects (name,project_type,share_token,share_code,created_by,created_at) VALUES (?,?,?,?,?,?)")
       .bind(String(body.name), String(body.projectType || "Outdoor media"), token, code, user.id, Date.now()).run();
-    await env.DB.prepare("INSERT INTO project_users (project_id,user_id) VALUES (?,?)").bind(result.meta.last_row_id, user.id).run();
+    await db.prepare("INSERT INTO project_users (project_id,user_id) VALUES (?,?)").bind(result.meta.last_row_id, user.id).run();
     return json({ project: { id: result.meta.last_row_id, name: body.name, project_type: body.projectType, share_token: token, share_code: code, share_protected: 1 } }, 201);
   }
   if (action === "assign-billboards-to-project" && (user.role === "admin" || user.role === "creator")) {
@@ -1427,13 +1526,13 @@ export async function POST(request: Request) {
       return json({ error: "Source project, target project, and selected billboards are required" }, 400);
     }
     if (sourceProjectId === targetProjectId) return json({ error: "Select a different target project" }, 400);
-    const sourceAllowed = user.role === "admin" || Boolean(await env.DB.prepare("SELECT 1 FROM project_users WHERE project_id=? AND user_id=?").bind(sourceProjectId, user.id).first());
-    const targetAllowed = user.role === "admin" || Boolean(await env.DB.prepare("SELECT 1 FROM project_users WHERE project_id=? AND user_id=?").bind(targetProjectId, user.id).first());
+    const sourceAllowed = user.role === "admin" || Boolean(await db.prepare("SELECT 1 FROM project_users WHERE project_id=? AND user_id=?").bind(sourceProjectId, user.id).first());
+    const targetAllowed = user.role === "admin" || Boolean(await db.prepare("SELECT 1 FROM project_users WHERE project_id=? AND user_id=?").bind(targetProjectId, user.id).first());
     if (!sourceAllowed || !targetAllowed) return json({ error: "Forbidden" }, 403);
-    const target = await env.DB.prepare("SELECT id,name FROM projects WHERE id=?").bind(targetProjectId).first<{ id: number; name: string }>();
+    const target = await db.prepare("SELECT id,name FROM projects WHERE id=?").bind(targetProjectId).first<{ id: number; name: string }>();
     if (!target) return json({ error: "Target project not found" }, 404);
     const placeholders = assetIds.map(() => "?").join(",");
-    const rows = await env.DB.prepare(`
+    const rows = await db.prepare(`
       SELECT DISTINCT i.id AS inventory_id
       FROM inventory i
       LEFT JOIN inventory_projects ip ON ip.inventory_id=i.id AND ip.project_id=?
@@ -1442,10 +1541,10 @@ export async function POST(request: Request) {
     `).bind(sourceProjectId, sourceProjectId, ...assetIds).all<{ inventory_id: number }>();
     const now = Date.now();
     const statements = rows.results.map((row) =>
-      env.DB.prepare("INSERT OR IGNORE INTO inventory_projects (inventory_id,project_id,assigned_by,assigned_at) VALUES (?,?,?,?)")
+      db.prepare("INSERT OR IGNORE INTO inventory_projects (inventory_id,project_id,assigned_by,assigned_at) VALUES (?,?,?,?)")
         .bind(row.inventory_id, targetProjectId, user.id, now),
     );
-    if (statements.length) await env.DB.batch(statements);
+    if (statements.length) await db.batch(statements);
     return json({ ok: true, assigned: rows.results.length, project: target });
   }
   if (action === "project-contacts" && (user.role === "admin" || user.role === "creator")) {
@@ -1453,7 +1552,7 @@ export async function POST(request: Request) {
     const projectId = Number(body.projectId) || 0;
     if (user.role !== "admin" && projectId === 0) return json({ error: "Only admin can set global contacts" }, 403);
     if (projectId) {
-      const allowed = user.role === "admin" || Boolean(await env.DB.prepare("SELECT 1 FROM project_users WHERE project_id=? AND user_id=?").bind(projectId, user.id).first());
+      const allowed = user.role === "admin" || Boolean(await db.prepare("SELECT 1 FROM project_users WHERE project_id=? AND user_id=?").bind(projectId, user.id).first());
       if (!allowed) return json({ error: "Forbidden" }, 403);
     }
     const name = String(body.name ?? "Project contact").trim();
@@ -1461,47 +1560,61 @@ export async function POST(request: Request) {
     const phones = splitContacts(String(body.phones ?? "")).join(",");
     const isDefault = body.isDefault ? 1 : 0;
     if (body.id) {
-      await env.DB.prepare("UPDATE project_contacts SET project_id=?,name=?,emails=?,phones=?,is_default=?,updated_at=? WHERE id=?")
+      await db.prepare("UPDATE project_contacts SET project_id=?,name=?,emails=?,phones=?,is_default=?,updated_at=? WHERE id=?")
         .bind(projectId, name, emails, phones, isDefault, now, Number(body.id)).run();
     } else {
-      await env.DB.prepare("INSERT INTO project_contacts (project_id,name,emails,phones,is_default,created_by,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?)")
+      await db.prepare("INSERT INTO project_contacts (project_id,name,emails,phones,is_default,created_by,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?)")
         .bind(projectId, name, emails, phones, isDefault, user.id, now, now).run();
     }
-    const rows = await env.DB.prepare("SELECT * FROM project_contacts WHERE project_id IN (0, ?) ORDER BY is_default DESC, name").bind(projectId).all();
+    const rows = await db.prepare("SELECT * FROM project_contacts WHERE project_id IN (0, ?) ORDER BY is_default DESC, name").bind(projectId).all();
     return json({ contacts: rows.results });
+  }
+  if(action==='assign-pole-gps'){
+    try{return json(await assignPoleGps(db,user,body));}catch(e:any){return json({error:e.message},e.status||400);}
   }
   if (action === "assign-validations" && (user.role === "admin" || user.role === "creator")) {
     const projectId = Number(body.projectId) || 0;
     const assetIds = Array.isArray(body.assetIds) ? body.assetIds.map(Number).filter(Boolean) : [Number(body.assetId)].filter(Boolean);
     const userIds = Array.isArray(body.userIds) ? body.userIds.map(Number).filter(Boolean) : [Number(body.userId)].filter(Boolean);
     if (!projectId || !assetIds.length || !userIds.length) return json({ error: "Project, billboards, and field users are required" }, 400);
-    const allowed = user.role === "admin" || Boolean(await env.DB.prepare("SELECT 1 FROM project_users WHERE project_id=? AND user_id=?").bind(projectId, user.id).first());
+    const allowed = user.role === "admin" || Boolean(await db.prepare("SELECT 1 FROM project_users WHERE project_id=? AND user_id=?").bind(projectId, user.id).first());
     if (!allowed) return json({ error: "Forbidden" }, 403);
-    const fieldUsers = await env.DB.prepare(`SELECT id FROM users WHERE role='field_user' AND id IN (${userIds.map(() => "?").join(",")})`).bind(...userIds).all<{ id: number }>();
+    const fieldUsers = await db.prepare(`SELECT id FROM users WHERE role='field_user' AND id IN (${userIds.map(() => "?").join(",")})`).bind(...userIds).all<{ id: number }>();
     const validUserIds = fieldUsers.results.map((row: { id: number }) => row.id);
     if (!validUserIds.length) return json({ error: "Select at least one field user" }, 400);
     const now = Date.now();
     const statements = [];
     for (const assetId of assetIds) {
+      const pole=await db.prepare("SELECT data FROM inventory i WHERE json_extract(data,'$.id')=? AND (COALESCE(json_extract(data,'$.projectId'),1)=? OR EXISTS(SELECT 1 FROM inventory_projects WHERE inventory_id=i.id AND project_id=?))").bind(assetId,projectId,projectId).first<{data:string}>();
+      if(!pole)return json({error:'Billboard is not in this project'},400);
+      const position=JSON.parse(pole.data);
+      if(position.positionSource==='estimated-road-stretch')return json({error:'Use Assign GPS verification for estimated poles.'},400);
       for (const assignedTo of validUserIds) {
         statements.push(
-          env.DB.prepare("INSERT INTO validation_assignments (project_id,asset_id,assigned_to,status,report,assigned_by,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?) ON CONFLICT(project_id,asset_id,assigned_to) DO UPDATE SET status='assigned',assigned_by=excluded.assigned_by,updated_at=excluded.updated_at")
+          db.prepare("INSERT INTO validation_assignments (project_id,asset_id,assigned_to,status,report,assigned_by,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?) ON CONFLICT(project_id,asset_id,assigned_to) DO UPDATE SET status='assigned',report=excluded.report,completed_at=NULL,assigned_by=excluded.assigned_by,updated_at=excluded.updated_at")
             .bind(projectId, assetId, assignedTo, "assigned", "{}", user.id, now, now),
         );
       }
     }
-    if (statements.length) await env.DB.batch(statements);
+    if (statements.length) await db.batch(statements);
     return json({ ok: true, assigned: statements.length });
   }
   if (action === "submit-validation" && user.role === "field_user") {
     const assignmentId = Number(body.assignmentId) || 0;
     const verdict = String(body.verdict ?? "").trim();
     if (!assignmentId || !["ok", "issue"].includes(verdict)) return json({ error: "Validation decision is required" }, 400);
-    const assignment = await env.DB.prepare("SELECT * FROM validation_assignments WHERE id=? AND assigned_to=?")
+    const assignment = await db.prepare("SELECT * FROM validation_assignments WHERE id=? AND assigned_to=?")
       .bind(assignmentId, user.id).first<any>();
     if (!assignment) return json({ error: "Assignment not found" }, 404);
+    if(JSON.parse(assignment.report||'{}').purpose==='pole-gps'){
+      try{return json(await submitPoleGps(db,user,body,assignment));}catch(e:any){return json({error:e.message},e.status||400);}
+    }
+    const submissionId=String(body.submissionId||'');
+    if(submissionId&&JSON.parse(assignment.report||'{}').submissionId===submissionId)return json({ok:true,replayed:true});
+    if(assignment.status==='ok'&&JSON.parse(assignment.report||'{}').approvedBy)return json({error:'This validation has already been approved'},409);
     const now = Date.now();
     const report = {
+      submissionId,
       verdict,
       issueType: String(body.issueType ?? ""),
       issueDetail: String(body.issueDetail ?? ""),
@@ -1512,10 +1625,12 @@ export async function POST(request: Request) {
       accuracy: Number(body.accuracy) || null,
       submittedAt: now,
     };
-    await env.DB.prepare("UPDATE validation_assignments SET status=?,report=?,completed_at=?,updated_at=? WHERE id=?")
-      .bind(verdict, JSON.stringify(report), now, now, assignmentId).run();
+    if (!/^data:image\/(jpeg|png|webp);base64,/.test(report.photo)) return json({error:'A validation photo is required'},400);
+    if (verdict === 'issue' && !report.issueType.trim()) return json({error:'Select an issue type'},400);
+    const validationWrites = [db.prepare("UPDATE validation_assignments SET status=?,report=?,completed_at=?,updated_at=? WHERE id=?")
+      .bind(verdict, JSON.stringify(report), now, now, assignmentId)];
     if (verdict === "ok" && report.photo) {
-      const row = await env.DB.prepare(`
+      const row = await db.prepare(`
         SELECT i.id,i.data
         FROM inventory i
         LEFT JOIN inventory_projects ip ON ip.inventory_id=i.id AND ip.project_id=?
@@ -1529,9 +1644,10 @@ export async function POST(request: Request) {
         data.validationStatus = "ok";
         data.validatedAt = now;
         data.validatedBy = user.id;
-        await env.DB.prepare("UPDATE inventory SET data=? WHERE id=?").bind(JSON.stringify(data), row.id).run();
+        validationWrites.push(db.prepare("UPDATE inventory SET data=? WHERE id=?").bind(JSON.stringify(data), row.id));
       }
     }
+    await db.batch(validationWrites);
     return json({ ok: true });
   }
   if (action === "approve-validation" && user.role === "admin") {
@@ -1539,7 +1655,7 @@ export async function POST(request: Request) {
     const remark = String(body.remark ?? "").trim();
     if (!assignmentId) return json({ error: "Validation assignment is required" }, 400);
     if (!remark) return json({ error: "Approval remark is required" }, 400);
-    const assignment = await env.DB.prepare("SELECT * FROM validation_assignments WHERE id=?")
+    const assignment = await db.prepare("SELECT * FROM validation_assignments WHERE id=?")
       .bind(assignmentId).first<any>();
     if (!assignment) return json({ error: "Assignment not found" }, 404);
     const now = Date.now();
@@ -1550,9 +1666,9 @@ export async function POST(request: Request) {
       approvedByName: user.name,
       approvedAt: now,
     };
-    await env.DB.prepare("UPDATE validation_assignments SET status='ok',report=?,completed_at=?,updated_at=? WHERE id=?")
+    await db.prepare("UPDATE validation_assignments SET status='ok',report=?,completed_at=?,updated_at=? WHERE id=?")
       .bind(JSON.stringify(report), now, now, assignmentId).run();
-    const row = await env.DB.prepare(`
+    const row = await db.prepare(`
       SELECT i.id,i.data
       FROM inventory i
       LEFT JOIN inventory_projects ip ON ip.inventory_id=i.id AND ip.project_id=?
@@ -1567,7 +1683,7 @@ export async function POST(request: Request) {
       data.validatedAt = now;
       data.validatedBy = user.id;
       if (!data.photoUrl && report.photo) data.photoUrl = report.photo;
-      await env.DB.prepare("UPDATE inventory SET data=? WHERE id=?").bind(JSON.stringify(data), row.id).run();
+      await db.prepare("UPDATE inventory SET data=? WHERE id=?").bind(JSON.stringify(data), row.id).run();
     }
     return json({ ok: true, assignment: { ...assignment, status: "ok", report, completed_at: now, updated_at: now } });
   }
@@ -1575,7 +1691,7 @@ export async function POST(request: Request) {
     const projectId = Number(body.projectId) || 0;
     const assetIds = Array.isArray(body.assetIds) ? body.assetIds.map(Number).filter(Boolean) : [Number(body.assetId)].filter(Boolean);
     if (!projectId || !assetIds.length) return json({ error: "Project and billboards are required" }, 400);
-    const allowed = user.role === "admin" || Boolean(await env.DB.prepare("SELECT 1 FROM project_users WHERE project_id=? AND user_id=?").bind(projectId, user.id).first());
+    const allowed = user.role === "admin" || Boolean(await db.prepare("SELECT 1 FROM project_users WHERE project_id=? AND user_id=?").bind(projectId, user.id).first());
     if (!allowed) return json({ error: "Forbidden" }, 403);
     const now = Date.now();
     const stage = String(body.stage ?? "design");
@@ -1585,13 +1701,17 @@ export async function POST(request: Request) {
     const endAt = body.endAt ? Number(body.endAt) : (startAt && durationDays ? startAt + durationDays * 86400000 : null);
     const reminderDays = Number(body.reminderDays) || 0;
     const note = String(body.note ?? "");
-    const previousSchedules = await env.DB.prepare(`SELECT asset_id,stage,flight_status,start_at,end_at,duration_days FROM flight_schedules WHERE project_id=?`).bind(projectId).all<any>();
+    const previousSchedules = await db.prepare(`SELECT asset_id,stage,flight_status,start_at,end_at,duration_days FROM flight_schedules WHERE project_id=?`).bind(projectId).all<any>();
     const previousByAsset = new Map((previousSchedules.results as any[]).map((row) => [Number(row.asset_id), row]));
+    const flightedAssetIds = assetIds.filter((assetId: number) => previousByAsset.get(Number(assetId))?.flight_status !== 'flighted');
     const deflightedAssetIds = assetIds.filter((assetId) => previousByAsset.get(Number(assetId))?.flight_status === "flighted" && flightStatus === "deflighted");
     for (const assetId of assetIds) {
-      await env.DB.prepare("INSERT INTO flight_schedules (project_id,asset_id,stage,flight_status,start_at,end_at,duration_days,reminder_days,note,created_by,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(project_id,asset_id) DO UPDATE SET stage=excluded.stage,flight_status=excluded.flight_status,start_at=excluded.start_at,end_at=excluded.end_at,duration_days=excluded.duration_days,reminder_days=excluded.reminder_days,note=excluded.note,updated_at=excluded.updated_at")
-        .bind(projectId, assetId, stage, flightStatus, startAt, endAt, durationDays, reminderDays, note, user.id, now, now).run();
-      const inventoryRow = await env.DB.prepare(`
+      const previous = previousByAsset.get(Number(assetId));
+      const effectiveStart = body.startAt ? startAt : previous?.flight_status === 'flighted' ? previous.start_at : startAt;
+      const effectiveEnd = body.endAt ? endAt : effectiveStart && durationDays ? effectiveStart + durationDays*86400000 : null;
+      await db.prepare("INSERT INTO flight_schedules (project_id,asset_id,stage,flight_status,start_at,end_at,duration_days,reminder_days,note,created_by,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(project_id,asset_id) DO UPDATE SET stage=excluded.stage,flight_status=excluded.flight_status,start_at=excluded.start_at,end_at=excluded.end_at,duration_days=excluded.duration_days,reminder_days=excluded.reminder_days,note=excluded.note,created_by=excluded.created_by,updated_at=excluded.updated_at")
+        .bind(projectId, assetId, stage, flightStatus, effectiveStart, effectiveEnd, durationDays, reminderDays, note, user.id, now, now).run();
+      const inventoryRow = await db.prepare(`
         SELECT i.id,i.data
         FROM inventory i
         LEFT JOIN inventory_projects ip ON ip.inventory_id=i.id AND ip.project_id=?
@@ -1603,28 +1723,28 @@ export async function POST(request: Request) {
         const inventoryData = JSON.parse(inventoryRow.data);
         inventoryData.flightStatus = flightStatus;
         inventoryData.flightStage = stage;
-        inventoryData.flightExpiry = endAt ?? "";
-        await env.DB.prepare("UPDATE inventory SET data=? WHERE id=?").bind(JSON.stringify(inventoryData), inventoryRow.id).run();
+        inventoryData.flightExpiry = effectiveEnd ?? "";
+        await db.prepare("UPDATE inventory SET data=? WHERE id=?").bind(JSON.stringify(inventoryData), inventoryRow.id).run();
       }
     }
-    if (flightStatus === "flighted") {
-      const contacts = await env.DB.prepare("SELECT * FROM project_contacts WHERE project_id IN (0, ?)").bind(projectId).all<any>();
+    if (flightStatus === "flighted" && flightedAssetIds.length) {
+      const contacts = await db.prepare("SELECT * FROM project_contacts WHERE project_id IN (0, ?)").bind(projectId).all<any>();
       const emails = [...new Set((contacts.results as any[]).flatMap((row) => splitContacts(row.emails)))];
       const phones = [...new Set((contacts.results as any[]).flatMap((row) => splitContacts(row.phones)))];
-      const project = await env.DB.prepare("SELECT name FROM projects WHERE id=?").bind(projectId).first<{ name: string }>();
-      const inventory = await env.DB.prepare(`
+      const project = await db.prepare("SELECT name FROM projects WHERE id=?").bind(projectId).first<{ name: string }>();
+      const inventory = await db.prepare(`
         SELECT i.data
         FROM inventory i
         LEFT JOIN inventory_projects ip ON ip.inventory_id=i.id AND ip.project_id=?
         WHERE ip.project_id IS NOT NULL OR COALESCE(json_extract(i.data,'$.projectId'),1)=?
         ORDER BY i.id
       `).bind(projectId, projectId).all<{ data: string }>();
-      const items = inventory.results.map((row) => JSON.parse(row.data)).filter((item) => assetIds.includes(Number(item.id)));
+      const items = inventory.results.map((row) => JSON.parse(row.data)).filter((item) => flightedAssetIds.includes(Number(item.id)));
       const projectName = project?.name ?? "project";
       const fallbackItems = items.length ? items : assetIds.map((assetId) => ({ id: assetId }));
       for (const item of items.length ? items : [{}]) {
         const subject = flightNotificationSubject(item);
-        const emailResult: any = await sendResendEmail(emails, subject, flightNotificationHtml([item], projectName, startAt, durationDays, endAt, note));
+        const emailResult: any = await sendResendEmail(emails, subject, flightNotificationHtml([item], projectName, startAt, durationDays, endAt, note),{projectId,assetId:item.id,eventKey:`flighted:${projectId}:${item.id}:${now}`});
         await recordNotificationAudit({
           projectId,
           assetId: Number(item.id) || null,
@@ -1642,7 +1762,7 @@ export async function POST(request: Request) {
       for (const item of fallbackItems) {
         const smsMessage = flightNotificationText(item, projectName, startAt, durationDays, endAt, note);
         const sms = await Promise.all(phones.map(async (phone) => {
-          const smsResult: any = await sendSmsText(phone, smsMessage);
+          const smsResult: any = await sendSmsText(phone, smsMessage,{projectId,assetId:item.id,eventKey:`flighted:${projectId}:${item.id}:${now}`});
           return { phone, api: smsResult };
         }));
         await recordNotificationAudit({
@@ -1662,16 +1782,17 @@ export async function POST(request: Request) {
       const whatsapp = await Promise.all(phones.map(async (phone) => ({
         phone,
         link: whatsappLink(phone, message),
-        api: await sendWhatsAppText(phone, message),
+        api: await sendWhatsAppText(phone, message,{},{projectId,eventKey:`flighted:${projectId}:${now}`}),
       })));
+      await processNotifications();
       return json({ ok: true, whatsapp, sms: { billboards: fallbackItems.length, recipients: phones.length } });
     }
     if (deflightedAssetIds.length) {
-      const contacts = await env.DB.prepare("SELECT * FROM project_contacts WHERE project_id IN (0, ?)").bind(projectId).all<any>();
+      const contacts = await db.prepare("SELECT * FROM project_contacts WHERE project_id IN (0, ?)").bind(projectId).all<any>();
       const emails = [...new Set((contacts.results as any[]).flatMap((row) => splitContacts(row.emails)))];
       const phones = [...new Set((contacts.results as any[]).flatMap((row) => splitContacts(row.phones)))];
-      const project = await env.DB.prepare("SELECT name FROM projects WHERE id=?").bind(projectId).first<{ name: string }>();
-      const inventory = await env.DB.prepare(`
+      const project = await db.prepare("SELECT name FROM projects WHERE id=?").bind(projectId).first<{ name: string }>();
+      const inventory = await db.prepare(`
         SELECT i.data
         FROM inventory i
         LEFT JOIN inventory_projects ip ON ip.inventory_id=i.id AND ip.project_id=?
@@ -1683,7 +1804,7 @@ export async function POST(request: Request) {
       const fallbackItems = items.length ? items : deflightedAssetIds.map((assetId) => ({ id: assetId }));
       for (const item of fallbackItems) {
         const subject = unflightNotificationSubject(item);
-        const emailResult: any = await sendResendEmail(emails, subject, unflightNotificationHtml([item], projectName, now, note));
+        const emailResult: any = await sendResendEmail(emails, subject, unflightNotificationHtml([item], projectName, now, note),{projectId,assetId:item.id,eventKey:`deflighted:${projectId}:${item.id}:${now}`});
         await recordNotificationAudit({
           projectId,
           assetId: Number(item.id) || null,
@@ -1702,7 +1823,7 @@ export async function POST(request: Request) {
       for (const item of fallbackItems) {
         const smsMessage = unflightNotificationText(item, projectName, now, note);
         const sms = await Promise.all(phones.map(async (phone) => {
-          const smsResult: any = await sendSmsText(phone, smsMessage);
+          const smsResult: any = await sendSmsText(phone, smsMessage,{projectId,assetId:item.id,eventKey:`deflighted:${projectId}:${item.id}:${now}`});
           return { phone, api: smsResult };
         }));
         smsResults.push({ assetId: Number(item.id) || null, sms });
@@ -1723,8 +1844,9 @@ export async function POST(request: Request) {
       const whatsapp = await Promise.all(phones.map(async (phone) => ({
         phone,
         link: whatsappLink(phone, message),
-        api: await sendWhatsAppText(phone, message),
+        api: await sendWhatsAppText(phone, message,{},{projectId,eventKey:`deflighted:${projectId}:${now}`}),
       })));
+      await processNotifications();
       return json({ ok: true, whatsapp, sms: { billboards: fallbackItems.length, recipients: phones.length, details: smsResults } });
     }
     return json({ ok: true });
@@ -1737,30 +1859,30 @@ export async function POST(request: Request) {
     const projectId = Number(body.projectId) || 0;
     const isProtected = body.protected !== false;
     if (!projectId) return json({ error: "Project required" }, 400);
-    const allowed = user.role === "admin" || Boolean(await env.DB.prepare("SELECT 1 FROM project_users WHERE project_id=? AND user_id=?").bind(projectId, user.id).first());
+    const allowed = user.role === "admin" || Boolean(await db.prepare("SELECT 1 FROM project_users WHERE project_id=? AND user_id=?").bind(projectId, user.id).first());
     if (!allowed) return json({ error: "Forbidden" }, 403);
-    const existing = await env.DB.prepare("SELECT share_code FROM projects WHERE id=?").bind(projectId).first<{ share_code: string }>();
+    const existing = await db.prepare("SELECT share_code FROM projects WHERE id=?").bind(projectId).first<{ share_code: string }>();
     if (!existing) return json({ error: "Project not found" }, 404);
     const nextCode = existing.share_code || shareCode();
-    await env.DB.prepare("UPDATE projects SET share_protected=?, share_code=? WHERE id=?")
+    await db.prepare("UPDATE projects SET share_protected=?, share_code=? WHERE id=?")
       .bind(isProtected ? 1 : 0, nextCode, projectId).run();
-    const project = await env.DB.prepare("SELECT id,name,project_type,share_token,share_code,share_protected FROM projects WHERE id=?")
+    const project = await db.prepare("SELECT id,name,project_type,share_token,share_code,share_protected FROM projects WHERE id=?")
       .bind(projectId).first();
     return json({ project });
   }
   if (action === "plans" && user.role !== "viewer") {
     const projectId = Number(body.projectId) || 1;
     if (body.id) {
-      await env.DB.prepare("UPDATE campaign_plans SET name=?,data=?,note=?,updated_at=? WHERE id=? AND (user_id=? OR ?='admin')")
+      await db.prepare("UPDATE campaign_plans SET name=?,data=?,note=?,updated_at=? WHERE id=? AND (user_id=? OR ?='admin')")
         .bind(String(body.name), JSON.stringify(body.data ?? {}), String(body.note ?? ""), Date.now(), Number(body.id), user.id, user.role).run();
       return json({ ok: true });
     }
-    const result = await env.DB.prepare("INSERT INTO campaign_plans (project_id,user_id,name,data,note,updated_at) VALUES (?,?,?,?,?,?)")
+    const result = await db.prepare("INSERT INTO campaign_plans (project_id,user_id,name,data,note,updated_at) VALUES (?,?,?,?,?,?)")
       .bind(projectId, user.id, String(body.name || "Untitled plan"), JSON.stringify(body.data ?? {}), String(body.note ?? ""), Date.now()).run();
     return json({ id: result.meta.last_row_id }, 201);
   }
   if (action === "plan") {
-    await env.DB.prepare("INSERT INTO plans (user_id,data,note,updated_at) VALUES (?,?,?,?) ON CONFLICT(user_id) DO UPDATE SET data=excluded.data,note=excluded.note,updated_at=excluded.updated_at")
+    await db.prepare("INSERT INTO plans (user_id,data,note,updated_at) VALUES (?,?,?,?) ON CONFLICT(user_id) DO UPDATE SET data=excluded.data,note=excluded.note,updated_at=excluded.updated_at")
       .bind(user.id, JSON.stringify(body.plan ?? {}), String(body.note ?? ""), Date.now()).run();
     return json({ ok: true });
   }
@@ -1768,20 +1890,20 @@ export async function POST(request: Request) {
     const sourceId = Number(body.id);
     const projectId = Number(body.projectId) || 1;
     if (!sourceId) return json({ error: "Invalid id" }, 400);
-    const allowed = user.role === "admin" || Boolean(await env.DB.prepare("SELECT 1 FROM project_users WHERE project_id=? AND user_id=?").bind(projectId, user.id).first());
+    const allowed = user.role === "admin" || Boolean(await db.prepare("SELECT 1 FROM project_users WHERE project_id=? AND user_id=?").bind(projectId, user.id).first());
     if (!allowed) return json({ error: "Forbidden" }, 403);
-    const rows = await env.DB.prepare(`
+    const rows = await db.prepare(`
       SELECT DISTINCT i.id
       FROM inventory i
       LEFT JOIN inventory_projects ip ON ip.inventory_id=i.id AND ip.project_id=?
       WHERE i.source_id=? AND (ip.project_id IS NOT NULL OR COALESCE(json_extract(i.data,'$.projectId'),1)=?)
     `).bind(projectId, sourceId, projectId).all<{ id: number }>();
     if (rows.results.length) {
-      await env.DB.batch(rows.results.map((row) =>
-        env.DB.prepare("DELETE FROM inventory_projects WHERE inventory_id=? AND project_id=?").bind(row.id, projectId),
+      await db.batch(rows.results.map((row) =>
+        db.prepare("DELETE FROM inventory_projects WHERE inventory_id=? AND project_id=?").bind(row.id, projectId),
       ));
     } else {
-      await env.DB.prepare("DELETE FROM inventory WHERE source_id=? AND COALESCE(json_extract(data,'$.projectId'),1)=?")
+      await db.prepare("DELETE FROM inventory WHERE source_id=? AND COALESCE(json_extract(data,'$.projectId'),1)=?")
         .bind(sourceId, projectId).run();
     }
     return json({ ok: true });
@@ -1789,45 +1911,45 @@ export async function POST(request: Request) {
   if (action === "clear-inventory" && (user.role === "admin" || user.role === "creator")) {
     const projectId = Number(body.projectId) || 0;
     if (!projectId) return json({ error: "Project is required" }, 400);
-    const allowed = user.role === "admin" || Boolean(await env.DB.prepare("SELECT 1 FROM project_users WHERE project_id=? AND user_id=?").bind(projectId, user.id).first());
+    const allowed = user.role === "admin" || Boolean(await db.prepare("SELECT 1 FROM project_users WHERE project_id=? AND user_id=?").bind(projectId, user.id).first());
     if (!allowed) return json({ error: "Forbidden" }, 403);
-    const count = await env.DB.prepare(`
+    const count = await db.prepare(`
       SELECT COUNT(DISTINCT i.id) AS total
       FROM inventory i
       LEFT JOIN inventory_projects ip ON ip.inventory_id=i.id AND ip.project_id=?
       WHERE ip.project_id IS NOT NULL OR COALESCE(json_extract(i.data,'$.projectId'),1)=?
     `).bind(projectId, projectId).first<{ total: number }>();
-    await env.DB.prepare("DELETE FROM inventory_projects WHERE project_id=?").bind(projectId).run();
-    await env.DB.prepare("DELETE FROM inventory WHERE COALESCE(json_extract(data,'$.projectId'),1)=? AND id NOT IN (SELECT inventory_id FROM inventory_projects)")
+    await db.prepare("DELETE FROM inventory_projects WHERE project_id=?").bind(projectId).run();
+    await db.prepare("DELETE FROM inventory WHERE COALESCE(json_extract(data,'$.projectId'),1)=? AND id NOT IN (SELECT inventory_id FROM inventory_projects)")
       .bind(projectId).run();
     return json({ ok: true, deleted: count?.total ?? 0 });
   }
   if (action === "delete-project" && (user.role === "admin" || user.role === "creator")) {
     const projectId = Number(body.projectId) || 0;
     if (!projectId) return json({ error: "Project is required" }, 400);
-    const project = await env.DB.prepare("SELECT id,name,created_by FROM projects WHERE id=?")
+    const project = await db.prepare("SELECT id,name,created_by FROM projects WHERE id=?")
       .bind(projectId).first<{ id: number; name: string; created_by: number }>();
     if (!project) return json({ error: "Project not found" }, 404);
     if (user.role !== "admin" && Number(project.created_by) !== user.id) {
       return json({ error: "Only the project creator can delete this project" }, 403);
     }
-    const inventoryCount = await env.DB.prepare(`
+    const inventoryCount = await db.prepare(`
       SELECT COUNT(DISTINCT i.id) AS total
       FROM inventory i
       LEFT JOIN inventory_projects ip ON ip.inventory_id=i.id AND ip.project_id=?
       WHERE ip.project_id IS NOT NULL OR COALESCE(json_extract(i.data,'$.projectId'),1)=?
     `).bind(projectId, projectId).first<{ total: number }>();
-    await env.DB.batch([
-      env.DB.prepare("DELETE FROM field_photos WHERE collection_id IN (SELECT id FROM field_collections WHERE COALESCE(project_id,1)=?)").bind(projectId),
-      env.DB.prepare("DELETE FROM field_collections WHERE COALESCE(project_id,1)=?").bind(projectId),
-      env.DB.prepare("DELETE FROM missions WHERE project_id=?").bind(projectId),
-      env.DB.prepare("DELETE FROM flight_schedules WHERE project_id=?").bind(projectId),
-      env.DB.prepare("DELETE FROM project_contacts WHERE project_id=?").bind(projectId),
-      env.DB.prepare("DELETE FROM campaign_plans WHERE project_id=?").bind(projectId),
-      env.DB.prepare("DELETE FROM project_users WHERE project_id=?").bind(projectId),
-      env.DB.prepare("DELETE FROM inventory_projects WHERE project_id=?").bind(projectId),
-      env.DB.prepare("DELETE FROM inventory WHERE COALESCE(json_extract(data,'$.projectId'),1)=? AND id NOT IN (SELECT inventory_id FROM inventory_projects)").bind(projectId),
-      env.DB.prepare("DELETE FROM projects WHERE id=?").bind(projectId),
+    await db.batch([
+      db.prepare("DELETE FROM field_photos WHERE collection_id IN (SELECT id FROM field_collections WHERE COALESCE(project_id,1)=?)").bind(projectId),
+      db.prepare("DELETE FROM field_collections WHERE COALESCE(project_id,1)=?").bind(projectId),
+      db.prepare("DELETE FROM missions WHERE project_id=?").bind(projectId),
+      db.prepare("DELETE FROM flight_schedules WHERE project_id=?").bind(projectId),
+      db.prepare("DELETE FROM project_contacts WHERE project_id=?").bind(projectId),
+      db.prepare("DELETE FROM campaign_plans WHERE project_id=?").bind(projectId),
+      db.prepare("DELETE FROM project_users WHERE project_id=?").bind(projectId),
+      db.prepare("DELETE FROM inventory_projects WHERE project_id=?").bind(projectId),
+      db.prepare("DELETE FROM inventory WHERE COALESCE(json_extract(data,'$.projectId'),1)=? AND id NOT IN (SELECT inventory_id FROM inventory_projects)").bind(projectId),
+      db.prepare("DELETE FROM projects WHERE id=?").bind(projectId),
     ]);
     return json({ ok: true, deletedProject: project.name, deletedInventory: inventoryCount?.total ?? 0 });
   }
@@ -1838,15 +1960,15 @@ export async function POST(request: Request) {
     if (!name || !email.includes("@") || password.length < 8) {
       return json({ error: "Name, valid email, and an 8+ character password are required" }, 400);
     }
-    const duplicate = await env.DB.prepare("SELECT id FROM users WHERE lower(email)=?").bind(email).first();
+    const duplicate = await db.prepare("SELECT id FROM users WHERE lower(email)=?").bind(email).first();
     if (duplicate) return json({ error: "A user with this email already exists" }, 409);
     const salt = crypto.randomUUID();
     const hash = await passwordHash(password, salt);
     const validRoles = ["admin","creator","planner","viewer","field_user"];
-    await env.DB.prepare("INSERT INTO users (name,email,password_hash,role,created_at) VALUES (?,?,?,?,?)")
+    await db.prepare("INSERT INTO users (name,email,password_hash,role,created_at) VALUES (?,?,?,?,?)")
       .bind(name, email, hash, validRoles.includes(body.role) ? body.role : "viewer", Date.now()).run();
-    const newUser = await env.DB.prepare("SELECT id FROM users WHERE email=?").bind(email).first<{ id: number }>();
-    if (newUser && body.projectId) await env.DB.prepare("INSERT OR IGNORE INTO project_users (project_id,user_id) VALUES (?,?)").bind(Number(body.projectId), newUser.id).run();
+    const newUser = await db.prepare("SELECT id FROM users WHERE email=?").bind(email).first<{ id: number }>();
+    if (newUser && body.projectId) await db.prepare("INSERT OR IGNORE INTO project_users (project_id,user_id) VALUES (?,?)").bind(Number(body.projectId), newUser.id).run();
     return json({ ok: true }, 201);
   }
   if (action === "reset-password" && user.role === "admin") {
@@ -1855,18 +1977,18 @@ export async function POST(request: Request) {
     if (!targetId || password.length < 8) return json({ error: "An 8+ character password is required" }, 400);
     const salt = crypto.randomUUID();
     const hash = await passwordHash(password, salt);
-    await env.DB.batch([
-      env.DB.prepare("UPDATE users SET password_hash=? WHERE id=?").bind(hash, targetId),
-      env.DB.prepare("DELETE FROM sessions WHERE user_id=?").bind(targetId),
+    await db.batch([
+      db.prepare("UPDATE users SET password_hash=? WHERE id=?").bind(hash, targetId),
+      db.prepare("DELETE FROM sessions WHERE user_id=?").bind(targetId),
     ]);
     return json({ ok: true });
   }
   if (action === "user-groups" && (user.role === "admin" || user.role === "creator")) {
     if (body.id) {
-      await env.DB.prepare("UPDATE user_groups SET name=?,description=? WHERE id=?").bind(String(body.name), String(body.description ?? ""), Number(body.id)).run();
+      await db.prepare("UPDATE user_groups SET name=?,description=? WHERE id=?").bind(String(body.name), String(body.description ?? ""), Number(body.id)).run();
       return json({ ok: true });
     }
-    const result = await env.DB.prepare("INSERT INTO user_groups (name,description,created_by,created_at) VALUES (?,?,?,?)")
+    const result = await db.prepare("INSERT INTO user_groups (name,description,created_by,created_at) VALUES (?,?,?,?)")
       .bind(String(body.name), String(body.description ?? ""), user.id, Date.now()).run();
     return json({ id: result.meta.last_row_id }, 201);
   }
@@ -1875,34 +1997,34 @@ export async function POST(request: Request) {
     if (!groupId) return json({ error: "Group is required" }, 400);
     if (Array.isArray(body.userIds)) {
       const requestedIds = [...new Set(body.userIds.map(Number).filter(Boolean))];
-      await env.DB.prepare("DELETE FROM user_group_members WHERE group_id=?").bind(groupId).run();
+      await db.prepare("DELETE FROM user_group_members WHERE group_id=?").bind(groupId).run();
       if (requestedIds.length) {
-        await env.DB.batch(requestedIds.map((id) => env.DB.prepare("INSERT OR IGNORE INTO user_group_members (group_id,user_id) SELECT ?,id FROM users WHERE id=? AND role='field_user'").bind(groupId, id)));
+        await db.batch(requestedIds.map((id) => db.prepare("INSERT OR IGNORE INTO user_group_members (group_id,user_id) SELECT ?,id FROM users WHERE id=? AND role='field_user'").bind(groupId, id)));
       }
       return json({ ok: true, memberCount: requestedIds.length });
     }
     const userId = Number(body.userId);
     if (body.remove) {
-      await env.DB.prepare("DELETE FROM user_group_members WHERE group_id=? AND user_id=?").bind(groupId, userId).run();
+      await db.prepare("DELETE FROM user_group_members WHERE group_id=? AND user_id=?").bind(groupId, userId).run();
     } else {
-      await env.DB.prepare("INSERT OR IGNORE INTO user_group_members (group_id,user_id) VALUES (?,?)").bind(groupId, userId).run();
+      await db.prepare("INSERT OR IGNORE INTO user_group_members (group_id,user_id) VALUES (?,?)").bind(groupId, userId).run();
     }
     return json({ ok: true });
   }
   if (action === "missions" && (user.role === "admin" || user.role === "creator")) {
     const now = Date.now();
     const projectId = Number(body.projectId) || 1;
-    const allowed = user.role === "admin" || Boolean(await env.DB.prepare("SELECT 1 FROM project_users WHERE project_id=? AND user_id=?").bind(projectId, user.id).first());
+    const allowed = user.role === "admin" || Boolean(await db.prepare("SELECT 1 FROM project_users WHERE project_id=? AND user_id=?").bind(projectId, user.id).first());
     if (!allowed) return json({ error: "Forbidden" }, 403);
     const assignedUsers = JSON.stringify(body.assignedUsers ?? []);
     const assignedGroups = JSON.stringify(body.assignedGroups ?? []);
     const config = JSON.stringify(body.config ?? {});
     if (body.id) {
-      await env.DB.prepare("UPDATE missions SET project_id=?,name=?,description=?,status=?,config=?,boundary_id=?,assigned_users=?,assigned_groups=?,updated_at=? WHERE id=?")
+      await db.prepare("UPDATE missions SET project_id=?,name=?,description=?,status=?,config=?,boundary_id=?,assigned_users=?,assigned_groups=?,updated_at=? WHERE id=?")
         .bind(projectId, String(body.name), String(body.description ?? ""), String(body.status ?? "active"), config, body.boundaryId ? Number(body.boundaryId) : null, assignedUsers, assignedGroups, now, Number(body.id)).run();
       return json({ ok: true });
     }
-    const result = await env.DB.prepare("INSERT INTO missions (project_id,name,description,status,config,boundary_id,assigned_users,assigned_groups,created_by,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?)")
+    const result = await db.prepare("INSERT INTO missions (project_id,name,description,status,config,boundary_id,assigned_users,assigned_groups,created_by,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?)")
       .bind(projectId, String(body.name), String(body.description ?? ""), "active", config, body.boundaryId ? Number(body.boundaryId) : null, assignedUsers, assignedGroups, user.id, now, now).run();
     return json({ id: result.meta.last_row_id }, 201);
   }
@@ -1910,12 +2032,12 @@ export async function POST(request: Request) {
     const missionId = Number(body.id) || 0;
     const projectId = Number(body.projectId) || 0;
     if (!missionId || !projectId) return json({ error: "Mission and project are required" }, 400);
-    const mission = await env.DB.prepare("SELECT id,name,project_id FROM missions WHERE id=? AND project_id=?")
+    const mission = await db.prepare("SELECT id,name,project_id FROM missions WHERE id=? AND project_id=?")
       .bind(missionId, projectId).first<{ id: number; name: string; project_id: number }>();
     if (!mission) return json({ error: "Mission not found" }, 404);
-    const allowed = user.role === "admin" || Boolean(await env.DB.prepare("SELECT 1 FROM project_users WHERE project_id=? AND user_id=?").bind(projectId, user.id).first());
+    const allowed = user.role === "admin" || Boolean(await db.prepare("SELECT 1 FROM project_users WHERE project_id=? AND user_id=?").bind(projectId, user.id).first());
     if (!allowed) return json({ error: "Forbidden" }, 403);
-    await env.DB.prepare("DELETE FROM missions WHERE id=? AND project_id=?").bind(missionId, projectId).run();
+    await db.prepare("DELETE FROM missions WHERE id=? AND project_id=?").bind(missionId, projectId).run();
     return json({ ok: true, deletedMission: mission.name });
   }
   if (action === "field-collections") {
@@ -1923,26 +2045,29 @@ export async function POST(request: Request) {
     const missionId = Number(body.missionId);
     const latitude = Number(body.latitude);
     const longitude = Number(body.longitude);
-    if (!missionId || !Number.isFinite(latitude) || !Number.isFinite(longitude) || latitude === 0 || longitude === 0) {
+    if (!missionId || !validCoordinates(body.latitude,body.longitude)) {
       return json({ error: "Mission and valid GPS coordinates are required" }, 400);
     }
-    const mission = await env.DB.prepare("SELECT project_id,assigned_users,assigned_groups,status FROM missions WHERE id=?").bind(missionId).first<any>();
+    const mission = await db.prepare("SELECT project_id,assigned_users,assigned_groups,status FROM missions WHERE id=?").bind(missionId).first<any>();
     if (!mission || mission.status !== "active") return json({ error: "Mission is unavailable" }, 404);
     const direct = JSON.parse(mission.assigned_users || "[]").includes(user.id);
-    const memberships = await env.DB.prepare("SELECT group_id FROM user_group_members WHERE user_id=?").bind(user.id).all<{ group_id: number }>();
+    const memberships = await db.prepare("SELECT group_id FROM user_group_members WHERE user_id=?").bind(user.id).all<{ group_id: number }>();
     const assignedGroups = new Set(JSON.parse(mission.assigned_groups || "[]"));
     const throughGroup = memberships.results.some((row) => assignedGroups.has(row.group_id));
     if (!direct && !throughGroup) return json({ error: "This mission is not assigned to you" }, 403);
     const now = Date.now();
-    const result = await env.DB.prepare("INSERT INTO field_collections (project_id,mission_id,user_id,status,data,latitude,longitude,accuracy,created_at) VALUES (?,?,?,?,?,?,?,?,?)")
-      .bind(Number(mission.project_id) || 1, missionId, user.id, "pending", JSON.stringify(body.data ?? {}), latitude, longitude, Number(body.accuracy ?? 0), now).run();
-    const collectionId = result.meta.last_row_id;
-    if (Array.isArray(body.photos)) {
-      for (const photo of body.photos) {
-        await env.DB.prepare("INSERT INTO field_photos (collection_id,photo_type,photo_data,caption,created_at) VALUES (?,?,?,?,?)")
-          .bind(collectionId, String(photo.type ?? "billboard"), String(photo.data), String(photo.caption ?? ""), now).run();
-      }
-    }
+    const requestKey=`collection:${user.id}:${String(body.submissionId||crypto.randomUUID())}`;
+    const receipt=await db.prepare('SELECT result_id FROM sync_receipts WHERE request_key=? AND user_id=?').bind(requestKey,user.id).first<any>();
+    if(receipt)return json({id:receipt.result_id,replayed:true});
+    const statements=[
+      db.prepare('INSERT INTO sync_receipts(request_key,user_id,action) VALUES(?,?,?)').bind(requestKey,user.id,'field-collections'),
+      db.prepare("INSERT INTO field_collections (project_id,mission_id,user_id,status,data,latitude,longitude,accuracy,created_at) VALUES (?,?,?,?,?,?,?,?,?)").bind(Number(mission.project_id)||1,missionId,user.id,'pending',JSON.stringify({...body.data,_submissionKey:requestKey}),latitude,longitude,Number(body.accuracy)||0,now),
+      db.prepare(`UPDATE sync_receipts SET result_id=(SELECT id FROM field_collections WHERE user_id=? AND json_extract(data,'$._submissionKey')=?),completed=1 WHERE request_key=?`).bind(user.id,requestKey,requestKey),
+      ...(Array.isArray(body.photos)?body.photos:[]).map((photo:any)=>db.prepare(`INSERT INTO field_photos(collection_id,photo_type,photo_data,caption,created_at) SELECT result_id,?,?,?,? FROM sync_receipts WHERE request_key=?`).bind(String(photo.type||'billboard'),String(photo.data),String(photo.caption||''),now,requestKey))
+    ];
+    let collectionId;
+    try{const results=await db.batch(statements);collectionId=results[1].meta.last_row_id;}
+    catch(error){const repeated=await db.prepare('SELECT result_id FROM sync_receipts WHERE request_key=? AND completed=1').bind(requestKey).first<any>();if(repeated)return json({id:repeated.result_id,replayed:true});throw error;}
     return json({ id: collectionId }, 201);
   }
   if (action === "field-photos") {
@@ -1950,14 +2075,14 @@ export async function POST(request: Request) {
     const now = Date.now();
     const photos = Array.isArray(body.photos) ? body.photos : [{ data: body.data, type: body.type ?? "billboard", caption: body.caption ?? "" }];
     for (const photo of photos) {
-      await env.DB.prepare("INSERT INTO field_photos (collection_id,photo_type,photo_data,caption,created_at) VALUES (?,?,?,?,?)")
+      await db.prepare("INSERT INTO field_photos (collection_id,photo_type,photo_data,caption,created_at) VALUES (?,?,?,?,?)")
         .bind(collectionId, String(photo.type ?? "billboard"), String(photo.data), String(photo.caption ?? ""), now).run();
     }
     return json({ ok: true }, 201);
   }
   if (action === "validate-collection" && (user.role === "admin" || user.role === "creator")) {
     const status = body.status === "rejected" ? "rejected" : "validated";
-    await env.DB.prepare("UPDATE field_collections SET status=?,validated_by=?,validated_at=? WHERE id=?")
+    await db.prepare("UPDATE field_collections SET status=?,validated_by=?,validated_at=? WHERE id=?")
       .bind(status, user.id, Date.now(), Number(body.id)).run();
     return json({ ok: true });
   }
@@ -1971,7 +2096,7 @@ export async function POST(request: Request) {
         if (key in props) levels.push(key);
       }
     }
-    const result = await env.DB.prepare("INSERT INTO admin_boundaries (name,boundary_type,geojson,levels,uploaded_by,created_at) VALUES (?,?,?,?,?,?)")
+    const result = await db.prepare("INSERT INTO admin_boundaries (name,boundary_type,geojson,levels,uploaded_by,created_at) VALUES (?,?,?,?,?,?)")
       .bind(String(body.name ?? "Boundary"), String(body.boundaryType ?? "mainland"), geojson, JSON.stringify(levels), user.id, Date.now()).run();
     return json({ id: result.meta.last_row_id, levels }, 201);
   }
@@ -1981,25 +2106,26 @@ export async function POST(request: Request) {
 export async function DELETE(request: Request) {
   const user = await currentUser(request);
   if (!user || user.role !== "admin") return json({ error: "Forbidden" }, 403);
+  const db = auditedDatabase(env.DB,user);
   const url = new URL(request.url);
   const action = url.searchParams.get("action") ?? "user";
   const id = Number(url.searchParams.get("id"));
   if (!id) return json({ error: "Invalid id" }, 400);
   if (action === "group") {
-    await env.DB.batch([
-      env.DB.prepare("DELETE FROM user_group_members WHERE group_id=?").bind(id),
-      env.DB.prepare("DELETE FROM user_groups WHERE id=?").bind(id),
+    await db.batch([
+      db.prepare("DELETE FROM user_group_members WHERE group_id=?").bind(id),
+      db.prepare("DELETE FROM user_groups WHERE id=?").bind(id),
     ]);
     return json({ ok: true });
   }
   if (id === user.id) return json({ error: "You cannot remove your own account" }, 400);
-  await env.DB.batch([
-    env.DB.prepare("DELETE FROM sessions WHERE user_id=?").bind(id),
-    env.DB.prepare("DELETE FROM user_group_members WHERE user_id=?").bind(id),
-    env.DB.prepare("DELETE FROM project_users WHERE user_id=?").bind(id),
-    env.DB.prepare("DELETE FROM plans WHERE user_id=?").bind(id),
-    env.DB.prepare("DELETE FROM campaign_plans WHERE user_id=?").bind(id),
-    env.DB.prepare("DELETE FROM users WHERE id=?").bind(id),
+  await db.batch([
+    db.prepare("DELETE FROM sessions WHERE user_id=?").bind(id),
+    db.prepare("DELETE FROM user_group_members WHERE user_id=?").bind(id),
+    db.prepare("DELETE FROM project_users WHERE user_id=?").bind(id),
+    db.prepare("DELETE FROM plans WHERE user_id=?").bind(id),
+    db.prepare("DELETE FROM campaign_plans WHERE user_id=?").bind(id),
+    db.prepare("DELETE FROM users WHERE id=?").bind(id),
   ]);
   return json({ ok: true });
 }

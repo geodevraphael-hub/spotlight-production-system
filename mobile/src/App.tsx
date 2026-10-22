@@ -21,6 +21,8 @@ import {
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { Capacitor } from "@capacitor/core";
+import {cache,cached,queueSubmission,synchronize,pending} from './offline';
+import FieldFollowup from './FieldFollowup';
 
 /* ─── Types ─── */
 interface User {
@@ -55,6 +57,7 @@ interface PhotoItem {
 }
 
 interface ValidationAssignment {
+  report?: {purpose?:string};
   id: number;
   project_id: number;
   project_name: string;
@@ -88,11 +91,20 @@ interface BoundaryFeature {
 /* ─── API base ─── */
 const API_BASE = import.meta.env.VITE_API_URL || (Capacitor.isNativePlatform() ? "https://spotlight.co.tz" : "");
 
-function apiFetch(path: string, init: RequestInit = {}) {
+async function apiFetch(path: string, init: RequestInit = {}) {
   const token = localStorage.getItem("kmk_mobile_token");
   const headers = new Headers(init.headers);
   if (token) headers.set("Authorization", `Bearer ${token}`);
-  return fetch(`${API_BASE}${path}`, { ...init, headers, credentials: "include" });
+  const owner=localStorage.getItem('spotlight_offline_owner');
+  const key=`${owner}:${path}`;
+  try {
+    const response=await fetch(`${API_BASE}${path}`, { ...init, headers, credentials: "include",signal:init.signal||AbortSignal.timeout(20000) });
+    if(response.ok&&(!init.method||init.method==='GET')&&owner){const data=await response.clone().json().catch(()=>null);if(data)await cache(key,data).catch(()=>{});}
+    return response;
+  } catch(error) {
+    if(token&&owner&&(!init.method||init.method==='GET')) {const data=await cached(key);if(data)return new Response(JSON.stringify(data),{status:200,headers:{'Content-Type':'application/json','X-Offline':'1'}});}
+    throw error;
+  }
 }
 
 /* ─── Helpers ─── */
@@ -198,6 +210,10 @@ export default function App() {
   const [lng, setLng] = useState(0);
   const [accuracy, setAccuracy] = useState(0);
   const [gpsLocked, setGpsLocked] = useState(false);
+  const [gpsTimestamp,setGpsTimestamp]=useState(0);
+  const [poleFix,setPoleFix]=useState<{latitude:number;longitude:number;accuracy:number;capturedAt:number}|null>(null);
+  const [confirmPoleGps,setConfirmPoleGps]=useState(false);
+  const isPoleGps=activeValidation?.report?.purpose==='pole-gps';
   const [photos, setPhotos] = useState<PhotoItem[]>([]);
   const [formData, setFormData] = useState<Record<string, string>>({});
   const [submitting, setSubmitting] = useState(false);
@@ -216,6 +232,14 @@ export default function App() {
   const [issueDetail, setIssueDetail] = useState("");
   const [customIssue, setCustomIssue] = useState("");
   const [validationPhoto, setValidationPhoto] = useState("");
+  async function durableSubmit(path:string,init:RequestInit) {
+    if(!user)throw new Error('Sign in required');
+    const id=await queueSubmission(user.id,path,JSON.parse(String(init.body)));
+    await synchronize(user.id,apiFetch);
+    const remaining=(await pending(user.id)).find(item=>item.id===id);
+    if(remaining?.error)throw new Error(`${remaining.error} Saved in pending uploads; review it there before retrying.`);
+    return new Response(JSON.stringify({queued:!!remaining}),{status:200,headers:{'Content-Type':'application/json'}});
+  }
 
   const mapNode = useRef<HTMLDivElement>(null);
   const mapRef = useRef<L.Map | null>(null);
@@ -229,10 +253,12 @@ export default function App() {
       .then((r) => (r.ok ? r.json() : null))
       .then((d) => {
         if (d?.user) {
+          localStorage.setItem('spotlight_offline_owner',String(d.user.id));
+          void cache(`${d.user.id}:/api/app?action=me`,{user:d.user});
           setUser(d.user);
           setScreen("missions");
         }
-      });
+      }).catch(()=>setConnectionError('Offline. Sign in once online to download your assignments.'));
   }, []);
 
   // Load missions
@@ -313,6 +339,7 @@ export default function App() {
         setLng(pos.coords.longitude);
         setAccuracy(pos.coords.accuracy);
         setGpsLocked(true);
+        setGpsTimestamp(pos.timestamp);
         if (markerRef.current) {
           markerRef.current.setLatLng([pos.coords.latitude, pos.coords.longitude]);
         }
@@ -322,7 +349,8 @@ export default function App() {
       },
       (err) => {
         console.error("GPS error", err);
-        setToast("GPS unavailable — enter coordinates manually");
+        setGpsLocked(false);
+        setToast("GPS unavailable. Enable precise location and move to an open, safe position.");
       },
       { enableHighAccuracy: true, maximumAge: 0, timeout: 30000 },
     );
@@ -371,6 +399,8 @@ export default function App() {
       if (!r.ok) { setToast("Invalid email or password"); setTimeout(() => setToast(""), 3000); return; }
       const d = await r.json();
       if (d.token) localStorage.setItem("kmk_mobile_token", d.token);
+      localStorage.setItem('spotlight_offline_owner',String(d.user.id));
+      await cache(`${d.user.id}:/api/app?action=me`,{user:d.user});
       setUser(d.user);
       setScreen("missions");
     } catch {
@@ -382,8 +412,10 @@ export default function App() {
   }
 
   async function logout() {
-    await apiFetch(`/api/app?action=logout`, { method: "POST" });
+    if(user&&(await pending(user.id)).length&&!window.confirm('You have saved uploads awaiting synchronization. They will remain on this device for your next sign-in. Sign out?'))return;
+    await apiFetch(`/api/app?action=logout`, { method: "POST",headers:{'Content-Type':'application/json'},body:'{}' }).catch(()=>{});
     localStorage.removeItem("kmk_mobile_token");
+    localStorage.removeItem('spotlight_offline_owner');
     setUser(null);
     setScreen("login");
   }
@@ -460,6 +492,7 @@ export default function App() {
   }
 
   function startValidation(assignment: ValidationAssignment) {
+    setPoleFix(null);setConfirmPoleGps(false);setGpsLocked(false);setGpsTimestamp(0);
     setActiveValidation(assignment);
     setValidationVerdict("");
     setIssueType("");
@@ -497,7 +530,7 @@ export default function App() {
     }
     setSubmitting(true);
     try {
-      const r = await apiFetch(`/api/app?action=field-collections`, {
+      const r = await durableSubmit(`/api/app?action=field-collections`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
@@ -512,7 +545,8 @@ export default function App() {
       });
       if (r.ok) {
         setSubmitSuccess(true);
-        setToast("Billboard submitted successfully!");
+        const result=await r.json();
+        setToast(result.queued?'Saved on device. Upload will retry when connected.':'Billboard submitted successfully!');
         setTimeout(() => { setToast(""); setSubmitSuccess(false); loadCollections(); setScreen("dashboard"); }, 1500);
       } else {
         setToast("Submission failed");
@@ -533,6 +567,9 @@ export default function App() {
       return;
     }
     const photo = validationPhoto || photos[0]?.data || "";
+    if(isPoleGps&&validationVerdict==='ok'&&(!poleFix||!confirmPoleGps||Date.now()-poleFix.capturedAt>120000)){
+      setToast('Capture a fresh GPS fix beside this pole, then confirm the location.');return;
+    }
     if (validationVerdict === "ok" && !photo) {
       setToast("Take one confirmation photo");
       setTimeout(() => setToast(""), 2500);
@@ -545,7 +582,7 @@ export default function App() {
     }
     setSubmitting(true);
     try {
-      const r = await apiFetch(`/api/app?action=submit-validation`, {
+      const r = await durableSubmit(`/api/app?action=submit-validation`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
@@ -559,14 +596,16 @@ export default function App() {
           latitude: lat,
           longitude: lng,
           accuracy,
+          ...(isPoleGps&&validationVerdict==='ok'?{...poleFix,confirmGps:confirmPoleGps,submittedAt:Date.now()}:{}),
         }),
       });
       if (!r.ok) throw new Error("Validation failed");
-      setToast(validationVerdict === "ok" ? "Validated and photo uploaded" : "Problem report submitted");
+      const result=await r.json();
+      setToast(result.queued?'Saved on device. Upload pending.':validationVerdict === "ok" ? isPoleGps?'Pole GPS and photo updated':'Validated and photo uploaded' : "Problem report submitted");
       await refreshAssignmentsAndMissions();
       setTimeout(() => { setToast(""); setScreen("missions"); }, 1200);
-    } catch {
-      setToast("Could not submit validation");
+    } catch (e:any) {
+      setToast(e.message||"Could not submit validation");
       setTimeout(() => setToast(""), 2500);
     } finally {
       setSubmitting(false);
@@ -655,6 +694,7 @@ export default function App() {
           <button className="icon-btn" onClick={logout}><LogOut size={20} /></button>
         </header>
         <div className="mission-list" onTouchStart={handlePullStart} onTouchEnd={handlePullEnd}>
+          {user&&<FieldFollowup owner={user.id} send={apiFetch}/>}
           <section className="mission-intro">
             <span className="field-eyebrow">ASSIGNED WORK</span>
             <h1>Your missions</h1>
@@ -680,6 +720,7 @@ export default function App() {
                       <span className="mission-card-index">{String(index + 1).padStart(2, "0")}</span>
                       <div>
                         <strong>{assignment.asset?.street || `Billboard #${assignment.asset_id}`}</strong>
+                        {assignment.report?.purpose==='pole-gps'&&<small>GPS verification · estimated pole location</small>}
                         <small>{assignment.project_name} · {assignment.asset?.district || "Location pending"}</small>
                         <span className="mission-card-action"><MapPin size={13} /> {distanceLabel(distance)}</span>
                       </div>
@@ -736,7 +777,7 @@ export default function App() {
         <header className="mobile-header compact">
           <button className="icon-btn" onClick={() => setScreen("missions")}><ChevronLeft size={20} /></button>
           <div>
-            <strong>Validate billboard</strong>
+            <strong>{isPoleGps?'Verify pole GPS':'Validate billboard'}</strong>
             <small>{asset?.street || `Billboard #${activeValidation.asset_id}`}</small>
           </div>
           <button className="icon-btn" onClick={() => openDirections(activeValidation)}><Navigation size={20} /></button>
@@ -754,7 +795,7 @@ export default function App() {
             <div className="form-section-title"><span>01</span><div><h3>Confirm status</h3><p>First say if this billboard is okay or not.</p></div></div>
             <div className="verdict-grid">
               <button className={validationVerdict === "ok" ? "verdict-card active ok" : "verdict-card"} onClick={() => setValidationVerdict("ok")}>
-                <CheckCircle2 size={22} /><strong>Okay</strong><small>Only take one photo and submit.</small>
+                <CheckCircle2 size={22} /><strong>Okay</strong><small>{isPoleGps?'Confirm GPS beside the pole and take a photo.':'Only take one photo and submit.'}</small>
               </button>
               <button className={validationVerdict === "issue" ? "verdict-card active issue" : "verdict-card"} onClick={() => setValidationVerdict("issue")}>
                 <ClipboardList size={22} /><strong>Not okay</strong><small>Fill structured problem report.</small>
@@ -762,6 +803,14 @@ export default function App() {
             </div>
           </div>
 
+          {isPoleGps&&validationVerdict==='ok'&&<section className="form-section pole-gps-card" aria-label="Pole GPS verification">
+            <h3>Stand safely beside this pole</h3>
+            <p>Confirm the pole number before capturing. This replaces its estimated location in every linked project.</p>
+            <strong className="pole-gps-accuracy" aria-live="polite">{gpsLocked?`GPS accuracy ±${accuracy.toFixed(1)} m`:'Waiting for precise GPS…'}</strong>
+            <p>{gpsLocked&&accuracy<=10?'Ready to capture.':'Wait for accuracy of 10 m or better. Do not enter coordinates manually.'}</p>
+            <button className="btn-secondary" disabled={!gpsLocked||accuracy<=0||accuracy>10||Date.now()-gpsTimestamp>120000} onClick={()=>{setPoleFix({latitude:lat,longitude:lng,accuracy,capturedAt:gpsTimestamp});setConfirmPoleGps(false);}}><Crosshair size={18}/>{poleFix?'Capture GPS again':'Capture this GPS location'}</button>
+            {poleFix&&<><p>Captured: {poleFix.latitude.toFixed(6)}, {poleFix.longitude.toFixed(6)} · ±{poleFix.accuracy.toFixed(1)} m</p><label className="pole-gps-confirm"><input type="checkbox" checked={confirmPoleGps} onChange={e=>setConfirmPoleGps(e.target.checked)}/>I am beside the correct pole and confirm this captured location.</label></>}
+          </section>}
           <div className="form-section">
             <div className="form-section-title"><span>02</span><div><h3>Evidence photo</h3><p>Photo is saved into the billboard image field when marked okay.</p></div></div>
             <button className="btn-secondary" onClick={() => capturePhoto("billboard")}><Camera size={16} /> Take validation photo</button>

@@ -1,0 +1,5 @@
+FROM spotlight-planner:20261020-campaign-road-r27
+WORKDIR /app
+COPY app/campaign-tools.css ./app/
+COPY app/api/campaigns/route.ts ./app/api/campaigns/
+RUN node --test tests/campaign-road.test.mjs && npm run build && tar -C public --exclude=downloads -cf - . | tar -C dist/client -xf -

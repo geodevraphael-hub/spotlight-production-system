@@ -1,0 +1,8 @@
+[Unit]
+Description=Populate Spotlight location fields automatically
+[Timer]
+OnBootSec=2min
+OnUnitInactiveSec=1min
+AccuracySec=5s
+[Install]
+WantedBy=timers.target

@@ -1,0 +1,10 @@
+ARG BASE_IMAGE=spotlight-planner:20261018-performance-r4
+FROM ${BASE_IMAGE}
+WORKDIR /app
+# workerd uses the OS trust store (unlike Node's bundled CA store).
+# Keep TLS validation enabled; never work around this with insecure requests.
+RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates && update-ca-certificates && test -s /etc/ssl/certs/ca-certificates.crt && rm -rf /var/lib/apt/lists/*
+COPY app/api/app/route.ts ./app/api/app/route.ts
+COPY app/operations-store.ts app/sms-provider.mjs ./app/
+COPY tests/operations.test.mjs ./tests/operations.test.mjs
+RUN rm -rf /app/.wrangler/state /app/dist /app/.dev.vars && npm test && npm run build && tar -C public --exclude=downloads -cf - . | tar -C dist/client -xf -

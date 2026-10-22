@@ -1,0 +1,7 @@
+FROM spotlight-planner:20261020-dashboard-audit-r25
+WORKDIR /app
+RUN node -e "const fs=require('fs'),c=require('crypto');for(const [p,h] of [['app/api/app/route.ts','cdcec34294dda7fca9f5078a3640200d8f6932e11ec1c6d1ff7e103e36c8c9ba'],['app/api/operations/route.ts','306ce353fbd09e8f5f1a671c1e73baf02b09ad876f3fd0908aa377a43c11981a']])if(c.createHash('sha256').update(fs.readFileSync(p)).digest('hex')!==h)throw Error('Production backend differs: '+p)"
+COPY app/page.tsx app/AssetOverview.tsx app/asset-register.mjs app/asset-booking.mjs app/InventoryBulkEdit.tsx app/inventory-bulk.mjs app/InventoryTable.tsx app/inventory-workflow.mjs app/inventory-workspace.css app/ImportReview.tsx app/Dashboard.tsx app/dashboard-data.mjs app/dashboard.css app/operations-view.mjs ./app/
+COPY app/api/app/route.ts ./app/api/app/
+COPY tests/asset-register.test.mjs tests/dashboard.test.mjs tests/operations.test.mjs tests/inventory-bulk.test.mjs tests/inventory-workflow.test.mjs ./tests/
+RUN npm test && node --test tests/asset-register.test.mjs tests/dashboard.test.mjs tests/planner-ui.test.mjs tests/planning-store.test.mjs tests/planning-decision.test.mjs tests/planning-decision-ui.test.mjs tests/planning-demographics.test.mjs tests/map-symbols.test.mjs tests/planning-budget.test.mjs tests/inventory-workflow.test.mjs tests/inventory-bulk.test.mjs tests/central-map.test.mjs tests/central-assignment.test.mjs tests/project-removal.test.mjs && npm run build && tar -C public --exclude=downloads -cf - . | tar -C dist/client -xf -

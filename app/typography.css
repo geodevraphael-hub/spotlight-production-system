@@ -1,0 +1,19 @@
+/* Use the user's installed Microsoft font; no unlicensed font redistribution.
+   All app text, including map controls and portal dialogs, shares this stack. */
+:root {
+  --font-app: "Calibri Light", Calibri, "Segoe UI", Arial, sans-serif;
+  --font-geist-sans: var(--font-app);
+  --font-geist-mono: var(--font-app);
+  --font-sans: var(--font-app);
+  --font-mono: var(--font-app);
+}
+html, body, body :where(*) {
+  font-family: var(--font-app) !important;
+}
+body { font-weight: 300; }
+button, input, select, textarea { font-weight: 400; }
+body :is(h1, h2, h3, h4, h5, h6) { font-weight: 500; }
+body :is(strong, b, th) { font-weight: 600; }
+input, select, textarea, .decision-results, .plan-total {
+  font-variant-numeric: tabular-nums;
+}

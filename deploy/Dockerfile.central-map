@@ -1,0 +1,7 @@
+FROM spotlight-planner:20261020-inventory-bulk-r21
+WORKDIR /app
+RUN node -e "const fs=require('fs'),c=require('crypto');if(c.createHash('sha256').update(fs.readFileSync('app/api/app/route.ts')).digest('hex')!=='4248f935a1046cd4ddf5701430b89c4afcdc94fbba3ae6a6c115992bf430d17e')throw Error('Production backend differs; review before deployment')"
+COPY app/page.tsx app/InventoryTable.tsx app/PlannerUI.tsx app/CentralMap.tsx app/central-map.mjs app/central-map.css ./app/
+COPY app/api/app/route.ts ./app/api/app/
+COPY tests/central-map.test.mjs ./tests/
+RUN npm test && node --test tests/planner-ui.test.mjs tests/planning-store.test.mjs tests/planning-decision.test.mjs tests/planning-decision-ui.test.mjs tests/planning-demographics.test.mjs tests/map-symbols.test.mjs tests/planning-budget.test.mjs tests/inventory-workflow.test.mjs tests/inventory-bulk.test.mjs tests/central-map.test.mjs && npm run build && tar -C public --exclude=downloads -cf - . | tar -C dist/client -xf -

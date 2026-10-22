@@ -1,0 +1,162 @@
+/* Planning desk: scoped overrides, with the existing inventory/map kept mounted. */
+.app-shell { grid-template-rows: auto auto minmax(0, 1fr); }
+.app-shell > .ops-page { grid-row: 3; grid-column: 1 / -1; min-height: 0; }
+.workspace-dock-shell { grid-row: 2; grid-column: 1 / -1; min-width: 0; display: flex; justify-content: center; padding: 8px 16px; background: #f3f6f4; border-bottom: 1px solid #dce5df; z-index: 990; }
+.workspace-dock { position: relative; display: flex; align-items: center; gap: 4px; padding: 5px; border: 1px solid #dce5df; border-radius: 12px; background: #fff; box-shadow: 0 2px 6px #22352e08; overflow-x: auto; scrollbar-width: thin; max-width: 100%; min-width: 0; }
+.workspace-dock .tab-btn { display: flex; gap: 8px; align-items: center; flex: 0 0 auto; min-height: 42px; padding: 8px 14px; border: 0; border-radius: 7px; font-size: 13px; font-weight: 600; color: #53665c; background: transparent; white-space: nowrap; transition: background 160ms, color 160ms; }
+.workspace-dock .tab-btn::after { display: none; }
+.workspace-dock .tab-btn svg { transition: transform 160ms ease; flex-shrink: 0; }
+.workspace-dock .tab-btn:hover { background: #f2f6f3; color: #087f63; }
+.workspace-dock .tab-btn:hover svg { transform: translateY(-2px); }
+.workspace-dock .tab-btn--active { background: #e9f5ef; color: #07664e; box-shadow: inset 0 -2px #087f63; }
+.workspace-dock .tab-btn:focus-visible { outline: 2px solid #087f63; outline-offset: -2px; }
+.planning-workspace .sidebar-head { padding: 16px; }
+.planning-workspace .metrics-grid { gap: 5px; }
+.planning-workspace .metric { background: transparent; padding: 8px 5px; border: 0; border-left: 1px solid #dce5df; box-shadow: none; }
+.planning-workspace .metric strong { font-size: 21px; }
+.planning-workspace .metric span { text-transform: none; letter-spacing: 0; font-size: 10px; }
+.planning-workspace .controls { padding: 12px 16px; }
+.planning-workspace .map-key { max-width: min(520px, calc(100% - 130px)); }
+.planning-workspace--review { --plan-width: clamp(360px, 30vw, 460px); }
+.planning-workspace--review > .sidebar { display: none; }
+.planning-workspace--review .map-area > .map { width: auto; right: var(--plan-width); }
+.planning-workspace--review .map-search-toolbar { right: calc(var(--plan-width) + 18px); }
+.planning-workspace--review .map-key { right: calc(var(--plan-width) + 18px); left: 18px; max-width: none; }
+.planning-workspace--review .map-area > .map-control { right: calc(var(--plan-width) + 18px); }
+.planning-workspace--review .map-summary { max-width: calc(100% - var(--plan-width) - 40px); }
+.planning-workspace .plan-panel { width: var(--plan-width, 470px); z-index: 910; box-shadow: none; overflow-y: auto; overscroll-behavior: contain; animation: planning-reveal 180ms ease-out; }
+.planning-workspace .plan-head { padding: 20px; flex-shrink: 0; background: white; }
+.planning-workspace .plan-head .eyebrow { text-transform: none; letter-spacing: 0; font-size: 12px; color: #53665c; }
+.planning-workspace .plan-head p { margin: 8px 0 0; font-size: 12px; color: #53665c; }
+.planning-workspace .plan-name-input { font-size: 21px; line-height: 1.4; border-bottom: 1px solid transparent; }
+.planning-workspace .plan-name-input:focus { outline: 0; border-bottom-color: #087f63; }
+.planning-workspace .plan-switcher { padding: 12px 20px; flex-shrink: 0; }
+.planning-workspace .plan-switcher select { min-width: 0; }
+.planning-workspace .selected-map-toggle { margin: 0 20px 10px; padding: 10px; font-size: 12px; flex-shrink: 0; }
+.planning-workspace .plan-list { flex: 1 0 auto; overflow: visible; padding: 0 20px; }
+.planning-workspace .plan-item { border: 0; border-bottom: 1px solid #dce5df; border-radius: 0; padding: 14px 0; margin: 0; background: #fff; box-shadow: none; }
+.planning-workspace .plan-item-main { width: 100%; text-align: left; }
+.planning-workspace .plan-item-main strong { overflow-wrap: anywhere; }
+.planning-cost-details { margin-top: 10px; }
+.planning-cost-details > summary { cursor: pointer; padding: 8px 0; font-size: 12px; color: #087f63; font-weight: 600; }
+.planning-cost-details > summary small { color: #53665c; font-weight: 400; margin-left: 8px; }
+.planning-workspace .cost-grid { padding-top: 8px; }
+.planning-workspace .cost-grid input { min-height: 40px; min-width: 0; width: 100%; font-size: 14px; }
+.planning-workspace .cost-grid label > span { text-transform: capitalize; }
+.planning-workspace .remove-plan { margin-top: 6px; min-height: 32px; color: #53665c; }
+.planning-workspace .plan-footer { position: static; padding: 16px 20px 20px; flex-shrink: 0; background: #f8faf9; border-top: 1px solid #dce5df; }
+.planning-workspace .plan-note textarea { min-height: 80px; }
+.planning-workspace .plan-total { gap: 12px; }
+.planning-workspace .plan-total strong { font-size: 22px; }
+.planning-workspace .cost-digest { margin-bottom: 12px; }
+.planning-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 14px; }
+.planning-actions button { width: 100%; margin: 0; min-height: 44px; }
+.planning-actions .save-plan-button { background: #087f63; color: #fff; border: 1px solid #087f63; }
+.planning-actions .export-button { background: #fff; color: #087f63; border: 1px solid #b9cfc3; }
+.planning-notice { font-size: 12px; line-height: 1.6; color: #53665c; margin: 8px 0; }
+.planning-save-state { font-size: 13px; padding: 8px 0; color: #087f63; }
+.planning-save-state[data-error="true"] { color: #905c16; }
+.planning-placement { position: absolute; z-index: 1002; top: 20px; right: 20px; width: min(780px, calc(100% - 40px)); max-height: calc(100% - 40px); display: flex; flex-direction: column; color: #22352e; background: #fff; border: 1px solid #dce5df; box-shadow: 0 12px 40px #22352e22; }
+.planning-placement-head { display: flex; align-items: start; justify-content: space-between; gap: 16px; padding: 22px 24px; border-bottom: 1px solid #dce5df; }
+.planning-placement-head span { font-size: 12px; color: #087f63; }
+.planning-placement-head h2 { margin: 6px 0; font-size: 23px; line-height: 1.3; }
+.planning-placement-head p { margin: 0; font-size: 13px; color: #53665c; }
+.planning-placement-head .icon-button { flex: 0 0 38px; height: 38px; }
+.planning-placement-body { display: grid; grid-template-columns: 1fr 1fr; min-height: 0; overflow: auto; overscroll-behavior: contain; }
+.planning-placement-body > section { min-width: 0; padding: 24px; }
+.planning-placement-context { border-right: 1px solid #dce5df; }
+.planning-placement-photo { display: flex; flex-direction: column; align-items: center; justify-content: center; width: 100%; min-height: 150px; padding: 0; border: 1px solid #dce5df; background: #f3f6f4; color: #53665c; font-size: 12px; }
+.planning-placement-photo img { display: block; width: 100%; max-height: 230px; object-fit: contain; }
+.planning-placement-photo span { display: flex; align-items: center; justify-content: center; gap: 6px; padding: 10px; width: 100%; color: #087f63; background: #f3f6f4; }
+.planning-placement dl { margin: 16px 0; }
+.planning-placement dl > div { display: grid; grid-template-columns: minmax(80px, .7fr) minmax(0, 1fr); gap: 12px; padding: 9px 0; border-bottom: 1px solid #edf1ee; font-size: 12px; line-height: 1.5; }
+.planning-placement dt { color: #53665c; }
+.planning-placement dd { margin: 0; text-align: right; font-weight: 600; overflow-wrap: anywhere; }
+.planning-placement-estimate h3 { margin: 0; font-size: 17px; }
+.planning-placement-estimate > p { margin: 8px 0 20px; font-size: 12px; color: #53665c; }
+.planning-placement-prices { display: grid; grid-template-columns: 1fr 1fr; gap: 16px 12px; }
+.planning-placement-prices label { display: grid; gap: 7px; min-width: 0; font-size: 12px; }
+.planning-placement-prices input { min-width: 0; width: 100%; min-height: 44px; padding: 10px; border: 1px solid #c9d8ce; font-size: 15px; background: white; }
+.planning-placement-total { display: grid; gap: 8px; margin-top: 24px; padding: 16px 0; border-block: 1px solid #dce5df; }
+.planning-placement-total span { font-size: 12px; color: #53665c; }
+.planning-placement-total strong { font-size: 24px; font-variant-numeric: tabular-nums; }
+.planning-placement-scope { font-size: 12px; line-height: 1.7; padding: 14px; background: #f3f6f4; color: #53665c; }
+.planning-placement-actions { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 16px 24px; border-top: 1px solid #dce5df; }
+.planning-placement-actions button { min-height: 44px; }
+.planning-reference summary { cursor: pointer; padding: 12px 0; font-size: 12px; color: #087f63; }
+@media (min-width: 1001px) {
+  .planning-workspace--review > .sidebar { display: block; width: 280px; flex-basis: 280px; }
+  .planning-workspace--review > .sidebar--closed { margin-left: -280px; }
+  .planning-workspace--review .planning-placement { right: calc(var(--plan-width) + 16px); width: min(780px, calc(100% - var(--plan-width) - 32px)); top: 16px; max-height: calc(100% - 32px); }
+  .planning-workspace--review .planning-placement-head,
+  .planning-workspace--review .planning-placement-body > section,
+  .planning-workspace--review .planning-placement-actions { padding: 16px; }
+  .planning-workspace--review .cost-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .planning-workspace--review .sidebar .metrics-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+@media (min-width: 1001px) and (max-width: 1200px) {
+  .planning-workspace--review > .sidebar { display: none; }
+}
+.planning-destination { padding: 12px 20px; border-bottom: 1px solid #dce5df; background: #f7faf8; display: grid; gap: 8px; }
+.planning-destination label, .planning-inventory-scope label { display: grid; gap: 6px; font-size: 12px; font-weight: 600; }
+.planning-destination select, .planning-destination input, .planning-inventory-scope select { width: 100%; min-width: 0; min-height: 38px; padding: 8px; border: 1px solid #c9d8ce; background: white; color: #22352e; }
+.planning-destination small, .planning-inventory-scope small { font-size: 11px; line-height: 1.5; color: #53665c; }
+.planning-inventory-scope { display: grid; gap: 8px; margin-bottom: 12px; }
+.planning-workspace--review .asset-row-main { grid-template-columns: 30px minmax(0, 1fr); }
+.planning-workspace--review .asset-row-main .status { grid-column: 2; justify-self: start; }
+.planning-workspace--review .row-copy strong { white-space: normal; }
+.planning-workspace--review .row-copy small { white-space: normal; overflow-wrap: anywhere; }
+@media (min-width: 1600px) {
+  .planning-workspace--review > .sidebar { width: 330px; flex-basis: 330px; }
+  .planning-workspace--review > .sidebar--closed { margin-left: -330px; }
+}
+@media (min-width: 1201px) and (max-width: 1500px) {
+  .planning-workspace--review .planning-placement-body { grid-template-columns: 1fr; }
+  .planning-workspace--review .planning-placement-context { border-right: 0; border-bottom: 1px solid #dce5df; }
+  .planning-workspace--review .planning-placement-actions { flex-wrap: wrap; }
+}
+@keyframes planning-reveal { from { opacity: .5; transform: translateX(10px); } to { opacity: 1; transform: none; } }
+@media (max-width: 1000px) {
+  .workspace-dock-shell { justify-content: flex-start; padding: 6px 10px; }
+  .workspace-dock { width: 100%; }
+  .workspace-dock .tab-btn { padding-inline: 11px; font-size: 12px; }
+  .planning-workspace--review .map-search-toolbar .address-search { display: none; }
+}
+@media (max-width: 760px) {
+  .planning-placement { inset: 8px; width: auto; max-height: calc(100% - 16px); }
+  .planning-placement-body { grid-template-columns: 1fr; }
+  .planning-placement-context { border-right: 0; border-bottom: 1px solid #dce5df; }
+  .planning-placement-head, .planning-placement-body > section, .planning-placement-actions { padding: 16px; }
+  .app-shell { grid-template-rows: auto minmax(0, 1fr) auto; height: 100dvh; }
+  .app-shell > .workspace, .app-shell > .ops-page { grid-row: 2; }
+  .workspace-dock-shell { grid-row: 3; padding: 6px 8px max(6px, env(safe-area-inset-bottom)); border-top: 1px solid #dce5df; border-bottom: 0; z-index: 1000; }
+  .workspace-dock { border-radius: 10px; scrollbar-width: none; }
+  .workspace-dock .tab-btn { flex-direction: column; gap: 4px; min-height: 52px; padding: 6px 12px; font-size: 10px; }
+  .workspace-dock .tab-btn svg { width: 19px; height: 19px; }
+  .planning-workspace--review { --plan-width: 100%; }
+  .planning-workspace .sidebar--closed .sidebar-inner { visibility: hidden; }
+  .planning-workspace--review .map-area > .map { right: 0; }
+  .planning-workspace--review .map-area > .map,
+  .planning-workspace--review .map-search-toolbar,
+  .planning-workspace--review .map-key,
+  .planning-workspace--review .map-control,
+  .planning-workspace--review .map-summary { visibility: hidden; }
+  .app-shell .topbar-actions { display: grid; grid-template-columns: minmax(0, 1fr) auto auto auto; width: 100%; gap: 6px; }
+  .app-shell .topbar-actions .project-select { grid-column: 1 / -1; width: 100%; }
+  .app-shell .topbar-actions .text-button { display: flex; gap: 4px; padding: 8px 6px; min-width: 0; font-size: 11px; }
+  .app-shell .topbar-actions > .primary-button { width: auto; min-width: 0; height: 40px; padding: 8px; font-size: 11px; }
+  .app-shell .topbar-actions > .primary-button svg { display: block; width: 14px; }
+  .app-shell .topbar-actions .workspace-actions-trigger { width: 100%; justify-content: center; }
+  .app-shell--shared-view .topbar-actions { display: flex; }
+  .planning-workspace .plan-panel { position: absolute; inset: 0; width: 100%; max-width: none; max-height: none; height: 100%; z-index: 950; border: 0; }
+  .planning-workspace .plan-head { padding: 16px; }
+  .planning-workspace .plan-head .close-detail { top: 12px; right: 12px; }
+  .planning-workspace .plan-switcher, .planning-workspace .plan-list { padding-inline: 16px; }
+  .planning-workspace .plan-name-input, .planning-workspace .cost-grid input, .planning-workspace .plan-note textarea { font-size: 16px; }
+  .planning-workspace .cost-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+  .planning-workspace .plan-footer { padding: 16px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .workspace-dock .tab-btn, .workspace-dock .tab-btn svg, .planning-workspace .plan-panel { animation: none; transition: none; }
+  .workspace-dock .tab-btn:hover svg { transform: none; }
+}

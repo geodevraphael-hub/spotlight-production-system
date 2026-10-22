@@ -1,0 +1,7 @@
+FROM spotlight-planner:20261020-campaign-road-r28
+WORKDIR /app
+RUN node -e "const fs=require('fs'),c=require('crypto');if(c.createHash('sha256').update(fs.readFileSync('app/api/app/route.ts')).digest('hex')!=='a981add0663163b7098952c2e997fc8770bf814d40e87b39248e6db4a9085d96')throw Error('Production API differs')"
+COPY app/page.tsx app/PoleAssignment.tsx app/pole-verification.mjs app/automatic-location.mjs app/InventoryTable.tsx app/AssetOverview.tsx app/inventory-workflow.mjs ./app/
+COPY app/api/app/route.ts ./app/api/app/
+COPY tests/pole-verification.test.mjs ./tests/
+RUN node --test tests/pole-verification.test.mjs tests/campaign-road.test.mjs tests/operations.test.mjs tests/dashboard.test.mjs tests/asset-register.test.mjs tests/planner-ui.test.mjs tests/planning-store.test.mjs tests/planning-decision.test.mjs tests/planning-decision-ui.test.mjs tests/planning-demographics.test.mjs tests/map-symbols.test.mjs tests/planning-budget.test.mjs tests/inventory-workflow.test.mjs tests/inventory-bulk.test.mjs tests/central-map.test.mjs tests/central-assignment.test.mjs tests/project-removal.test.mjs && npm run build && tar -C public --exclude=downloads -cf - . | tar -C dist/client -xf -

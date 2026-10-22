@@ -1,0 +1,7 @@
+FROM spotlight-planner:20261020-asset-review-r26
+WORKDIR /app
+RUN node -e "const fs=require('fs'),c=require('crypto');for(const [p,h] of [['app/page.tsx','93cc880870f240dee1679c277d5b169886e2ed13d6bace589c82c0164586b86f'],['app/api/operations/route.ts','306ce353fbd09e8f5f1a671c1e73baf02b09ad876f3fd0908aa377a43c11981a']])if(c.createHash('sha256').update(fs.readFileSync(p)).digest('hex')!==h)throw Error('Production source differs: '+p)"
+COPY app/page.tsx app/Dashboard.tsx app/Campaigns.tsx app/RoadStretch.tsx app/campaign-tools.css app/campaign-road.mjs app/campaign-store.mjs app/InventoryTable.tsx app/AssetOverview.tsx app/inventory-workflow.mjs app/map-symbols.mjs app/map-symbols.css ./app/
+COPY app/api/campaigns/route.ts ./app/api/campaigns/
+COPY tests/campaign-road.test.mjs ./tests/
+RUN node --test tests/campaign-road.test.mjs tests/operations.test.mjs tests/dashboard.test.mjs tests/asset-register.test.mjs tests/planner-ui.test.mjs tests/planning-store.test.mjs tests/planning-decision.test.mjs tests/planning-decision-ui.test.mjs tests/planning-demographics.test.mjs tests/map-symbols.test.mjs tests/planning-budget.test.mjs tests/inventory-workflow.test.mjs tests/inventory-bulk.test.mjs tests/central-map.test.mjs tests/central-assignment.test.mjs tests/project-removal.test.mjs && npm run build && tar -C public --exclude=downloads -cf - . | tar -C dist/client -xf -

@@ -1,0 +1,6 @@
+FROM spotlight-planner:20261018-notifications-r5
+WORKDIR /app
+COPY app/Operations.tsx app/operations.css ./app/
+COPY app/api/operations/route.ts ./app/api/operations/route.ts
+COPY tests/operations.test.mjs ./tests/operations.test.mjs
+RUN test -s /etc/ssl/certs/ca-certificates.crt && rm -rf /app/.wrangler/state /app/dist /app/.dev.vars && npm test && npm run build && tar -C public --exclude=downloads -cf - . | tar -C dist/client -xf -

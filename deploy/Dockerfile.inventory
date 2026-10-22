@@ -1,0 +1,5 @@
+FROM spotlight-planner:20261020-planning-coverage-r17c
+WORKDIR /app
+COPY app/page.tsx app/layout.tsx app/InventoryTable.tsx app/inventory-workflow.mjs app/inventory-workspace.css ./app/
+COPY tests/inventory-workflow.test.mjs ./tests/
+RUN npm test && node --test tests/planner-ui.test.mjs tests/planning-store.test.mjs tests/planning-decision.test.mjs tests/planning-decision-ui.test.mjs tests/planning-demographics.test.mjs tests/map-symbols.test.mjs tests/planning-budget.test.mjs tests/inventory-workflow.test.mjs && npm run build && tar -C public --exclude=downloads -cf - . | tar -C dist/client -xf -

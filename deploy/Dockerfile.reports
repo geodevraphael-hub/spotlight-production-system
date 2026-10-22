@@ -1,0 +1,4 @@
+FROM spotlight-planner:20261022-reports-r31
+WORKDIR /app
+COPY app ./app/
+RUN npm install --save-exact pptxgenjs@4.0.1 jspdf@4.2.1 qrcode@1.5.4 jszip@3.10.1 --ignore-scripts --package-lock=false --no-audit --no-fund && node --test app/report-r32.test.mjs && npm run build && tar -C public --exclude=downloads -cf - . | tar -C dist/client -xf -

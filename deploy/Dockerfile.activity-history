@@ -1,0 +1,5 @@
+FROM spotlight-planner:20261018-delivery-view-r6
+WORKDIR /app
+COPY app/Operations.tsx app/operations-view.mjs ./app/
+COPY tests/operations.test.mjs ./tests/operations.test.mjs
+RUN test -s /etc/ssl/certs/ca-certificates.crt && rm -rf /app/.wrangler/state /app/dist /app/.dev.vars && npm test && npm run build && tar -C public --exclude=downloads -cf - . | tar -C dist/client -xf -

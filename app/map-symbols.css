@@ -1,0 +1,38 @@
+/* Body colour identifies format. A separate status dot never changes format. */
+.asset-marker-wrap {display:grid;place-items:center;border:0;background:transparent;}
+.asset-marker-wrap .asset-marker {--symbol:#47746a;position:relative;display:grid;place-items:center;background:var(--symbol);color:#fff;border:2px solid #fff;border-radius:2px;box-shadow:0 1px 4px #152f3c55;transform:none;animation:none;transition:box-shadow 160ms ease;}
+.asset-marker-wrap .asset-marker--large {--symbol:#635b91;}
+.asset-marker-wrap .asset-marker--digital {--symbol:#237896;box-shadow:inset 0 0 0 1px #ffffff88,0 1px 4px #152f3c55;}
+.asset-marker-wrap .asset-marker--fabricated {--symbol:#9a7440;border-style:dashed;}
+.asset-marker-wrap .asset-marker--estimated {border-style:dashed;border-color:#e5c58a;}
+.asset-marker-wrap .asset-marker::before,.asset-marker-wrap .asset-marker::after {content:none;}
+.asset-marker-wrap .asset-marker .asset-marker-post {position:absolute;top:100%;left:calc(50% - 1px);bottom:auto;width:2px;height:6px;border-radius:0;background:#344d59;}
+.asset-marker-wrap .asset-marker b {font:600 10px/1 var(--font-geist-sans),sans-serif;text-shadow:none;}
+.asset-marker-wrap .asset-status-dot {position:absolute;left:-5px;top:-5px;width:9px;height:9px;border:2px solid white;border-radius:50%;background:#6e7d84;box-shadow:0 0 0 1px #ffffff88;}
+.asset-marker-wrap .asset-marker--flighted .asset-status-dot {background:#087f63;animation:map-status-breathe 3.6s ease-in-out infinite;}
+.asset-marker-wrap .asset-marker--expired .asset-status-dot {background:#b47710;border-radius:1px;transform:rotate(45deg);}
+.asset-marker-wrap .asset-marker--deflighted .asset-status-dot {background:#fff;border-color:#61717b;box-shadow:0 0 0 1px white;}
+.asset-marker-wrap .asset-marker--active {outline:2px solid #153e54;outline-offset:4px;box-shadow:0 2px 5px #152f3c55;transform:none;animation:map-selection-confirm 380ms ease-out 1;}
+.asset-marker-wrap .asset-marker--in-plan {outline:2px solid #087f63;outline-offset:2px;}
+.asset-marker-wrap .asset-marker--in-plan.asset-marker--active {outline-color:#153e54;outline-offset:4px;}
+.asset-marker-wrap .planner-marker-check {position:absolute;top:-8px;right:-8px;display:grid;place-items:center;width:15px;height:15px;background:#087f63;color:#fff;border:2px solid white;border-radius:50%;font:700 9px/1 sans-serif;box-shadow:0 1px 3px #21372c33;}
+.asset-marker-wrap:focus-visible {outline:2px solid #153e54;outline-offset:2px;border-radius:2px;}
+.map-symbol-overview .asset-marker:not(.asset-marker--active) {width:10px!important;height:10px!important;border-width:1px;box-shadow:0 1px 2px #152f3c44;}
+.map-symbol-overview .asset-marker:not(.asset-marker--active) :is(b,.asset-marker-post,.asset-status-dot) {display:none;}
+.map-symbol-overview .asset-marker:not(.asset-marker--active) .planner-marker-check {width:10px;height:10px;top:-6px;right:-6px;font-size:6px;border-width:1px;}
+@keyframes map-status-breathe {0%,100%{box-shadow:0 0 0 1px #fff,0 0 0 2px #087f6322;}50%{box-shadow:0 0 0 1px #fff,0 0 0 4px #087f6340;}}
+@keyframes map-selection-confirm {from{outline-offset:8px;}to{outline-offset:4px;}}
+.planner-map-legend {position:absolute;z-index:600;left:16px;bottom:62px;width:160px;padding:10px 12px;border:1px solid #bfcfc4;background:white;color:#21372c;box-shadow:0 2px 8px #21372c12;font-size:12px;}
+.planner-map-legend[open],.planner-desk .planner-map-legend[open] {width:248px;max-height:min(440px,65vh);overflow:auto;}
+.planner-map-legend p {color:#52685b;}
+.map-symbol-guide {display:grid;gap:7px;margin:12px 0;font-size:12px;line-height:1.4;}
+.map-symbol-guide span {display:flex;align-items:center;gap:8px;}
+.map-symbol-guide i {display:inline-block;width:14px;height:11px;border:1px solid white;background:#47746a;flex-shrink:0;}
+.map-symbol-guide .guide-large {background:#635b91;}
+.map-symbol-guide .guide-digital {background:#237896;box-shadow:inset 0 0 0 1px #ffffff88;}
+.map-symbol-guide .guide-fabricated {background:#9a7440;border-style:dashed;}
+.map-symbol-guide .guide-flighted,.map-symbol-guide .guide-unflighted,.map-symbol-guide .guide-deflighted,.map-symbol-guide .guide-expired {width:9px;height:9px;border-radius:50%;background:#087f63;}
+.map-symbol-guide .guide-unflighted {background:#6e7d84;}
+.map-symbol-guide .guide-deflighted {background:white;border:2px solid #61717b;}
+.map-symbol-guide .guide-expired {background:#b47710;border-radius:1px;transform:rotate(45deg);}
+@media(prefers-reduced-motion:reduce){.asset-marker-wrap .asset-marker,.asset-marker-wrap .asset-marker .asset-status-dot{animation:none;transition:none;}}
