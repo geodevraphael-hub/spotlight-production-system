@@ -1,0 +1,17 @@
+.git
+node_modules
+dist
+.vinext
+.wrangler
+.dev.vars*
+.env*
+*.pem
+public/downloads
+mobile/node_modules
+mobile/dist
+mobile/android
+docs
+examples
+outputs
+work
+*.tgz
