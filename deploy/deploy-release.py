@@ -4,9 +4,10 @@ Generalises the 2026-10-15 deploy.py: build a full image from a clean checkout, 
 it in an isolated preview container, back up the production database, then swap the live
 container while keeping the previous one for rollback.
 
-Run on the server as root:
+Run on the server as root (installed at /srv/apps/spotlight-planner/deploy-release.py):
   python3 deploy-release.py <commit-or-branch>            # build + preview only (no swap)
   python3 deploy-release.py <commit-or-branch> --promote  # also replace the live container
+Pushes to the `production` branch are deployed with --promote by autodeploy.sh (systemd timer).
 """
 import argparse, json, os, sqlite3, subprocess, sys, time, urllib.error, urllib.request
 from pathlib import Path
@@ -94,7 +95,7 @@ def promote(release, image, sha):
         deployed = json.loads(docker('inspect', LIVE))[0]
         assert sorted(deployed['Config']['Env']) == sorted(original['Config']['Env'])
         assert deployed['Mounts'] == original['Mounts']
-        run(sys.executable, str(Path(__file__).with_name('smoke-reports.py')))
+        run(sys.executable, str(release / 'deploy/smoke-reports.py'))
     except Exception:
         if docker('ps', '-aq', '--filter', f'name=^{LIVE}$'): docker('rm', '-f', LIVE)
         docker('rename', rollback, LIVE)
