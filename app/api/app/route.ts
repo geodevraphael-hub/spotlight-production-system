@@ -1971,6 +1971,29 @@ export async function POST(request: Request) {
     if (newUser && body.projectId) await db.prepare("INSERT OR IGNORE INTO project_users (project_id,user_id) VALUES (?,?)").bind(Number(body.projectId), newUser.id).run();
     return json({ ok: true }, 201);
   }
+  if (action === "update-user" && user.role === "admin") {
+    const targetId = Number(body.id);
+    const name = String(body.name ?? "").trim();
+    const email = String(body.email ?? "").trim().toLowerCase();
+    const password = String(body.password ?? "");
+    const validRoles = ["admin","creator","planner","viewer","field_user"];
+    if (!targetId || !name || !email.includes("@")) return json({ error: "Name and a valid email are required" }, 400);
+    if (!validRoles.includes(body.role)) return json({ error: "Invalid role" }, 400);
+    if (password && password.length < 8) return json({ error: "New password must be 8+ characters" }, 400);
+    if (targetId === user.id && body.role !== "admin") return json({ error: "You cannot remove your own administrator role" }, 400);
+    const existing = await db.prepare("SELECT id FROM users WHERE id=?").bind(targetId).first();
+    if (!existing) return json({ error: "User not found" }, 404);
+    const duplicate = await db.prepare("SELECT id FROM users WHERE lower(email)=? AND id<>?").bind(email, targetId).first();
+    if (duplicate) return json({ error: "A user with this email already exists" }, 409);
+    const statements = [db.prepare("UPDATE users SET name=?,email=?,role=? WHERE id=?").bind(name, email, body.role, targetId)];
+    if (password) {
+      const hash = await passwordHash(password, crypto.randomUUID());
+      statements.push(db.prepare("UPDATE users SET password_hash=? WHERE id=?").bind(hash, targetId));
+      if (targetId !== user.id) statements.push(db.prepare("DELETE FROM sessions WHERE user_id=?").bind(targetId));
+    }
+    await db.batch(statements);
+    return json({ ok: true });
+  }
   if (action === "reset-password" && user.role === "admin") {
     const targetId = Number(body.userId);
     const password = String(body.password ?? "");

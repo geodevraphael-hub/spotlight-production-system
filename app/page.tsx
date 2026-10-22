@@ -54,6 +54,7 @@ import {
   Scan,
   SquareDashedMousePointer,
   Save,
+  Pencil,
 } from "lucide-react";
 import type {
   Map as LeafletMap,
@@ -745,6 +746,7 @@ export default function Home() {
   const [loginError, setLoginError] = useState("");
   const [signingIn, setSigningIn] = useState(false);
   const [adminOpen, setAdminOpen] = useState(false);
+  const [editingUserId, setEditingUserId] = useState<number | null>(null);
   const [users, setUsers] = useState<Array<{ id: number; name: string; email: string; role: string }>>([]);
   const [baseMap, setBaseMap] = useState("street");
   const [mapReady, setMapReady] = useState(false);
@@ -2864,6 +2866,25 @@ export default function Home() {
     }
   }
 
+  async function saveUser(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!editingUserId) return;
+    const values = Object.fromEntries(new FormData(event.currentTarget));
+    const response = await fetch("/api/app?action=update-user", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ...values, id: editingUserId }),
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      window.alert(data.error ?? "Unable to update user");
+      return;
+    }
+    if (editingUserId === user?.id) setUser((current) => current && { ...current, name: String(values.name), email: String(values.email).toLowerCase() });
+    setEditingUserId(null);
+    loadUsers();
+  }
+
   async function removeUser(id: number) {
     const account = users.find((item) => item.id === id);
     if (!window.confirm(`Remove ${account?.name ?? "this user"}? Their sessions and group/project assignments will also be removed.`)) return;
@@ -3856,11 +3877,28 @@ export default function Home() {
                   <button className="primary-button" type="submit"><Plus size={15} /> Add user</button>
                 </form>
                 <div className="user-list">
-                  {users.map((account) => (
+                  {users.map((account) => editingUserId === account.id ? (
+                    <form key={account.id} className="add-user-form edit-user-form" onSubmit={saveUser} autoComplete="off">
+                      <input name="name" defaultValue={account.name} placeholder="Full name" required autoComplete="off" />
+                      <input name="email" type="email" defaultValue={account.email} placeholder="Email" required autoComplete="off" />
+                      <select name="role" defaultValue={account.role} disabled={account.id === user?.id}>
+                        <option value="viewer">Viewer</option><option value="creator">Creator</option><option value="planner">Planner</option><option value="field_user">Field User</option><option value="admin">Administrator</option>
+                      </select>
+                      {account.id === user?.id && <input type="hidden" name="role" value={account.role} />}
+                      <input name="password" type="password" placeholder="New password (leave blank to keep)" minLength={8} autoComplete="new-password" />
+                      <div className="edit-user-actions">
+                        <button type="button" className="text-button" onClick={() => setEditingUserId(null)}>Cancel</button>
+                        <button className="primary-button" type="submit"><Save size={15} /> Save</button>
+                      </div>
+                    </form>
+                  ) : (
                     <article key={account.id}>
                       <span className="user-avatar">{account.name.slice(0, 1).toUpperCase()}</span>
                       <span><strong>{account.name}</strong><small>{account.email} · {account.role}</small></span>
-                      {account.id !== user?.id && <button onClick={() => removeUser(account.id)} aria-label={`Remove ${account.name}`}><Trash2 size={15} /></button>}
+                      <span className="user-actions">
+                        <button onClick={() => setEditingUserId(account.id)} aria-label={`Edit ${account.name}`}><Pencil size={15} /></button>
+                        {account.id !== user?.id && <button onClick={() => removeUser(account.id)} aria-label={`Remove ${account.name}`}><Trash2 size={15} /></button>}
+                      </span>
                     </article>
                   ))}
                 </div>

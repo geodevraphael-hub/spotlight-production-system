@@ -2842,6 +2842,24 @@ button {
   border-bottom: 1px solid var(--line);
 }
 
+.user-actions {
+  display: flex;
+  gap: 4px;
+}
+
+.edit-user-form {
+  margin: 8px 0;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+
+.edit-user-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
 .user-avatar {
   display: grid;
   place-items: center;
