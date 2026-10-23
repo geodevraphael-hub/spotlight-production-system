@@ -1205,6 +1205,64 @@ button {
   font-size: 11px;
 }
 
+.admin-page-head--bar {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.admin-page-head--bar .primary-button {
+  flex: 0 0 auto;
+}
+
+/* Static modal for add/edit user (backdrop click does not dismiss) */
+.user-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgba(9, 24, 18, .48);
+  backdrop-filter: blur(4px);
+}
+
+.user-modal {
+  width: min(460px, calc(100vw - 40px));
+  max-height: calc(100dvh - 40px);
+  overflow-y: auto;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  box-shadow: 0 24px 60px rgba(20, 40, 30, .28);
+}
+
+.user-modal-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px 20px 12px;
+  border-bottom: 1px solid var(--line);
+}
+
+.user-modal-head h3 {
+  margin: 0;
+  font-size: 16px;
+}
+
+.user-modal .add-user-form {
+  border: 0;
+  padding: 18px 20px 22px;
+}
+
+.user-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 4px;
+}
+
 .admin-page {
   max-width: none;
   margin: 0;

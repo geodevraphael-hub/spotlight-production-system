@@ -792,6 +792,7 @@ export default function Home() {
   const [loginError, setLoginError] = useState("");
   const [signingIn, setSigningIn] = useState(false);
   const [editingUserId, setEditingUserId] = useState<number | null>(null);
+  const [addUserOpen, setAddUserOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   const [passwordOpen, setPasswordOpen] = useState(false);
   const [noProjectsDismissed, setNoProjectsDismissed] = useState(false);
@@ -2980,6 +2981,7 @@ export default function Home() {
     });
     if (response.ok) {
       event.currentTarget.reset();
+      setAddUserOpen(false);
       loadUsers();
     }
   }
@@ -4148,48 +4150,16 @@ export default function Home() {
 
           {activeTab === "users" && user?.role === "admin" && (
               <section className="admin-page">
-                <div className="admin-page-head">
-                  <span className="eyebrow">Administration</span>
-                  <h2>User management</h2>
-                  <p>Add team members, set their role, and assign them to projects.</p>
+                <div className="admin-page-head admin-page-head--bar">
+                  <div>
+                    <span className="eyebrow">Administration</span>
+                    <h2>User management</h2>
+                    <p>Add team members, set their role, and assign them to projects.</p>
+                  </div>
+                  <button className="primary-button" onClick={() => setAddUserOpen(true)}><Plus size={15} /> Add user</button>
                 </div>
-                <form className="add-user-form" onSubmit={addUser} autoComplete="off">
-                  <input name="name" placeholder="Full name" required autoComplete="off" />
-                  <input name="email" type="email" placeholder="Email" required autoComplete="off" />
-                  <input name="password" type="password" placeholder="Temporary password" minLength={8} required autoComplete="new-password" />
-                  <SearchSelect name="role"><option value="viewer">Viewer</option><option value="creator">Creator</option><option value="field_user">Field User</option><option value="admin">Administrator</option></SearchSelect>
-                  <SearchSelect name="projectId" required>
-                    {projects.map((project) => <option key={project.id} value={project.id}>{project.name}</option>)}
-                  </SearchSelect>
-                  <button className="primary-button" type="submit"><Plus size={15} /> Add user</button>
-                </form>
                 <div className="user-list">
-                  {users.map((account) => editingUserId === account.id ? (
-                    <form key={account.id} className="add-user-form edit-user-form" onSubmit={saveUser} autoComplete="off">
-                      <input name="name" defaultValue={account.name} placeholder="Full name" required autoComplete="off" />
-                      <input name="email" type="email" defaultValue={account.email} placeholder="Email" required autoComplete="off" />
-                      <SearchSelect name="role" defaultValue={account.role} disabled={account.id === user?.id}>
-                        <option value="viewer">Viewer</option><option value="creator">Creator</option><option value="planner">Planner</option><option value="field_user">Field User</option><option value="admin">Administrator</option>
-                      </SearchSelect>
-                      {account.id === user?.id && <input type="hidden" name="role" value={account.role} />}
-                      <input name="password" type="password" placeholder="New password (leave blank to keep)" minLength={8} autoComplete="new-password" />
-                      {projects.length > 0 && (
-                        <fieldset className="assign-projects">
-                          <legend>Projects</legend>
-                          {projects.map((project) => (
-                            <label key={project.id}>
-                              <input type="checkbox" name="projectIds" value={project.id} defaultChecked={account.projectIds?.includes(project.id)} />
-                              <span>{project.name}</span>
-                            </label>
-                          ))}
-                        </fieldset>
-                      )}
-                      <div className="edit-user-actions">
-                        <button type="button" className="text-button" onClick={() => setEditingUserId(null)}>Cancel</button>
-                        <button className="primary-button" type="submit"><Save size={15} /> Save</button>
-                      </div>
-                    </form>
-                  ) : (
+                  {users.map((account) => (
                     <article key={account.id}>
                       <span className="user-avatar">{account.name.slice(0, 1).toUpperCase()}</span>
                       <span><strong>{account.name}</strong><small>{account.email} · {account.role}</small></span>
@@ -4199,9 +4169,71 @@ export default function Home() {
                       </span>
                     </article>
                   ))}
+                  {!users.length && <div className="empty-state">No users yet. Add your first team member.</div>}
                 </div>
               </section>
           )}
+
+          {addUserOpen && (
+            <div className="user-modal-backdrop" role="dialog" aria-modal="true" aria-label="Add user">
+              <div className="user-modal">
+                <div className="user-modal-head">
+                  <h3>Add user</h3>
+                  <button className="close-detail" onClick={() => setAddUserOpen(false)} aria-label="Close"><X size={17} /></button>
+                </div>
+                <form className="add-user-form" onSubmit={addUser} autoComplete="off">
+                  <label><span>Full name</span><input name="name" placeholder="Full name" required autoComplete="off" /></label>
+                  <label><span>Email</span><input name="email" type="email" placeholder="Email" required autoComplete="off" /></label>
+                  <label><span>Temporary password</span><input name="password" type="password" placeholder="At least 8 characters" minLength={8} required autoComplete="new-password" /></label>
+                  <label><span>Role</span><SearchSelect name="role"><option value="viewer">Viewer</option><option value="creator">Creator</option><option value="planner">Planner</option><option value="field_user">Field User</option><option value="admin">Administrator</option></SearchSelect></label>
+                  <label><span>Project</span><SearchSelect name="projectId" required>{projects.map((project) => <option key={project.id} value={project.id}>{project.name}</option>)}</SearchSelect></label>
+                  <div className="user-modal-actions">
+                    <button type="button" className="text-button" onClick={() => setAddUserOpen(false)}>Cancel</button>
+                    <button className="primary-button" type="submit"><Plus size={15} /> Add user</button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          )}
+
+          {editingUserId !== null && (() => {
+            const account = users.find((item) => item.id === editingUserId);
+            if (!account) return null;
+            return (
+              <div className="user-modal-backdrop" role="dialog" aria-modal="true" aria-label="Edit user">
+                <div className="user-modal">
+                  <div className="user-modal-head">
+                    <h3>Edit {account.name}</h3>
+                    <button className="close-detail" onClick={() => setEditingUserId(null)} aria-label="Close"><X size={17} /></button>
+                  </div>
+                  <form className="add-user-form" onSubmit={saveUser} autoComplete="off">
+                    <label><span>Full name</span><input name="name" defaultValue={account.name} required autoComplete="off" /></label>
+                    <label><span>Email</span><input name="email" type="email" defaultValue={account.email} required autoComplete="off" /></label>
+                    <label><span>Role</span><SearchSelect name="role" defaultValue={account.role} disabled={account.id === user?.id}>
+                      <option value="viewer">Viewer</option><option value="creator">Creator</option><option value="planner">Planner</option><option value="field_user">Field User</option><option value="admin">Administrator</option>
+                    </SearchSelect></label>
+                    {account.id === user?.id && <input type="hidden" name="role" value={account.role} />}
+                    <label><span>New password</span><input name="password" type="password" placeholder="Leave blank to keep" minLength={8} autoComplete="new-password" /></label>
+                    {projects.length > 0 && (
+                      <fieldset className="assign-projects">
+                        <legend>Projects</legend>
+                        {projects.map((project) => (
+                          <label key={project.id}>
+                            <input type="checkbox" name="projectIds" value={project.id} defaultChecked={account.projectIds?.includes(project.id)} />
+                            <span>{project.name}</span>
+                          </label>
+                        ))}
+                      </fieldset>
+                    )}
+                    <div className="user-modal-actions">
+                      <button type="button" className="text-button" onClick={() => setEditingUserId(null)}>Cancel</button>
+                      <button className="primary-button" type="submit"><Save size={15} /> Save</button>
+                    </div>
+                  </form>
+                </div>
+              </div>
+            );
+          })()}
 
           {profileOpen && user && (
             <>
