@@ -856,7 +856,7 @@ export default function Home() {
   const [addressQuery, setAddressQuery] = useState("");
   const [activeTab, setActiveTab] = useState<"planner" | "dashboard" | "library" | "flighting" | "tracker" | "costs" | "field" | "operations" | "reports" | "users">("planner");
   const planningScope = activeTab === "planner" && mapPurpose === "planning" && Boolean(user && ["admin", "creator", "planner"].includes(user.role));
-  const inventoryScope = activeTab === "planner" && mapPurpose === "inventory" && Boolean(user && ["admin","creator"].includes(user.role));
+  const inventoryScope = activeTab === "planner" && mapPurpose === "inventory" && Boolean(user && ["admin","creator","viewer"].includes(user.role));
   const centralScope=inventoryScope&&user?.role==="admin"&&currentProjectId===0;
   const [centralProject,setCentralProject]=useState("all");
   const [centralAssignmentBoards,setCentralAssignmentBoards]=useState<Billboard[]|null>(null);
@@ -3209,7 +3209,7 @@ export default function Home() {
         >
           <MapPin size={16} /> Planner
         </button>
-        {(user?.role==="admin"||user?.role==="creator") && <button aria-current={activeTab === "planner" && mapPurpose === "inventory" && !isAllProjectsMap ? "page" : undefined}
+        {(user?.role==="admin"||user?.role==="creator"||user?.role==="viewer") && <button aria-current={activeTab === "planner" && mapPurpose === "inventory" && !isAllProjectsMap ? "page" : undefined}
           className={activeTab === "planner" && mapPurpose === "inventory" && !isAllProjectsMap ? "tab-btn tab-btn--active" : "tab-btn"}
           onClick={() => {if(isAllProjectsMap&&projects[0])setCurrentProjectId(projects[0].id); setMapPurpose("inventory"); setPlanOpen(false); setSelected(null); setActiveTab("planner"); }}>
           <ClipboardList size={16} /> Inventory
