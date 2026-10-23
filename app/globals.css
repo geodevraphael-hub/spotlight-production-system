@@ -1201,9 +1201,16 @@ button {
 }
 
 .admin-page {
-  max-width: 720px;
-  margin: 0 auto;
-  padding: 22px 20px 40px;
+  max-width: none;
+  margin: 0;
+  padding: 22px 28px 40px;
+}
+
+/* The add-user form fills the page width in responsive columns; the inline
+   edit form inside the list keeps its single-column layout. */
+.admin-page > .add-user-form {
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  align-items: end;
 }
 
 .admin-page-head {
