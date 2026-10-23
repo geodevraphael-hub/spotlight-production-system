@@ -791,7 +791,6 @@ export default function Home() {
   const [authReady, setAuthReady] = useState(false);
   const [loginError, setLoginError] = useState("");
   const [signingIn, setSigningIn] = useState(false);
-  const [adminOpen, setAdminOpen] = useState(false);
   const [editingUserId, setEditingUserId] = useState<number | null>(null);
   const [profileOpen, setProfileOpen] = useState(false);
   const [passwordOpen, setPasswordOpen] = useState(false);
@@ -855,7 +854,7 @@ export default function Home() {
   const [assetDraft, setAssetDraft] = useState<Partial<Billboard>>({});
   const [positionHint, setPositionHint] = useState<string | null>(null);
   const [addressQuery, setAddressQuery] = useState("");
-  const [activeTab, setActiveTab] = useState<"planner" | "dashboard" | "library" | "flighting" | "tracker" | "costs" | "field" | "operations" | "reports">("planner");
+  const [activeTab, setActiveTab] = useState<"planner" | "dashboard" | "library" | "flighting" | "tracker" | "costs" | "field" | "operations" | "reports" | "users">("planner");
   const planningScope = activeTab === "planner" && mapPurpose === "planning" && Boolean(user && ["admin", "creator", "planner"].includes(user.role));
   const inventoryScope = activeTab === "planner" && mapPurpose === "inventory" && Boolean(user && ["admin","creator"].includes(user.role));
   const centralScope=inventoryScope&&user?.role==="admin"&&currentProjectId===0;
@@ -2897,7 +2896,6 @@ export default function Home() {
   async function loadUsers() {
     const response = await fetch("/api/app?action=users");
     if (response.ok) setUsers((await response.json()).users);
-    setAdminOpen(true);
   }
 
   async function ensureUsersLoaded() {
@@ -3166,7 +3164,7 @@ export default function Home() {
                 </label>
                 <button className="text-button" onClick={downloadCsvTemplate}><Download size={16} /> Download CSV template</button>
                 <span className="action-section-label">Administration</span>
-                <button className="text-button" onClick={() => { setActiveTab("planner"); loadUsers(); }}><UserCog size={16} /> Manage users</button>
+                <button className="text-button" onClick={() => { setActiveTab("users"); loadUsers(); }}><UserCog size={16} /> Manage users</button>
                 <button className="text-button clear-project-button" onClick={clearProjectBillboards}><Trash2 size={16} /> Clear project inventory</button>
               </>}
             </WorkspaceActions>
@@ -3190,7 +3188,7 @@ export default function Home() {
               initials={user.name.split(" ").map((part) => part[0]).join("").slice(0, 2)}
               label={user.name}
               isAdmin={user.role === "admin"}
-              onSettings={() => { loadUsers(); setAdminOpen(true); }}
+              onSettings={() => { setActiveTab("users"); loadUsers(); }}
               onProfile={() => { setAccount(null); void loadAccountOverview(); setProfileOpen(true); }}
               onChangePassword={() => setPasswordOpen(true)}
               onLogout={logout}
@@ -3233,6 +3231,7 @@ export default function Home() {
           <button aria-current={activeTab === "field" ? "page" : undefined} className={activeTab === "field" ? "tab-btn tab-btn--active" : "tab-btn"} onClick={() => setActiveTab("field")}><Users size={16} /> Field Management</button>
         )}
         {canPlan&&<button aria-current={activeTab==='reports'?'page':undefined} className={activeTab==='reports'?'tab-btn tab-btn--active':'tab-btn'} onClick={()=>{if(!currentProjectId&&projects[0])setCurrentProjectId(projects[0].id);setActiveTab('reports');}}><FileDown size={16}/> Reports</button>}
+        {user?.role === "admin" && <button aria-current={activeTab === "users" ? "page" : undefined} className={activeTab === "users" ? "tab-btn tab-btn--active" : "tab-btn"} onClick={() => { setActiveTab("users"); loadUsers(); }}><UserCog size={16} /> User Management</button>}
       </WorkspaceDock>
 
       {activeTab==='reports'&&canPlan&&<ReportBuilder key={currentProjectId} projectId={currentProjectId}/>}
@@ -3991,134 +3990,6 @@ export default function Home() {
             </>
           )}
 
-          {adminOpen && (
-            <>
-              <button className="plan-backdrop" onClick={() => setAdminOpen(false)} aria-label="Close user management" />
-              <aside className="admin-panel">
-                <div className="plan-head">
-                  <span className="eyebrow">Administration</span>
-                  <h2>User management</h2>
-                  <p>Assign creators and viewers to a project.</p>
-                  <button className="close-detail" onClick={() => setAdminOpen(false)} aria-label="Close user management"><X size={17} /></button>
-                </div>
-                <form className="add-user-form" onSubmit={addUser} autoComplete="off">
-                  <input name="name" placeholder="Full name" required autoComplete="off" />
-                  <input name="email" type="email" placeholder="Email" required autoComplete="off" />
-                  <input name="password" type="password" placeholder="Temporary password" minLength={8} required autoComplete="new-password" />
-                  <SearchSelect name="role"><option value="viewer">Viewer</option><option value="creator">Creator</option><option value="field_user">Field User</option><option value="admin">Administrator</option></SearchSelect>
-                  <SearchSelect name="projectId" required>
-                    {projects.map((project) => <option key={project.id} value={project.id}>{project.name}</option>)}
-                  </SearchSelect>
-                  <button className="primary-button" type="submit"><Plus size={15} /> Add user</button>
-                </form>
-                <div className="user-list">
-                  {users.map((account) => editingUserId === account.id ? (
-                    <form key={account.id} className="add-user-form edit-user-form" onSubmit={saveUser} autoComplete="off">
-                      <input name="name" defaultValue={account.name} placeholder="Full name" required autoComplete="off" />
-                      <input name="email" type="email" defaultValue={account.email} placeholder="Email" required autoComplete="off" />
-                      <SearchSelect name="role" defaultValue={account.role} disabled={account.id === user?.id}>
-                        <option value="viewer">Viewer</option><option value="creator">Creator</option><option value="planner">Planner</option><option value="field_user">Field User</option><option value="admin">Administrator</option>
-                      </SearchSelect>
-                      {account.id === user?.id && <input type="hidden" name="role" value={account.role} />}
-                      <input name="password" type="password" placeholder="New password (leave blank to keep)" minLength={8} autoComplete="new-password" />
-                      {projects.length > 0 && (
-                        <fieldset className="assign-projects">
-                          <legend>Projects</legend>
-                          {projects.map((project) => (
-                            <label key={project.id}>
-                              <input type="checkbox" name="projectIds" value={project.id} defaultChecked={account.projectIds?.includes(project.id)} />
-                              <span>{project.name}</span>
-                            </label>
-                          ))}
-                        </fieldset>
-                      )}
-                      <div className="edit-user-actions">
-                        <button type="button" className="text-button" onClick={() => setEditingUserId(null)}>Cancel</button>
-                        <button className="primary-button" type="submit"><Save size={15} /> Save</button>
-                      </div>
-                    </form>
-                  ) : (
-                    <article key={account.id}>
-                      <span className="user-avatar">{account.name.slice(0, 1).toUpperCase()}</span>
-                      <span><strong>{account.name}</strong><small>{account.email} · {account.role}</small></span>
-                      <span className="user-actions">
-                        <button onClick={() => setEditingUserId(account.id)} aria-label={`Edit ${account.name}`}><Pencil size={15} /></button>
-                        {account.id !== user?.id && <button onClick={() => removeUser(account.id)} aria-label={`Remove ${account.name}`}><Trash2 size={15} /></button>}
-                      </span>
-                    </article>
-                  ))}
-                </div>
-              </aside>
-            </>
-          )}
-
-          {profileOpen && user && (
-            <>
-              <button className="plan-backdrop" onClick={() => setProfileOpen(false)} aria-label="Close profile" />
-              <aside className="admin-panel">
-                <div className="plan-head">
-                  <span className="eyebrow">Account</span>
-                  <h2>My Profile</h2>
-                  <p>Update the name and email on your account.</p>
-                  <button className="close-detail" onClick={() => setProfileOpen(false)} aria-label="Close profile"><X size={17} /></button>
-                </div>
-                <form className="add-user-form" onSubmit={saveProfile} autoComplete="off">
-                  <label><span>Full name</span><input name="name" defaultValue={user.name} required autoComplete="name" /></label>
-                  <label><span>Email</span><input name="email" type="email" defaultValue={user.email} required autoComplete="email" /></label>
-                  <label><span>Role</span><input value={user.role} disabled /></label>
-                  <button className="primary-button" type="submit"><Save size={15} /> Save profile</button>
-                </form>
-                <div className="account-overview">
-                  <section>
-                    <span className="eyebrow">Account</span>
-                    {account ? (
-                      <dl className="account-facts">
-                        <div><dt>Role</dt><dd>{account.account.role}</dd></div>
-                        <div><dt>Member since</dt><dd>{account.account.createdAt ? new Date(account.account.createdAt).toLocaleDateString() : "—"}</dd></div>
-                      </dl>
-                    ) : <p className="account-muted">Loading…</p>}
-                  </section>
-                  {account && (
-                    <>
-                      <section>
-                        <span className="eyebrow">Your projects ({account.projects.length})</span>
-                        {account.projects.length ? <ul className="account-list">{account.projects.map((project) => <li key={project.id}>{project.name}</li>)}</ul> : <p className="account-muted">No projects assigned.</p>}
-                      </section>
-                      <section>
-                        <span className="eyebrow">Your groups ({account.groups.length})</span>
-                        {account.groups.length ? <ul className="account-list">{account.groups.map((group) => <li key={group.id}>{group.name}</li>)}</ul> : <p className="account-muted">Not in any group.</p>}
-                      </section>
-                      <section>
-                        <span className="eyebrow">Active sessions ({account.sessions.length})</span>
-                        <ul className="account-list">{account.sessions.map((session, index) => <li key={index}>{session.current ? "This device" : "Another device"} · expires {new Date(session.expiresAt).toLocaleDateString()}</li>)}</ul>
-                        {account.sessions.length > 1 && <button type="button" className="text-button" onClick={signOutOthers}><LogOut size={15} /> Sign out everywhere else</button>}
-                      </section>
-                    </>
-                  )}
-                </div>
-              </aside>
-            </>
-          )}
-
-          {passwordOpen && user && (
-            <>
-              <button className="plan-backdrop" onClick={() => setPasswordOpen(false)} aria-label="Close change password" />
-              <aside className="admin-panel">
-                <div className="plan-head">
-                  <span className="eyebrow">Account</span>
-                  <h2>Change Password</h2>
-                  <p>Enter your current password, then your new one.</p>
-                  <button className="close-detail" onClick={() => setPasswordOpen(false)} aria-label="Close change password"><X size={17} /></button>
-                </div>
-                <form className="add-user-form" onSubmit={changeOwnPassword} autoComplete="off">
-                  <label><span>Current password</span><input name="currentPassword" type="password" required autoComplete="current-password" /></label>
-                  <label><span>New password</span><input name="newPassword" type="password" minLength={8} required autoComplete="new-password" /></label>
-                  <label><span>Confirm new password</span><input name="confirmPassword" type="password" minLength={8} required autoComplete="new-password" /></label>
-                  <button className="primary-button" type="submit"><LockKeyhole size={15} /> Update password</button>
-                </form>
-              </aside>
-            </>
-          )}
 
           {projectOpen && (
             <>
@@ -4270,6 +4141,131 @@ export default function Home() {
           projectName={isAllProjectsMap?'All projects':projects.find(p=>p.id===currentProjectId)?.name??'Current project'}
           projectFilter={allProjectsProjectFilter} onProject={setAllProjectsProjectFilter} projectNames={isAllProjectsMap?allProjectNames:null}/>}
       </div>
+
+          {activeTab === "users" && user?.role === "admin" && (
+              <section className="admin-page">
+                <div className="admin-page-head">
+                  <span className="eyebrow">Administration</span>
+                  <h2>User management</h2>
+                  <p>Add team members, set their role, and assign them to projects.</p>
+                </div>
+                <form className="add-user-form" onSubmit={addUser} autoComplete="off">
+                  <input name="name" placeholder="Full name" required autoComplete="off" />
+                  <input name="email" type="email" placeholder="Email" required autoComplete="off" />
+                  <input name="password" type="password" placeholder="Temporary password" minLength={8} required autoComplete="new-password" />
+                  <SearchSelect name="role"><option value="viewer">Viewer</option><option value="creator">Creator</option><option value="field_user">Field User</option><option value="admin">Administrator</option></SearchSelect>
+                  <SearchSelect name="projectId" required>
+                    {projects.map((project) => <option key={project.id} value={project.id}>{project.name}</option>)}
+                  </SearchSelect>
+                  <button className="primary-button" type="submit"><Plus size={15} /> Add user</button>
+                </form>
+                <div className="user-list">
+                  {users.map((account) => editingUserId === account.id ? (
+                    <form key={account.id} className="add-user-form edit-user-form" onSubmit={saveUser} autoComplete="off">
+                      <input name="name" defaultValue={account.name} placeholder="Full name" required autoComplete="off" />
+                      <input name="email" type="email" defaultValue={account.email} placeholder="Email" required autoComplete="off" />
+                      <SearchSelect name="role" defaultValue={account.role} disabled={account.id === user?.id}>
+                        <option value="viewer">Viewer</option><option value="creator">Creator</option><option value="planner">Planner</option><option value="field_user">Field User</option><option value="admin">Administrator</option>
+                      </SearchSelect>
+                      {account.id === user?.id && <input type="hidden" name="role" value={account.role} />}
+                      <input name="password" type="password" placeholder="New password (leave blank to keep)" minLength={8} autoComplete="new-password" />
+                      {projects.length > 0 && (
+                        <fieldset className="assign-projects">
+                          <legend>Projects</legend>
+                          {projects.map((project) => (
+                            <label key={project.id}>
+                              <input type="checkbox" name="projectIds" value={project.id} defaultChecked={account.projectIds?.includes(project.id)} />
+                              <span>{project.name}</span>
+                            </label>
+                          ))}
+                        </fieldset>
+                      )}
+                      <div className="edit-user-actions">
+                        <button type="button" className="text-button" onClick={() => setEditingUserId(null)}>Cancel</button>
+                        <button className="primary-button" type="submit"><Save size={15} /> Save</button>
+                      </div>
+                    </form>
+                  ) : (
+                    <article key={account.id}>
+                      <span className="user-avatar">{account.name.slice(0, 1).toUpperCase()}</span>
+                      <span><strong>{account.name}</strong><small>{account.email} · {account.role}</small></span>
+                      <span className="user-actions">
+                        <button onClick={() => setEditingUserId(account.id)} aria-label={`Edit ${account.name}`}><Pencil size={15} /></button>
+                        {account.id !== user?.id && <button onClick={() => removeUser(account.id)} aria-label={`Remove ${account.name}`}><Trash2 size={15} /></button>}
+                      </span>
+                    </article>
+                  ))}
+                </div>
+              </section>
+          )}
+
+          {profileOpen && user && (
+            <>
+              <button className="plan-backdrop" onClick={() => setProfileOpen(false)} aria-label="Close profile" />
+              <aside className="admin-panel">
+                <div className="plan-head">
+                  <span className="eyebrow">Account</span>
+                  <h2>My Profile</h2>
+                  <p>Update the name and email on your account.</p>
+                  <button className="close-detail" onClick={() => setProfileOpen(false)} aria-label="Close profile"><X size={17} /></button>
+                </div>
+                <form className="add-user-form" onSubmit={saveProfile} autoComplete="off">
+                  <label><span>Full name</span><input name="name" defaultValue={user.name} required autoComplete="name" /></label>
+                  <label><span>Email</span><input name="email" type="email" defaultValue={user.email} required autoComplete="email" /></label>
+                  <label><span>Role</span><input value={user.role} disabled /></label>
+                  <button className="primary-button" type="submit"><Save size={15} /> Save profile</button>
+                </form>
+                <div className="account-overview">
+                  <section>
+                    <span className="eyebrow">Account</span>
+                    {account ? (
+                      <dl className="account-facts">
+                        <div><dt>Role</dt><dd>{account.account.role}</dd></div>
+                        <div><dt>Member since</dt><dd>{account.account.createdAt ? new Date(account.account.createdAt).toLocaleDateString() : "—"}</dd></div>
+                      </dl>
+                    ) : <p className="account-muted">Loading…</p>}
+                  </section>
+                  {account && (
+                    <>
+                      <section>
+                        <span className="eyebrow">Your projects ({account.projects.length})</span>
+                        {account.projects.length ? <ul className="account-list">{account.projects.map((project) => <li key={project.id}>{project.name}</li>)}</ul> : <p className="account-muted">No projects assigned.</p>}
+                      </section>
+                      <section>
+                        <span className="eyebrow">Your groups ({account.groups.length})</span>
+                        {account.groups.length ? <ul className="account-list">{account.groups.map((group) => <li key={group.id}>{group.name}</li>)}</ul> : <p className="account-muted">Not in any group.</p>}
+                      </section>
+                      <section>
+                        <span className="eyebrow">Active sessions ({account.sessions.length})</span>
+                        <ul className="account-list">{account.sessions.map((session, index) => <li key={index}>{session.current ? "This device" : "Another device"} · expires {new Date(session.expiresAt).toLocaleDateString()}</li>)}</ul>
+                        {account.sessions.length > 1 && <button type="button" className="text-button" onClick={signOutOthers}><LogOut size={15} /> Sign out everywhere else</button>}
+                      </section>
+                    </>
+                  )}
+                </div>
+              </aside>
+            </>
+          )}
+
+          {passwordOpen && user && (
+            <>
+              <button className="plan-backdrop" onClick={() => setPasswordOpen(false)} aria-label="Close change password" />
+              <aside className="admin-panel">
+                <div className="plan-head">
+                  <span className="eyebrow">Account</span>
+                  <h2>Change Password</h2>
+                  <p>Enter your current password, then your new one.</p>
+                  <button className="close-detail" onClick={() => setPasswordOpen(false)} aria-label="Close change password"><X size={17} /></button>
+                </div>
+                <form className="add-user-form" onSubmit={changeOwnPassword} autoComplete="off">
+                  <label><span>Current password</span><input name="currentPassword" type="password" required autoComplete="current-password" /></label>
+                  <label><span>New password</span><input name="newPassword" type="password" minLength={8} required autoComplete="new-password" /></label>
+                  <label><span>Confirm new password</span><input name="confirmPassword" type="password" minLength={8} required autoComplete="new-password" /></label>
+                  <button className="primary-button" type="submit"><LockKeyhole size={15} /> Update password</button>
+                </form>
+              </aside>
+            </>
+          )}
 
       {roadOpen&&inventoryScope&&canManage&&<RoadStretch key={currentProjectId} projectId={currentProjectId} projectName={projects.find(p=>p.id===currentProjectId)?.name}
         center={projectBillboards[0]} onClose={()=>setRoadOpen(false)} onSaved={(result:any)=>{setRoadOpen(false);setProjectLoadRevision(v=>v+1);setPlanningRevision(v=>v+1);setImportMessage(`${result.count} estimated lamp-post locations added for ${result.name}. Field GPS verification is required.`);}}/>}

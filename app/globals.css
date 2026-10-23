@@ -1200,6 +1200,31 @@ button {
   justify-self: start;
 }
 
+.admin-page {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 22px 20px 40px;
+}
+
+.admin-page-head {
+  margin-bottom: 16px;
+}
+
+.admin-page-head h2 {
+  margin: 4px 0 2px;
+}
+
+.admin-page-head p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.admin-page .add-user-form {
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+
 /* Searchable select (drop-in replacement for native <select>) */
 .search-select {
   position: relative;
