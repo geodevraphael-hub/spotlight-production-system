@@ -55,6 +55,7 @@ import {
   SquareDashedMousePointer,
   Save,
   Pencil,
+  LogOut,
 } from "lucide-react";
 import type {
   Map as LeafletMap,
@@ -702,6 +703,50 @@ function WorkspaceActions({ children }: { children: React.ReactNode }) {
   </div>;
 }
 
+function UserMenu({ initials, label, isAdmin, onSettings, onProfile, onChangePassword, onLogout }: {
+  initials: string;
+  label: string;
+  isAdmin: boolean;
+  onSettings: () => void;
+  onProfile: () => void;
+  onChangePassword: () => void;
+  onLogout: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const container = useRef<HTMLDivElement>(null);
+  const trigger = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const dismissOutside = (event: PointerEvent) => {
+      if (!container.current?.contains(event.target as Node)) setOpen(false);
+    };
+    const dismissWithEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") { setOpen(false); trigger.current?.focus(); }
+    };
+    document.addEventListener("pointerdown", dismissOutside);
+    document.addEventListener("keydown", dismissWithEscape);
+    return () => {
+      document.removeEventListener("pointerdown", dismissOutside);
+      document.removeEventListener("keydown", dismissWithEscape);
+    };
+  }, [open]);
+
+  const choose = (action: () => void) => () => { setOpen(false); action(); };
+
+  return <div className="user-menu" ref={container}>
+    <button ref={trigger} className="user-button" aria-expanded={open} aria-haspopup="menu" title={label} aria-label={`Account menu · ${label}`} onClick={() => setOpen(!open)}>
+      {initials}
+    </button>
+    {open && <div className="user-menu-panel" role="menu" aria-label="Account">
+      {isAdmin && <button role="menuitem" onClick={choose(onSettings)}><SlidersHorizontal size={15} /> Settings</button>}
+      <button role="menuitem" onClick={choose(onProfile)}><UserCog size={15} /> My Profile</button>
+      <button role="menuitem" onClick={choose(onChangePassword)}><LockKeyhole size={15} /> Change Password</button>
+      <button role="menuitem" className="user-menu-logout" onClick={choose(onLogout)}><LogOut size={15} /> Logout</button>
+    </div>}
+  </div>;
+}
+
 export default function Home() {
   const mapNode = useRef<HTMLDivElement>(null);
   const mapRef = useRef<LeafletMap | null>(null);
@@ -747,6 +792,8 @@ export default function Home() {
   const [signingIn, setSigningIn] = useState(false);
   const [adminOpen, setAdminOpen] = useState(false);
   const [editingUserId, setEditingUserId] = useState<number | null>(null);
+  const [profileOpen, setProfileOpen] = useState(false);
+  const [passwordOpen, setPasswordOpen] = useState(false);
   const [users, setUsers] = useState<Array<{ id: number; name: string; email: string; role: string }>>([]);
   const [baseMap, setBaseMap] = useState("street");
   const [mapReady, setMapReady] = useState(false);
@@ -2458,6 +2505,37 @@ export default function Home() {
     setUser(null);
   }
 
+  async function saveProfile(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const values = Object.fromEntries(new FormData(event.currentTarget)) as Record<string, string>;
+    const response = await fetch("/api/app?action=profile", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: values.name, email: values.email }),
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) { window.alert(data.error ?? "Unable to update your profile"); return; }
+    setUser((current) => current && { ...current, name: values.name, email: values.email.trim().toLowerCase() });
+    setProfileOpen(false);
+  }
+
+  async function changeOwnPassword(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const form = event.currentTarget;
+    const values = Object.fromEntries(new FormData(form)) as Record<string, string>;
+    if (values.newPassword !== values.confirmPassword) { window.alert("The new password and its confirmation do not match."); return; }
+    const response = await fetch("/api/app?action=change-password", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ currentPassword: values.currentPassword, newPassword: values.newPassword }),
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) { window.alert(data.error ?? "Unable to change your password"); return; }
+    form.reset();
+    setPasswordOpen(false);
+    window.alert("Your password has been changed.");
+  }
+
   async function savePlan() {
     if (planSaving) return;
     if (!planName.trim()) {
@@ -3081,9 +3159,15 @@ export default function Home() {
             </button>
           )}
           {user ? (
-            <button className="user-button" onClick={logout} title={`Sign out · ${user.name}`} aria-label={`Sign out ${user.name}`}>
-              {user.name.split(" ").map((part) => part[0]).join("").slice(0, 2)}
-            </button>
+            <UserMenu
+              initials={user.name.split(" ").map((part) => part[0]).join("").slice(0, 2)}
+              label={user.name}
+              isAdmin={user.role === "admin"}
+              onSettings={() => { loadUsers(); setAdminOpen(true); }}
+              onProfile={() => setProfileOpen(true)}
+              onChangePassword={() => setPasswordOpen(true)}
+              onLogout={logout}
+            />
           ) : (
             <span className="view-only-pill">View only</span>
           )}
@@ -3926,6 +4010,46 @@ export default function Home() {
                     </article>
                   ))}
                 </div>
+              </aside>
+            </>
+          )}
+
+          {profileOpen && user && (
+            <>
+              <button className="plan-backdrop" onClick={() => setProfileOpen(false)} aria-label="Close profile" />
+              <aside className="admin-panel">
+                <div className="plan-head">
+                  <span className="eyebrow">Account</span>
+                  <h2>My Profile</h2>
+                  <p>Update the name and email on your account.</p>
+                  <button className="close-detail" onClick={() => setProfileOpen(false)} aria-label="Close profile"><X size={17} /></button>
+                </div>
+                <form className="add-user-form" onSubmit={saveProfile} autoComplete="off">
+                  <label><span>Full name</span><input name="name" defaultValue={user.name} required autoComplete="name" /></label>
+                  <label><span>Email</span><input name="email" type="email" defaultValue={user.email} required autoComplete="email" /></label>
+                  <label><span>Role</span><input value={user.role} disabled /></label>
+                  <button className="primary-button" type="submit"><Save size={15} /> Save profile</button>
+                </form>
+              </aside>
+            </>
+          )}
+
+          {passwordOpen && user && (
+            <>
+              <button className="plan-backdrop" onClick={() => setPasswordOpen(false)} aria-label="Close change password" />
+              <aside className="admin-panel">
+                <div className="plan-head">
+                  <span className="eyebrow">Account</span>
+                  <h2>Change Password</h2>
+                  <p>Enter your current password, then your new one.</p>
+                  <button className="close-detail" onClick={() => setPasswordOpen(false)} aria-label="Close change password"><X size={17} /></button>
+                </div>
+                <form className="add-user-form" onSubmit={changeOwnPassword} autoComplete="off">
+                  <label><span>Current password</span><input name="currentPassword" type="password" required autoComplete="current-password" /></label>
+                  <label><span>New password</span><input name="newPassword" type="password" minLength={8} required autoComplete="new-password" /></label>
+                  <label><span>Confirm new password</span><input name="confirmPassword" type="password" minLength={8} required autoComplete="new-password" /></label>
+                  <button className="primary-button" type="submit"><LockKeyhole size={15} /> Update password</button>
+                </form>
               </aside>
             </>
           )}

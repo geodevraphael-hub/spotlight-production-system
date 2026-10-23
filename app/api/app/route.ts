@@ -1399,6 +1399,27 @@ export async function POST(request: Request) {
   const user = await currentUser(request);
   if (!user) return json({ error: "Unauthorized" }, 401);
   const db = auditedDatabase(env.DB,user);
+  if (action === "change-password") {
+    const currentPassword = String(body.currentPassword ?? "");
+    const newPassword = String(body.newPassword ?? "");
+    if (newPassword.length < 8) return json({ error: "New password must be at least 8 characters" }, 400);
+    const record = await env.DB.prepare("SELECT password_hash AS passwordHash FROM users WHERE id=?").bind(user.id).first<{ passwordHash: string }>();
+    if (!record) return json({ error: "Account not found" }, 404);
+    const [salt] = record.passwordHash.split(":");
+    if ((await passwordHash(currentPassword, salt)) !== record.passwordHash) return json({ error: "Your current password is incorrect" }, 403);
+    // Keep the current session alive so changing a password does not sign the user out.
+    await db.prepare("UPDATE users SET password_hash=? WHERE id=?").bind(await passwordHash(newPassword, crypto.randomUUID()), user.id).run();
+    return json({ ok: true });
+  }
+  if (action === "profile") {
+    const name = String(body.name ?? "").trim();
+    const email = String(body.email ?? "").trim().toLowerCase();
+    if (!name || !email.includes("@")) return json({ error: "Name and a valid email are required" }, 400);
+    const duplicate = await db.prepare("SELECT id FROM users WHERE lower(email)=? AND id<>?").bind(email, user.id).first();
+    if (duplicate) return json({ error: "A user with this email already exists" }, 409);
+    await db.prepare("UPDATE users SET name=?,email=? WHERE id=?").bind(name, email, user.id).run();
+    return json({ ok: true, user: { id: user.id, name, email, role: user.role } });
+  }
   if(action === "remove-project-inventory"){
     try{return json(await removeProjectInventory(db,user,body));}
     catch(error:any){return json({error:error.status?error.message:"Unable to remove billboards from the project."},error.status||500);}
