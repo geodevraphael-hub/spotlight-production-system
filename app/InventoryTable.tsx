@@ -1,4 +1,5 @@
 "use client";
+import SearchSelect from './SearchSelect';
 import {useEffect,useMemo,useState,useRef} from 'react';
 import {Download,RefreshCw,Plus,FileUp,ArrowUpDown,X,Map,Table2,PanelsTopLeft,SlidersHorizontal} from 'lucide-react';
 import {GEO_LEVELS,geographyOptions,changeGeography,inventoryGeography,inventoryCsv} from './inventory-workflow.mjs';
@@ -17,7 +18,7 @@ export function InventoryControls({boards,rows,evidence,geo,onGeo,geoLoading,geo
  const vendors=[...new Set(boards.map((b:any)=>b.owner).filter(Boolean))].sort() as string[];
  const ready=boards.filter((b:any)=>inventoryGeography(b,evidence).ready).length;
  const active=Object.values(geo).filter(Boolean).length+Number(Boolean(query))+Number(type!=='All types')+Number(Boolean(vendor))+Number(Boolean(priority))+Number(status!=='All status')+Number(flight!=='All flight status')+Number(projectFilter!=='All projects');
- function areaSelect(key:string,title:string){return <label key={key}>{title}<select aria-label={`Inventory ${title}`} disabled={geoLoading} value={geo[key]} onChange={e=>onGeo(changeGeography(geo,key,e.target.value))}><option value="">All {title.toLowerCase()}</option><option value="__missing__">Not available / stale</option>{geographyOptions(boards,evidence,geo,key).map((o:any)=><option key={o.value} value={o.value}>{o.label}</option>)}</select></label>;}
+ function areaSelect(key:string,title:string){return <label key={key}>{title}<SearchSelect aria-label={`Inventory ${title}`} disabled={geoLoading} value={geo[key]} onChange={e=>onGeo(changeGeography(geo,key,e.target.value))}><option value="">All {title.toLowerCase()}</option><option value="__missing__">Not available / stale</option>{geographyOptions(boards,evidence,geo,key).map((o:any)=><option key={o.value} value={o.value}>{o.label}</option>)}</SearchSelect></label>;}
  return <section className="inventory-controls" aria-label="Inventory controls">
   <header className="inventory-register-head">
    <div className="inventory-title"><h1>{central?'All-project map':'Inventory'}</h1><span>{loading?'Loading…':`${rows.length} of ${boards.length} billboards`}</span></div>
@@ -34,8 +35,8 @@ export function InventoryControls({boards,rows,evidence,geo,onGeo,geoLoading,geo
   </header>
   <div className="inventory-quick-filters">
    <label className="inventory-search">Search<input aria-label="Search inventory table" value={query} onChange={e=>onQuery(e.target.value)} placeholder="Name, vendor or location"/></label>
-   {central?<><label>Board type<select aria-label="Central board type" value={type} onChange={e=>onType(e.target.value)}><option>All types</option>{['large-format','digital-screen','lamp-post','fabricated-banner'].map(v=><option key={v} value={v}>{label(v)}</option>)}</select></label>
-    <label>Flight status<select aria-label="Central flight status" value={flight} onChange={e=>onFlight(e.target.value)}><option>All flight status</option>{['flighted','unflighted','expired','deflighted'].map(v=><option key={v} value={v}>{label(v)}</option>)}</select></label>
+   {central?<><label>Board type<SearchSelect aria-label="Central board type" value={type} onChange={e=>onType(e.target.value)}><option>All types</option>{['large-format','digital-screen','lamp-post','fabricated-banner'].map(v=><option key={v} value={v}>{label(v)}</option>)}</SearchSelect></label>
+    <label>Flight status<SearchSelect aria-label="Central flight status" value={flight} onChange={e=>onFlight(e.target.value)}><option>All flight status</option>{['flighted','unflighted','expired','deflighted'].map(v=><option key={v} value={v}>{label(v)}</option>)}</SearchSelect></label>
     {areaSelect('region','Region')}</>:GEO_LEVELS.filter(([key])=>key!=='council').map(([key,title])=>areaSelect(key,title))}
    <button aria-expanded={expanded} aria-controls="inventory-more-filters" onClick={()=>setExpanded(!expanded)}><SlidersHorizontal size={15}/>Filters{active>0?` (${active})`:''}</button>
    {active>0&&<button onClick={onReset} title="Clear all filters" aria-label="Clear all inventory filters"><X size={15}/></button>}
@@ -43,12 +44,12 @@ export function InventoryControls({boards,rows,evidence,geo,onGeo,geoLoading,geo
   {expanded&&<div className="inventory-filter-popover" id="inventory-more-filters" onKeyDown={e=>{if(e.key==='Escape')setExpanded(false);}}>
    <header><strong>{central?'Location & inventory filters':'Refine inventory'}</strong><button aria-label="Close inventory filters" onClick={()=>setExpanded(false)}><X size={17}/></button></header>
    <div className="inventory-filters">
-    {projectNames&&<label>Project<select aria-label="Inventory project filter" value={projectFilter} onChange={e=>onProject(e.target.value)}><option>All projects</option>{projectNames.map((p:string)=><option key={p}>{p}</option>)}</select></label>}
-    <label>Board type<select value={type} onChange={e=>onType(e.target.value)}><option value="All types">All types</option>{['large-format','digital-screen','lamp-post','fabricated-banner'].map(v=><option key={v} value={v}>{label(v)}</option>)}</select></label>
-    <label>Vendor<select value={vendor} onChange={e=>onVendor(e.target.value)}><option value="">All vendors</option>{vendors.map(v=><option key={v}>{v}</option>)}</select></label>
-    <label>Priority<select value={priority} onChange={e=>onPriority(e.target.value)}><option value="">All priorities</option>{PRIORITIES.map(([v,title]:any)=><option key={v} value={v}>{title}</option>)}<option value="__missing__">Not assigned</option></select></label>
-    <label>Inventory status<select value={status} onChange={e=>onStatus(e.target.value)}><option>All status</option><option value="selected">Selected</option><option value="not-selected">Not selected</option></select></label>
-    <label>Flight status<select value={flight} onChange={e=>onFlight(e.target.value)}><option>All flight status</option>{['flighted','unflighted','expired','deflighted'].map(v=><option key={v} value={v}>{label(v)}</option>)}</select></label>
+    {projectNames&&<label>Project<SearchSelect aria-label="Inventory project filter" value={projectFilter} onChange={e=>onProject(e.target.value)}><option>All projects</option>{projectNames.map((p:string)=><option key={p}>{p}</option>)}</SearchSelect></label>}
+    <label>Board type<SearchSelect value={type} onChange={e=>onType(e.target.value)}><option value="All types">All types</option>{['large-format','digital-screen','lamp-post','fabricated-banner'].map(v=><option key={v} value={v}>{label(v)}</option>)}</SearchSelect></label>
+    <label>Vendor<SearchSelect value={vendor} onChange={e=>onVendor(e.target.value)}><option value="">All vendors</option>{vendors.map(v=><option key={v}>{v}</option>)}</SearchSelect></label>
+    <label>Priority<SearchSelect value={priority} onChange={e=>onPriority(e.target.value)}><option value="">All priorities</option>{PRIORITIES.map(([v,title]:any)=><option key={v} value={v}>{title}</option>)}<option value="__missing__">Not assigned</option></SearchSelect></label>
+    <label>Inventory status<SearchSelect value={status} onChange={e=>onStatus(e.target.value)}><option>All status</option><option value="selected">Selected</option><option value="not-selected">Not selected</option></SearchSelect></label>
+    <label>Flight status<SearchSelect value={flight} onChange={e=>onFlight(e.target.value)}><option>All flight status</option>{['flighted','unflighted','expired','deflighted'].map(v=><option key={v} value={v}>{label(v)}</option>)}</SearchSelect></label>
     {areaSelect('council','Council')}
     {central&&GEO_LEVELS.filter(([key])=>!['region','council'].includes(key)).map(([key,title])=>areaSelect(key,title))}
    </div>
@@ -121,6 +122,6 @@ export default function InventoryTable({boards,rows,evidence,selected,onSelectio
     })}
    </tbody></table>
   </div>
-  <footer className="inventory-pagination"><span>{rows.length?`${(safePage-1)*size+1}–${Math.min(safePage*size,rows.length)} of ${rows.length}`:'0 results'}</span><label>Rows<select aria-label="Inventory rows per page" value={size} onChange={e=>setSize(Number(e.target.value))}>{[25,50,100].map(n=><option key={n}>{n}</option>)}</select></label><button disabled={safePage<=1} onClick={()=>setPage(safePage-1)}>Previous</button><span>Page {safePage} of {pages}</span><button disabled={safePage>=pages} onClick={()=>setPage(safePage+1)}>Next</button></footer>
+  <footer className="inventory-pagination"><span>{rows.length?`${(safePage-1)*size+1}–${Math.min(safePage*size,rows.length)} of ${rows.length}`:'0 results'}</span><label>Rows<SearchSelect aria-label="Inventory rows per page" value={size} onChange={e=>setSize(Number(e.target.value))}>{[25,50,100].map(n=><option key={n}>{n}</option>)}</SearchSelect></label><button disabled={safePage<=1} onClick={()=>setPage(safePage-1)}>Previous</button><span>Page {safePage} of {pages}</span><button disabled={safePage>=pages} onClick={()=>setPage(safePage+1)}>Next</button></footer>
  </section>;
 }

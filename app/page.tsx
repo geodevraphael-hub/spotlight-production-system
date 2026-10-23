@@ -1,4 +1,5 @@
 "use client";
+import SearchSelect from './SearchSelect';
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import Operations from './Operations';
@@ -3131,10 +3132,10 @@ export default function Home() {
         <div className="topbar-actions">
           {user ? <label className="project-select">
             <span>Project</span>
-            <select value={currentProjectId} onChange={(event) => setCurrentProjectId(Number(event.target.value))}>
+            <SearchSelect value={currentProjectId} onChange={(event) => setCurrentProjectId(Number(event.target.value))}>
               {user.role === "admin" && <option value={0}>All projects map</option>}
               {projects.map((project) => <option key={project.id} value={project.id}>{project.name}</option>)}
-            </select>
+            </SearchSelect>
           </label> : (
             <div className="project-view-label">
               <span>Project</span>
@@ -3269,9 +3270,9 @@ export default function Home() {
                 {importMessage && <p className="import-message">{importMessage}</p>}
                 {planningScope && <div className="planning-inventory-scope">
                   <label>Browse by project
-                    <select aria-label="Planning source project" value={allProjectsProjectFilter} onChange={event=>setAllProjectsProjectFilter(event.target.value)}>
+                    <SearchSelect aria-label="Planning source project" value={allProjectsProjectFilter} onChange={event=>setAllProjectsProjectFilter(event.target.value)}>
                       <option>All projects</option>{allProjectNames.map(name=><option key={name}>{name}</option>)}
-                    </select>
+                    </SearchSelect>
                   </label>
                   <button className="planner-refresh" aria-label="Refresh planning inventory" title="Refresh planning inventory" disabled={planningLoading} onClick={()=>setPlanningRevision(value=>value+1)}><RefreshCw size={17} aria-hidden="true" className={planningLoading ? "planner-spinning" : ""} /><span className="planner-sr-only">{planningLoading ? "Refreshing" : "Refresh"}</span></button>
                   {planningLoadError && <p role="alert">{planningLoadError}</p>}
@@ -3316,7 +3317,7 @@ export default function Home() {
                   {isAllProjectsMap && (
                     <label>
                       <span>Project</span>
-                      <select
+                      <SearchSelect
                         value={allProjectsProjectFilter}
                         onChange={(event) => setAllProjectsProjectFilter(event.target.value)}
                       >
@@ -3324,12 +3325,12 @@ export default function Home() {
                         {allProjectNames.map((item) => (
                           <option key={item}>{item}</option>
                         ))}
-                      </select>
+                      </SearchSelect>
                     </label>
                   )}
                   <label>
                     <span>Area</span>
-                    <select
+                    <SearchSelect
                       value={district}
                       onChange={(event) => setDistrict(event.target.value)}
                     >
@@ -3337,22 +3338,22 @@ export default function Home() {
                       {districts.map((item) => (
                         <option key={item}>{item}</option>
                       ))}
-                    </select>
+                    </SearchSelect>
                   </label>
                   <label>
                     <span>{planningScope ? "Inventory status" : "Status"}</span>
-                    <select
+                    <SearchSelect
                       value={availability}
                       onChange={(event) => setAvailability(event.target.value)}
                     >
                       <option>All status</option>
                       <option value="selected">Selected</option>
                       <option value="not-selected">Not selected</option>
-                    </select>
+                    </SearchSelect>
                   </label>
                   <label>
                     <span>Board type</span>
-                    <select
+                    <SearchSelect
                       value={boardTypeFilter}
                       onChange={(event) => setBoardTypeFilter(event.target.value)}
                     >
@@ -3361,26 +3362,26 @@ export default function Home() {
                       <option value="large-format">Large format</option>
                       <option value="digital-screen">Digital screen</option>
                       <option value="fabricated-banner">Fabricated banner</option>
-                    </select>
+                    </SearchSelect>
                   </label>
                   <label>
                     <span>Faces</span>
-                    <select value={facesFilter} onChange={(event) => setFacesFilter(event.target.value)}>
+                    <SearchSelect value={facesFilter} onChange={(event) => setFacesFilter(event.target.value)}>
                       <option>All faces</option>
                       <option>1 face</option>
                       <option>2 faces</option>
                       <option>3+ faces</option>
-                    </select>
+                    </SearchSelect>
                   </label>
                   <label>
                     <span>Flight status</span>
-                    <select value={mapFlightFilter} onChange={(event) => setMapFlightFilter(event.target.value)}>
+                    <SearchSelect value={mapFlightFilter} onChange={(event) => setMapFlightFilter(event.target.value)}>
                       <option>All flight status</option>
                       <option value="flighted">Flighted</option>
                       <option value="unflighted">Unflighted</option>
                       <option value="deflighted">Deflighted</option>
                       <option value="expired">Expired</option>
-                    </select>
+                    </SearchSelect>
                   </label>
                 </div>
               )}
@@ -3482,9 +3483,9 @@ export default function Home() {
               <input value={addressQuery} onChange={(event) => setAddressQuery(event.target.value)} placeholder="Search a place" aria-label="Search address" />
               <button type="submit" aria-label="Go to address"><LocateFixed size={17} /></button>
             </form>
-            <label className="basemap-select"><Layers3 size={16} /><select value={baseMap} onChange={(event) => setBaseMap(event.target.value)} aria-label="Basemap">
+            <label className="basemap-select"><Layers3 size={16} /><SearchSelect value={baseMap} onChange={(event) => setBaseMap(event.target.value)} aria-label="Basemap">
               <option value="street">Street</option><option value="light">Light street</option><option value="satellite">Satellite</option>
-            </select></label>
+            </SearchSelect></label>
             {planningScope && <div className="planner-map-actions">
               <button onClick={()=>fitMapToBillboardExtent(visibleAssets.length ? visibleAssets : billboards,true)} title="Fit all visible billboards"><Scan size={16} aria-hidden="true" /> Fit billboards</button>
               <button aria-pressed={boxSelectMode} onClick={()=>setBoxSelectMode(value=>!value)} title="Drag a rectangle to add billboards to this plan"><SquareDashedMousePointer size={16} aria-hidden="true" />{boxSelectMode ? "Cancel selection" : "Select by box"}</button>
@@ -3597,17 +3598,17 @@ export default function Home() {
                   </div>
                   <div className="flight-grid">
                     <label><span>Stage</span>
-                      <select value={flightDraft.stage} onChange={(event) => setFlightDraft((current) => ({ ...current, stage: event.target.value, flightStatus: event.target.value === "flighted" ? "flighted" : event.target.value === "removed" ? "deflighted" : current.flightStatus }))}>
+                      <SearchSelect value={flightDraft.stage} onChange={(event) => setFlightDraft((current) => ({ ...current, stage: event.target.value, flightStatus: event.target.value === "flighted" ? "flighted" : event.target.value === "removed" ? "deflighted" : current.flightStatus }))}>
                         <option value="design">Design</option>
                         <option value="printing">Printing</option>
                         <option value="transport">Transport</option>
                         <option value="ready">Ready</option>
                         <option value="flighted">Flighted</option>
                         <option value="removed">Deflighted / removed</option>
-                      </select>
+                      </SearchSelect>
                     </label>
                     <label><span>Status</span>
-                      <select value={flightDraft.stage === "flighted" ? "flighted" : flightDraft.flightStatus} onChange={(event) => {
+                      <SearchSelect value={flightDraft.stage === "flighted" ? "flighted" : flightDraft.flightStatus} onChange={(event) => {
                         const value = event.target.value;
                         setFlightDraft((current) => ({
                           ...current,
@@ -3618,7 +3619,7 @@ export default function Home() {
                         <option value="unflighted" disabled={flightDraft.stage === "flighted"}>Unflighted</option>
                         <option value="flighted">Flighted</option>
                         <option value="deflighted" disabled={flightDraft.stage === "flighted"}>Deflighted</option>
-                      </select>
+                      </SearchSelect>
                     </label>
                     <label><span>Days flighted</span><input type="number" min="0" value={flightDraft.durationDays} onChange={(event) => setFlightDraft((current) => ({ ...current, durationDays: event.target.value }))} /></label>
                     <label><span>Reminder days</span><input type="number" min="0" value={flightDraft.reminderDays} onChange={(event) => setFlightDraft((current) => ({ ...current, reminderDays: event.target.value }))} /></label>
@@ -3679,7 +3680,7 @@ export default function Home() {
                   </div>
                   <div className="validation-assign-row">
                     {estimatedPole(selected)?<button className="primary-button" disabled={user?.role!=='admin'} onClick={()=>{void ensureUsersLoaded();setPoleBoards([selected]);setSelected(null);}}>Assign GPS verification</button>:<>
-                    <select
+                    <SearchSelect
                       value={validationAssigneeId}
                       onFocus={() => { void ensureUsersLoaded(); }}
                       onChange={(event) => setValidationAssigneeId(event.target.value)}
@@ -3688,7 +3689,7 @@ export default function Home() {
                       {fieldUsers.map((account) => (
                         <option key={account.id} value={account.id}>{account.name} · {account.email}</option>
                       ))}
-                    </select>
+                    </SearchSelect>
                     <button className="primary-button" type="button" disabled={validationSaving || !validationAssigneeId} onClick={assignSelectedForValidation}>
                       {validationSaving ? "Assigning..." : "Assign"}
                     </button>
@@ -3842,13 +3843,13 @@ export default function Home() {
                 <button className="decision-launch" disabled={planSaving} onClick={()=>setDecisionOpen(true)}><SlidersHorizontal size={17}/>Decision support</button>
                 <div className="plan-switcher">
                   <label className="planner-saved-label">Open a saved plan
-                  <select aria-label="Saved plans" disabled={planSaving} value={currentPlanId ?? ""} onChange={(event) => {
+                  <SearchSelect aria-label="Saved plans" disabled={planSaving} value={currentPlanId ?? ""} onChange={(event) => {
                     const plan = plans.find((item) => item.id === Number(event.target.value));
                     if (plan) loadPlan(plan);
                   }}>
                     <option value="">Current unsaved plan</option>
                     {plans.map((plan) => <option key={plan.id} value={plan.id}>{plan.name}{plan.project_name ? ` — ${plan.project_name}` : ""}</option>)}
-                  </select>
+                  </SearchSelect>
                   </label>
                   <button onClick={newPlan} disabled={planSaving}><Plus size={14} /> New</button>
                   <button onClick={() => setCompareOpen(true)}><BarChart3 size={14} /> Compare</button>
@@ -3856,11 +3857,11 @@ export default function Home() {
                 <div className="planning-destination">
                   {planLoadWarning && <p className="planning-notice" role="alert">{planLoadWarning}</p>}
                   <label>Destination project
-                    <select aria-label="Plan destination project" disabled={planSaving} value={planTarget} onChange={event=>{setPlanTarget(event.target.value);setPlanSaveMessage("");}}>
+                    <SearchSelect aria-label="Plan destination project" disabled={planSaving} value={planTarget} onChange={event=>{setPlanTarget(event.target.value);setPlanSaveMessage("");}}>
                       <option value="">Choose a project when ready</option>
                       {projects.map(project=><option key={project.id} value={project.id}>{project.name}</option>)}
                       {["admin","creator"].includes(user?.role ?? "") && <option value="new">+ Create a new project</option>}
-                    </select>
+                    </SearchSelect>
                   </label>
                   {planTarget === "new" && <label>New project name<input aria-label="New plan project name" maxLength={200} value={planProjectName} disabled={planSaving} onChange={event=>setPlanProjectName(event.target.value)} placeholder="Campaign or client name" /></label>}
                   <small>Billboards stay in their original projects. Saving also links them here.</small>
@@ -4004,10 +4005,10 @@ export default function Home() {
                   <input name="name" placeholder="Full name" required autoComplete="off" />
                   <input name="email" type="email" placeholder="Email" required autoComplete="off" />
                   <input name="password" type="password" placeholder="Temporary password" minLength={8} required autoComplete="new-password" />
-                  <select name="role"><option value="viewer">Viewer</option><option value="creator">Creator</option><option value="field_user">Field User</option><option value="admin">Administrator</option></select>
-                  <select name="projectId" required>
+                  <SearchSelect name="role"><option value="viewer">Viewer</option><option value="creator">Creator</option><option value="field_user">Field User</option><option value="admin">Administrator</option></SearchSelect>
+                  <SearchSelect name="projectId" required>
                     {projects.map((project) => <option key={project.id} value={project.id}>{project.name}</option>)}
-                  </select>
+                  </SearchSelect>
                   <button className="primary-button" type="submit"><Plus size={15} /> Add user</button>
                 </form>
                 <div className="user-list">
@@ -4015,9 +4016,9 @@ export default function Home() {
                     <form key={account.id} className="add-user-form edit-user-form" onSubmit={saveUser} autoComplete="off">
                       <input name="name" defaultValue={account.name} placeholder="Full name" required autoComplete="off" />
                       <input name="email" type="email" defaultValue={account.email} placeholder="Email" required autoComplete="off" />
-                      <select name="role" defaultValue={account.role} disabled={account.id === user?.id}>
+                      <SearchSelect name="role" defaultValue={account.role} disabled={account.id === user?.id}>
                         <option value="viewer">Viewer</option><option value="creator">Creator</option><option value="planner">Planner</option><option value="field_user">Field User</option><option value="admin">Administrator</option>
-                      </select>
+                      </SearchSelect>
                       {account.id === user?.id && <input type="hidden" name="role" value={account.role} />}
                       <input name="password" type="password" placeholder="New password (leave blank to keep)" minLength={8} autoComplete="new-password" />
                       {projects.length > 0 && (
@@ -4145,24 +4146,24 @@ export default function Home() {
                   <label><span>Area / district</span><input name="district" value={assetDraft.district ?? ""} onChange={(event) => setAssetDraft((current) => ({ ...current, district: event.target.value }))} /></label>
                   <label><span>Vendor</span><input name="owner" value={assetDraft.owner ?? ""} onChange={(event) => setAssetDraft((current) => ({ ...current, owner: event.target.value }))} /></label>
                   <label><span>Registration number (provided by KM)</span><input maxLength={300} value={assetDraft.registrationNumber??""} onChange={e=>setAssetDraft(d=>({...d,registrationNumber:e.target.value}))}/></label>
-                  <label><span>Priority</span><select value={assetDraft.priority??""} onChange={e=>setAssetDraft(d=>({...d,priority:e.target.value}))}><option value="">Not assigned</option>{PRIORITIES.map(([value,label]:any)=><option key={value} value={value}>{label}</option>)}</select></label>
+                  <label><span>Priority</span><SearchSelect value={assetDraft.priority??""} onChange={e=>setAssetDraft(d=>({...d,priority:e.target.value}))}><option value="">Not assigned</option>{PRIORITIES.map(([value,label]:any)=><option key={value} value={value}>{label}</option>)}</SearchSelect></label>
                   <label><span>Media group</span><input maxLength={300} value={assetDraft.mediaGroup??""} onChange={e=>setAssetDraft(d=>({...d,mediaGroup:e.target.value}))}/></label>
                   <label><span>Installations</span><input type="number" min="0" max="100000" step="1" placeholder="Not recorded" value={assetDraft.installations??""} onChange={e=>setAssetDraft(d=>({...d,installations:e.target.value===""?null:Number(e.target.value)}))}/></label>
                   <label><span>From</span><input name="from" value={assetDraft.from ?? ""} onChange={(event) => setAssetDraft((current) => ({ ...current, from: event.target.value }))} /></label>
                   <label><span>To</span><input name="to" value={assetDraft.to ?? ""} onChange={(event) => setAssetDraft((current) => ({ ...current, to: event.target.value }))} /></label>
                   <label><span>Media type</span>
-                    <select value={assetDraft.mediaType ?? "lamp-post"} onChange={(event) => setAssetDraft((current) => ({ ...current, mediaType: event.target.value as Billboard["mediaType"] }))}>
+                    <SearchSelect value={assetDraft.mediaType ?? "lamp-post"} onChange={(event) => setAssetDraft((current) => ({ ...current, mediaType: event.target.value as Billboard["mediaType"] }))}>
                       <option value="lamp-post">Lamp post</option>
                       <option value="large-format">Large format</option>
                       <option value="digital-screen">Digital screen</option>
                       <option value="fabricated-banner">Fabricated banner</option>
-                    </select>
+                    </SearchSelect>
                   </label>
                   <label><span>Status</span>
-                    <select value={assetDraft.status ?? "not-selected"} onChange={(event) => setAssetDraft((current) => ({ ...current, status: event.target.value }))}>
+                    <SearchSelect value={assetDraft.status ?? "not-selected"} onChange={(event) => setAssetDraft((current) => ({ ...current, status: event.target.value }))}>
                       <option value="selected">Selected</option>
                       <option value="not-selected">Not selected</option>
-                    </select>
+                    </SearchSelect>
                   </label>
                   <label><span>Faces</span><input type="number" min="1" value={assetDraft.faces ?? 1} onChange={(event) => setAssetDraft((current) => ({ ...current, faces: Number(event.target.value) }))} /></label>
                   <label><span>Width (m)</span><input type="number" min="0" step="0.1" value={assetDraft.width ?? 0} onChange={(event) => setAssetDraft((current) => ({ ...current, width: Number(event.target.value) }))} /></label>
@@ -4213,10 +4214,10 @@ export default function Home() {
                     ["rental", "Rental / space price"], ["printing", "Printing price"],
                     ["transport", "Transport price"], ["flighting", "Flighting price"],
                   ].map(([field, label]) => (
-                    <label key={field}><span>{label}</span><select value={csvMap[field] ?? ""} onChange={(event) => setCsvMap((current) => ({ ...current, [field]: event.target.value }))}>
+                    <label key={field}><span>{label}</span><SearchSelect value={csvMap[field] ?? ""} onChange={(event) => setCsvMap((current) => ({ ...current, [field]: event.target.value }))}>
                       <option value="">Not mapped</option>
                       {csvImport.headers.map((header) => <option key={header}>{header}</option>)}
-                    </select></label>
+                    </SearchSelect></label>
                   ))}
                 </div>
                 <button className="primary-button mapping-import" disabled={!csvMap.latitude || !csvMap.longitude} onClick={commitMappedCsv}>Review mapped billboards</button>
@@ -4345,8 +4346,8 @@ export default function Home() {
                   <small>{readyForFlightAssets.length} delivered / received billboard(s)</small>
                 </div>
                 <div className="flight-grid flight-grid--wide">
-                  <label><span>Stage</span><select value={flightDraft.stage} onChange={(event) => setFlightDraft((current) => ({ ...current, stage: event.target.value, flightStatus: event.target.value === "flighted" ? "flighted" : event.target.value === "removed" ? "deflighted" : current.flightStatus }))}><option value="design">Design</option><option value="printing">Printing</option><option value="transport">Transport</option><option value="ready">Ready</option><option value="flighted">Flighted</option><option value="removed">Deflighted / removed</option></select></label>
-                  <label><span>Status</span><select value={flightDraft.stage === "flighted" ? "flighted" : flightDraft.flightStatus} onChange={(event) => { const value = event.target.value; setFlightDraft((current) => ({ ...current, stage: value === "flighted" ? "flighted" : value === "deflighted" ? "removed" : current.stage, flightStatus: current.stage === "flighted" ? "flighted" : value })); }}><option value="unflighted" disabled={flightDraft.stage === "flighted"}>Unflighted</option><option value="flighted">Flighted</option><option value="deflighted" disabled={flightDraft.stage === "flighted"}>Deflighted</option></select></label>
+                  <label><span>Stage</span><SearchSelect value={flightDraft.stage} onChange={(event) => setFlightDraft((current) => ({ ...current, stage: event.target.value, flightStatus: event.target.value === "flighted" ? "flighted" : event.target.value === "removed" ? "deflighted" : current.flightStatus }))}><option value="design">Design</option><option value="printing">Printing</option><option value="transport">Transport</option><option value="ready">Ready</option><option value="flighted">Flighted</option><option value="removed">Deflighted / removed</option></SearchSelect></label>
+                  <label><span>Status</span><SearchSelect value={flightDraft.stage === "flighted" ? "flighted" : flightDraft.flightStatus} onChange={(event) => { const value = event.target.value; setFlightDraft((current) => ({ ...current, stage: value === "flighted" ? "flighted" : value === "deflighted" ? "removed" : current.stage, flightStatus: current.stage === "flighted" ? "flighted" : value })); }}><option value="unflighted" disabled={flightDraft.stage === "flighted"}>Unflighted</option><option value="flighted">Flighted</option><option value="deflighted" disabled={flightDraft.stage === "flighted"}>Deflighted</option></SearchSelect></label>
                   <label><span>Days flighted</span><input type="number" min="0" value={flightDraft.durationDays} onChange={(event) => setFlightDraft((current) => ({ ...current, durationDays: event.target.value }))} /></label>
                   <label><span>Reminder days</span><input type="number" min="0" value={flightDraft.reminderDays} onChange={(event) => setFlightDraft((current) => ({ ...current, reminderDays: event.target.value }))} /></label>
                 </div>
@@ -4367,7 +4368,7 @@ export default function Home() {
                   <label><span>Name</span><input value={contactDraft.name} onChange={(event) => setContactDraft((current) => ({ ...current, name: event.target.value }))} placeholder="Operations team" required /></label>
                   <label><span>Emails</span><textarea value={contactDraft.emails} onChange={(event) => setContactDraft((current) => ({ ...current, emails: event.target.value }))} placeholder="one@email.com, two@email.com" /></label>
                   <label><span>WhatsApp phones</span><textarea value={contactDraft.phones} onChange={(event) => setContactDraft((current) => ({ ...current, phones: event.target.value }))} placeholder="2557..." /></label>
-                  {user?.role === "admin" && <label><span>Scope</span><select value={contactDraft.projectId} onChange={(event) => setContactDraft((current) => ({ ...current, projectId: event.target.value }))}><option value="project">This project</option><option value="global">Global default</option></select></label>}
+                  {user?.role === "admin" && <label><span>Scope</span><SearchSelect value={contactDraft.projectId} onChange={(event) => setContactDraft((current) => ({ ...current, projectId: event.target.value }))}><option value="project">This project</option><option value="global">Global default</option></SearchSelect></label>}
                   <button className="primary-button" type="submit">{contactDraft.id ? "Update contact" : "Save contact"}</button>
                   {contactDraft.id && <button className="text-button" type="button" onClick={() => setContactDraft({ name: "", emails: "", phones: "", projectId: "project" })}>Cancel edit</button>}
                 </form>
@@ -4408,7 +4409,7 @@ export default function Home() {
                   <Search size={16} />
                   <input value={flightSearch} onChange={(event) => setFlightSearch(event.target.value)} placeholder="Search billboard, route, vendor or stage" />
                 </label>
-                <select className="flight-status-select" value={flightStatusFilter} onChange={(event) => setFlightStatusFilter(event.target.value)}>
+                <SearchSelect className="flight-status-select" value={flightStatusFilter} onChange={(event) => setFlightStatusFilter(event.target.value)}>
                   <option value="all">All statuses</option>
                   <option value="flighted">Flighted</option>
                   <option value="unflighted">Unflighted</option>
@@ -4419,7 +4420,7 @@ export default function Home() {
                   <option value="transport">Transport stage</option>
                   <option value="ready">Ready stage</option>
                   <option value="removed">Deflighted / removed stage</option>
-                </select>
+                </SearchSelect>
               </div>
               <div className="billboard-flight-table">
                 <div className="billboard-flight-row billboard-flight-row--head">
@@ -4489,11 +4490,11 @@ export default function Home() {
                     <div className="tracker-row" key={`tracker-${asset.id}`}>
                       <span><strong>{asset.street}</strong><small>{asset.district} · {mediaTypeLabel(asset.mediaType)}</small></span>
                       <span>{asset.vendor || asset.owner || "UNKNOWN"}</span>
-                      <select value={trackerValue(asset, "artworkDelivery", "PENDING")} onChange={(event) => saveTrackerField(asset, "artworkDelivery", event.target.value)}>{EXECUTION_STATUS_OPTIONS.artworkDelivery.map((option) => <option key={option} value={option}>{option}</option>)}</select>
-                      <select value={trackerValue(asset, "artworkApproval", "PENDING")} onChange={(event) => saveTrackerField(asset, "artworkApproval", event.target.value)}>{EXECUTION_STATUS_OPTIONS.artworkApproval.map((option) => <option key={option} value={option}>{option}</option>)}</select>
-                      <select value={trackerValue(asset, "artworkToVendor", "PENDING")} onChange={(event) => saveTrackerField(asset, "artworkToVendor", event.target.value)}>{EXECUTION_STATUS_OPTIONS.artworkToVendor.map((option) => <option key={option} value={option}>{option}</option>)}</select>
-                      <select value={trackerValue(asset, "printingStatus", "NOT STARTED")} onChange={(event) => saveTrackerField(asset, "printingStatus", event.target.value)}>{EXECUTION_STATUS_OPTIONS.printingStatus.map((option) => <option key={option} value={option}>{option}</option>)}</select>
-                      <select value={trackerValue(asset, "deliveredToDestination", "PENDING")} onChange={(event) => saveTrackerField(asset, "deliveredToDestination", event.target.value)}>{EXECUTION_STATUS_OPTIONS.deliveredToDestination.map((option) => <option key={option} value={option}>{option}</option>)}</select>
+                      <SearchSelect value={trackerValue(asset, "artworkDelivery", "PENDING")} onChange={(event) => saveTrackerField(asset, "artworkDelivery", event.target.value)}>{EXECUTION_STATUS_OPTIONS.artworkDelivery.map((option) => <option key={option} value={option}>{option}</option>)}</SearchSelect>
+                      <SearchSelect value={trackerValue(asset, "artworkApproval", "PENDING")} onChange={(event) => saveTrackerField(asset, "artworkApproval", event.target.value)}>{EXECUTION_STATUS_OPTIONS.artworkApproval.map((option) => <option key={option} value={option}>{option}</option>)}</SearchSelect>
+                      <SearchSelect value={trackerValue(asset, "artworkToVendor", "PENDING")} onChange={(event) => saveTrackerField(asset, "artworkToVendor", event.target.value)}>{EXECUTION_STATUS_OPTIONS.artworkToVendor.map((option) => <option key={option} value={option}>{option}</option>)}</SearchSelect>
+                      <SearchSelect value={trackerValue(asset, "printingStatus", "NOT STARTED")} onChange={(event) => saveTrackerField(asset, "printingStatus", event.target.value)}>{EXECUTION_STATUS_OPTIONS.printingStatus.map((option) => <option key={option} value={option}>{option}</option>)}</SearchSelect>
+                      <SearchSelect value={trackerValue(asset, "deliveredToDestination", "PENDING")} onChange={(event) => saveTrackerField(asset, "deliveredToDestination", event.target.value)}>{EXECUTION_STATUS_OPTIONS.deliveredToDestination.map((option) => <option key={option} value={option}>{option}</option>)}</SearchSelect>
                       <span>{Number(asset.rentalPrice || 0).toLocaleString("en-US")}</span>
                       <span>{Number(asset.printingPrice || 0).toLocaleString("en-US")}</span>
                       <span>{Number(asset.flightingPrice || 0).toLocaleString("en-US")}</span>
@@ -4559,14 +4560,14 @@ export default function Home() {
               </div>
               <div className="tracker-filter-grid">
                 <label className="search-box tracker-search"><Search size={16} /><input value={trackerFilters.search} onChange={(event) => setTrackerFilters((current) => ({ ...current, search: event.target.value }))} placeholder="Search billboard, location, vendor" /></label>
-                <label><span>Board type</span><select value={trackerFilters.type} onChange={(event) => setTrackerFilters((current) => ({ ...current, type: event.target.value }))}><option>All</option>{trackerFilterOptions.types.map((option) => <option key={option}>{option}</option>)}</select></label>
-                <label><span>Vendor</span><select value={trackerFilters.vendor} onChange={(event) => setTrackerFilters((current) => ({ ...current, vendor: event.target.value }))}><option>All</option>{trackerFilterOptions.vendors.map((option) => <option key={option}>{option}</option>)}</select></label>
-                {activeTab==="tracker"&&<><label><span>Artwork delivery</span><select value={trackerFilters.artworkDelivery} onChange={(event) => setTrackerFilters((current) => ({ ...current, artworkDelivery: event.target.value }))}><option>All</option>{EXECUTION_STATUS_OPTIONS.artworkDelivery.map((option) => <option key={option}>{option}</option>)}</select></label>
-                <label><span>Approval</span><select value={trackerFilters.artworkApproval} onChange={(event) => setTrackerFilters((current) => ({ ...current, artworkApproval: event.target.value }))}><option>All</option>{EXECUTION_STATUS_OPTIONS.artworkApproval.map((option) => <option key={option}>{option}</option>)}</select></label>
-                <label><span>To vendor</span><select value={trackerFilters.artworkToVendor} onChange={(event) => setTrackerFilters((current) => ({ ...current, artworkToVendor: event.target.value }))}><option>All</option>{EXECUTION_STATUS_OPTIONS.artworkToVendor.map((option) => <option key={option}>{option}</option>)}</select></label>
-                <label><span>Printing</span><select value={trackerFilters.printingStatus} onChange={(event) => setTrackerFilters((current) => ({ ...current, printingStatus: event.target.value }))}><option>All</option>{EXECUTION_STATUS_OPTIONS.printingStatus.map((option) => <option key={option}>{option}</option>)}</select></label>
-                <label><span>Delivered</span><select value={trackerFilters.deliveredToDestination} onChange={(event) => setTrackerFilters((current) => ({ ...current, deliveredToDestination: event.target.value }))}><option>All</option>{EXECUTION_STATUS_OPTIONS.deliveredToDestination.map((option) => <option key={option}>{option}</option>)}</select></label>
-                <label><span>Flight status</span><select value={trackerFilters.flightStatus} onChange={(event) => setTrackerFilters((current) => ({ ...current, flightStatus: event.target.value }))}><option>All</option><option>flighted</option><option>unflighted</option><option>deflighted</option></select></label>
+                <label><span>Board type</span><SearchSelect value={trackerFilters.type} onChange={(event) => setTrackerFilters((current) => ({ ...current, type: event.target.value }))}><option>All</option>{trackerFilterOptions.types.map((option) => <option key={option}>{option}</option>)}</SearchSelect></label>
+                <label><span>Vendor</span><SearchSelect value={trackerFilters.vendor} onChange={(event) => setTrackerFilters((current) => ({ ...current, vendor: event.target.value }))}><option>All</option>{trackerFilterOptions.vendors.map((option) => <option key={option}>{option}</option>)}</SearchSelect></label>
+                {activeTab==="tracker"&&<><label><span>Artwork delivery</span><SearchSelect value={trackerFilters.artworkDelivery} onChange={(event) => setTrackerFilters((current) => ({ ...current, artworkDelivery: event.target.value }))}><option>All</option>{EXECUTION_STATUS_OPTIONS.artworkDelivery.map((option) => <option key={option}>{option}</option>)}</SearchSelect></label>
+                <label><span>Approval</span><SearchSelect value={trackerFilters.artworkApproval} onChange={(event) => setTrackerFilters((current) => ({ ...current, artworkApproval: event.target.value }))}><option>All</option>{EXECUTION_STATUS_OPTIONS.artworkApproval.map((option) => <option key={option}>{option}</option>)}</SearchSelect></label>
+                <label><span>To vendor</span><SearchSelect value={trackerFilters.artworkToVendor} onChange={(event) => setTrackerFilters((current) => ({ ...current, artworkToVendor: event.target.value }))}><option>All</option>{EXECUTION_STATUS_OPTIONS.artworkToVendor.map((option) => <option key={option}>{option}</option>)}</SearchSelect></label>
+                <label><span>Printing</span><SearchSelect value={trackerFilters.printingStatus} onChange={(event) => setTrackerFilters((current) => ({ ...current, printingStatus: event.target.value }))}><option>All</option>{EXECUTION_STATUS_OPTIONS.printingStatus.map((option) => <option key={option}>{option}</option>)}</SearchSelect></label>
+                <label><span>Delivered</span><SearchSelect value={trackerFilters.deliveredToDestination} onChange={(event) => setTrackerFilters((current) => ({ ...current, deliveredToDestination: event.target.value }))}><option>All</option>{EXECUTION_STATUS_OPTIONS.deliveredToDestination.map((option) => <option key={option}>{option}</option>)}</SearchSelect></label>
+                <label><span>Flight status</span><SearchSelect value={trackerFilters.flightStatus} onChange={(event) => setTrackerFilters((current) => ({ ...current, flightStatus: event.target.value }))}><option>All</option><option>flighted</option><option>unflighted</option><option>deflighted</option></SearchSelect></label>
                 </>}
                 {activeTab==="costs"&&<><label><span>Rental range</span><div className="range-filter"><input type="number" value={trackerFilters.rentalMin} onChange={(event) => setTrackerFilters((current) => ({ ...current, rentalMin: event.target.value }))} placeholder="Min" /><input type="number" value={trackerFilters.rentalMax} onChange={(event) => setTrackerFilters((current) => ({ ...current, rentalMax: event.target.value }))} placeholder="Max" /></div></label>
                 <label><span>Total range</span><div className="range-filter"><input type="number" value={trackerFilters.totalMin} onChange={(event) => setTrackerFilters((current) => ({ ...current, totalMin: event.target.value }))} placeholder="Min" /><input type="number" value={trackerFilters.totalMax} onChange={(event) => setTrackerFilters((current) => ({ ...current, totalMax: event.target.value }))} placeholder="Max" /></div></label>
@@ -4591,11 +4592,11 @@ export default function Home() {
                   <div className="tracker-row" key={`tracker-${asset.id}`}>
                     <span><strong>{asset.street}</strong><small>{asset.district} · {mediaTypeLabel(asset.mediaType)}</small></span>
                     <span>{vendor}</span>
-                    {activeTab==="tracker"?<><select value={trackerValue(asset, "artworkDelivery", "PENDING")} onChange={(event) => saveTrackerField(asset, "artworkDelivery", event.target.value)}>{EXECUTION_STATUS_OPTIONS.artworkDelivery.map((option) => <option key={option} value={option}>{option}</option>)}</select>
-                    <select value={trackerValue(asset, "artworkApproval", "PENDING")} onChange={(event) => saveTrackerField(asset, "artworkApproval", event.target.value)}>{EXECUTION_STATUS_OPTIONS.artworkApproval.map((option) => <option key={option} value={option}>{option}</option>)}</select>
-                    <select value={trackerValue(asset, "artworkToVendor", "PENDING")} onChange={(event) => saveTrackerField(asset, "artworkToVendor", event.target.value)}>{EXECUTION_STATUS_OPTIONS.artworkToVendor.map((option) => <option key={option} value={option}>{option}</option>)}</select>
-                    <select value={trackerValue(asset, "printingStatus", "NOT STARTED")} onChange={(event) => saveTrackerField(asset, "printingStatus", event.target.value)}>{EXECUTION_STATUS_OPTIONS.printingStatus.map((option) => <option key={option} value={option}>{option}</option>)}</select>
-                    <select value={trackerValue(asset, "deliveredToDestination", "PENDING")} onChange={(event) => saveTrackerField(asset, "deliveredToDestination", event.target.value)}>{EXECUTION_STATUS_OPTIONS.deliveredToDestination.map((option) => <option key={option} value={option}>{option}</option>)}</select>
+                    {activeTab==="tracker"?<><SearchSelect value={trackerValue(asset, "artworkDelivery", "PENDING")} onChange={(event) => saveTrackerField(asset, "artworkDelivery", event.target.value)}>{EXECUTION_STATUS_OPTIONS.artworkDelivery.map((option) => <option key={option} value={option}>{option}</option>)}</SearchSelect>
+                    <SearchSelect value={trackerValue(asset, "artworkApproval", "PENDING")} onChange={(event) => saveTrackerField(asset, "artworkApproval", event.target.value)}>{EXECUTION_STATUS_OPTIONS.artworkApproval.map((option) => <option key={option} value={option}>{option}</option>)}</SearchSelect>
+                    <SearchSelect value={trackerValue(asset, "artworkToVendor", "PENDING")} onChange={(event) => saveTrackerField(asset, "artworkToVendor", event.target.value)}>{EXECUTION_STATUS_OPTIONS.artworkToVendor.map((option) => <option key={option} value={option}>{option}</option>)}</SearchSelect>
+                    <SearchSelect value={trackerValue(asset, "printingStatus", "NOT STARTED")} onChange={(event) => saveTrackerField(asset, "printingStatus", event.target.value)}>{EXECUTION_STATUS_OPTIONS.printingStatus.map((option) => <option key={option} value={option}>{option}</option>)}</SearchSelect>
+                    <SearchSelect value={trackerValue(asset, "deliveredToDestination", "PENDING")} onChange={(event) => saveTrackerField(asset, "deliveredToDestination", event.target.value)}>{EXECUTION_STATUS_OPTIONS.deliveredToDestination.map((option) => <option key={option} value={option}>{option}</option>)}</SearchSelect>
                     <span className={schedule?.flight_status === "flighted" ? "flight-pill flight-pill--on" : "flight-pill"}>{schedule?.flight_status ?? "unflighted"}</span>
                     <span>{shortDate(schedule?.end_at)}</span>
                     <strong>{remainingDays(schedule?.end_at)}</strong>
@@ -4642,8 +4643,8 @@ export default function Home() {
             </div>
 
             <div className="flight-grid">
-              <label><span>Stage</span><select value={flightDraft.stage} onChange={(event) => setFlightDraft((current) => ({ ...current, stage: event.target.value, flightStatus: event.target.value === "flighted" ? "flighted" : event.target.value === "removed" ? "deflighted" : current.flightStatus }))}><option value="design">Design</option><option value="printing">Printing</option><option value="transport">Transport</option><option value="ready">Ready</option><option value="flighted">Flighted</option><option value="removed">Deflighted / removed</option></select></label>
-              <label><span>Status</span><select value={flightDraft.stage === "flighted" ? "flighted" : flightDraft.flightStatus} onChange={(event) => { const value = event.target.value; setFlightDraft((current) => ({ ...current, stage: value === "flighted" ? "flighted" : value === "deflighted" ? "removed" : current.stage, flightStatus: current.stage === "flighted" ? "flighted" : value })); }}><option value="unflighted" disabled={flightDraft.stage === "flighted"}>Unflighted</option><option value="flighted">Flighted</option><option value="deflighted" disabled={flightDraft.stage === "flighted"}>Deflighted</option></select></label>
+              <label><span>Stage</span><SearchSelect value={flightDraft.stage} onChange={(event) => setFlightDraft((current) => ({ ...current, stage: event.target.value, flightStatus: event.target.value === "flighted" ? "flighted" : event.target.value === "removed" ? "deflighted" : current.flightStatus }))}><option value="design">Design</option><option value="printing">Printing</option><option value="transport">Transport</option><option value="ready">Ready</option><option value="flighted">Flighted</option><option value="removed">Deflighted / removed</option></SearchSelect></label>
+              <label><span>Status</span><SearchSelect value={flightDraft.stage === "flighted" ? "flighted" : flightDraft.flightStatus} onChange={(event) => { const value = event.target.value; setFlightDraft((current) => ({ ...current, stage: value === "flighted" ? "flighted" : value === "deflighted" ? "removed" : current.stage, flightStatus: current.stage === "flighted" ? "flighted" : value })); }}><option value="unflighted" disabled={flightDraft.stage === "flighted"}>Unflighted</option><option value="flighted">Flighted</option><option value="deflighted" disabled={flightDraft.stage === "flighted"}>Deflighted</option></SearchSelect></label>
               <label><span>Days flighted</span><input type="number" min="0" value={flightDraft.durationDays} onChange={(event) => setFlightDraft((current) => ({ ...current, durationDays: event.target.value }))} /></label>
               <label><span>Reminder days</span><input type="number" min="0" value={flightDraft.reminderDays} onChange={(event) => setFlightDraft((current) => ({ ...current, reminderDays: event.target.value }))} /></label>
             </div>
@@ -4871,11 +4872,11 @@ export default function Home() {
                 <p className="form-context">Project: {projects.find((project) => project.id === currentProjectId)?.name ?? "Selected project"}</p>
                 <div className="mapping-grid">
                   <label><span>Mission name *</span><input name="name" defaultValue={editingMission?.name ?? ""} required /></label>
-                  <label><span>Status</span><select name="status" defaultValue={editingMission?.status ?? "active"}><option value="active">Active</option><option value="paused">Paused</option><option value="closed">Closed</option></select></label>
+                  <label><span>Status</span><SearchSelect name="status" defaultValue={editingMission?.status ?? "active"}><option value="active">Active</option><option value="paused">Paused</option><option value="closed">Closed</option></SearchSelect></label>
                   <label><span>Description</span><input name="description" defaultValue={editingMission?.description ?? ""} /></label>
                   <fieldset className="member-picker"><legend>Assign individual field users</legend>{users.filter((u) => u.role === "field_user").map((fieldUser) => <label key={fieldUser.id}><input type="checkbox" name="assignedUsers" value={fieldUser.id} defaultChecked={parseJsonArray(editingMission?.assigned_users).map(Number).includes(Number(fieldUser.id))} /><span>{fieldUser.name}<small>{fieldUser.email}</small></span></label>)}</fieldset>
                   <fieldset className="member-picker"><legend>Assign groups</legend>{userGroups.map((group) => <label key={group.id}><input type="checkbox" name="assignedGroups" value={group.id} defaultChecked={parseJsonArray(editingMission?.assigned_groups).map(Number).includes(Number(group.id))} /><span>{group.name}<small>{group.members?.length ?? 0} members</small></span></label>)}</fieldset>
-                  <label><span>Boundary</span><select name="boundaryId" defaultValue={editingMission?.boundary_id ?? ""}><option value="">None</option>{boundaries.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}</select></label>
+                  <label><span>Boundary</span><SearchSelect name="boundaryId" defaultValue={editingMission?.boundary_id ?? ""}><option value="">None</option>{boundaries.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}</SearchSelect></label>
                   <label><span>Required fields</span><input name="requiredFields" defaultValue={(parseJsonObject(editingMission?.config).requiredFields ?? ["district","street"]).join(",")} /></label>
                   <label><span>Min photos</span><input type="number" name="minPhotos" defaultValue={Number(parseJsonObject(editingMission?.config).minPhotos ?? 1)} min={0} /></label>
                   <label className="checkbox-label"><input type="checkbox" name="photoRequired" defaultChecked={editingMission ? Boolean(parseJsonObject(editingMission?.config).photoRequired) : true} /> Photos required</label>
@@ -4930,7 +4931,7 @@ export default function Home() {
             <div className="mapping-grid assign-project-grid">
               <label>
                 <span>Existing target project</span>
-                <select
+                <SearchSelect
                   value={assignTargetProjectId}
                   onChange={(event) => {
                     setAssignTargetProjectId(event.target.value);
@@ -4942,7 +4943,7 @@ export default function Home() {
                   {projects
                     .filter((project) => project.id !== currentProjectId && project.id !== 0)
                     .map((project) => <option key={project.id} value={project.id}>{project.name}</option>)}
-                </select>
+                </SearchSelect>
               </label>
               <label>
                 <span>Or create new project</span>

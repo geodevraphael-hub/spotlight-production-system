@@ -1,4 +1,5 @@
 "use client";
+import SearchSelect from './SearchSelect';
 import {useEffect,useState} from 'react';
 import {ArrowUpRight,RefreshCw,Clock3,MapPin,ClipboardList} from 'lucide-react';
 import './dashboard.css';
@@ -31,7 +32,7 @@ export default function Dashboard({projectId,projects,onProject,onNavigate}:any)
  const trends=data?.trend||[],trendMax=Math.max(1,...trends.map((t:any)=>t.value));
  return <section className="spot-dashboard" aria-label="Project dashboard" aria-busy={busy}>
   <header className="sd-header"><div><h1>Project dashboard</h1><p>{project?.name||'Choose a project to review its operations'}</p></div>
-   <div className="sd-header-actions"><label>Project<select aria-label="Dashboard project" value={projectId||''} onChange={e=>onProject(Number(e.target.value))}><option value="" disabled>Choose project</option>{projects.map((p:any)=><option key={p.id} value={p.id}>{p.name}</option>)}</select></label>
+   <div className="sd-header-actions"><label>Project<SearchSelect aria-label="Dashboard project" value={projectId||''} onChange={e=>onProject(Number(e.target.value))}><option value="" disabled>Choose project</option>{projects.map((p:any)=><option key={p.id} value={p.id}>{p.name}</option>)}</SearchSelect></label>
     <button aria-label="Refresh dashboard" disabled={busy||!projectId} onClick={()=>setRevision(v=>v+1)}><RefreshCw size={16} className={busy?'sd-refreshing':''}/><span>Refresh</span></button>
     <button disabled={!projectId} onClick={()=>onNavigate('inventory')}><MapPin size={16}/>Inventory<ArrowUpRight size={14}/></button></div>
   </header>
@@ -60,7 +61,7 @@ export default function Dashboard({projectId,projects,onProject,onNavigate}:any)
     </section>
    </div>
    <div className="sd-work-grid">
-    <section className="sd-panel sd-expiry"><header><div><h2>Deflighting worklist</h2><p>{expiry.length} overdue or due within {horizon} days · dates use East Africa Time.</p></div><label>Look ahead<select aria-label="Expiry look ahead" value={horizon} onChange={e=>setHorizon(Number(e.target.value))}><option value={3}>3 days</option><option value={7}>7 days</option><option value={30}>30 days</option></select></label></header>
+    <section className="sd-panel sd-expiry"><header><div><h2>Deflighting worklist</h2><p>{expiry.length} overdue or due within {horizon} days · dates use East Africa Time.</p></div><label>Look ahead<SearchSelect aria-label="Expiry look ahead" value={horizon} onChange={e=>setHorizon(Number(e.target.value))}><option value={3}>3 days</option><option value={7}>7 days</option><option value={30}>30 days</option></SearchSelect></label></header>
      <div className="sd-table-scroll" tabIndex={0} aria-label="Deflighting worklist"><table><thead><tr><th>Billboard / location</th><th>Expiry date</th><th>Time remaining</th><th><span className="planner-sr-only">Action</span></th></tr></thead><tbody>{expiry.slice(0,50).map((b:any)=><tr key={b.inventoryId}><td><strong>{b.name}</strong><small>{b.area||'Area not recorded'}</small></td><td>{date(b.end)}</td><td><span className="sd-due" data-overdue={b.remaining<0}>{b.remaining<0?`${Math.abs(b.remaining)} day${b.remaining===-1?'':'s'} overdue`:b.remaining===0?'Due today':`${b.remaining} day${b.remaining===1?'':'s'} left`}</span></td><td><button onClick={()=>onNavigate('inventory',{query:b.name})} aria-label={`Locate ${b.name}`}><MapPin size={15}/>Locate</button></td></tr>)}</tbody></table>{!expiry.length&&<p className="sd-empty">No billboards are overdue or due within this window.</p>}</div>
      {expiry.length>50&&<p className="sd-muted">Showing the first 50 by expiry. Open flighting for the full list.</p>}
     </section>

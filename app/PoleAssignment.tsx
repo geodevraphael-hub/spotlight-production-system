@@ -1,4 +1,5 @@
 "use client";
+import SearchSelect from './SearchSelect';
 import {useEffect,useRef,useState} from 'react';
 import {X} from 'lucide-react';
 export default function PoleAssignment({boards,projectId,projectName,users,onClose,onSaved}:any){
@@ -18,7 +19,7 @@ export default function PoleAssignment({boards,projectId,projectName,users,onClo
  }}>
   <header><div><h2 id="pole-assignment-title">Assign GPS verification</h2><p>{projectName} · {boards.length} estimated poles</p></div><button className="assignment-close" aria-label="Close GPS assignment" disabled={busy} onClick={onClose}><X size={20}/></button></header>
   <div className="assignment-content"><section className="assignment-destination"><h3>Choose a field user</h3>
-   <fieldset><label>Field user<select value={userId} disabled={busy||!!request.current} onChange={e=>{setUserId(e.target.value);setConfirmed(false);}}><option value="">Select field user</option>{users.map((u:any)=><option key={u.id} value={u.id}>{u.name} · {u.email}</option>)}</select></label></fieldset>
+   <fieldset><label>Field user<SearchSelect value={userId} disabled={busy||!!request.current} onChange={e=>{setUserId(e.target.value);setConfirmed(false);}}><option value="">Select field user</option>{users.map((u:any)=><option key={u.id} value={u.id}>{u.name} · {u.email}</option>)}</SearchSelect></label></fieldset>
    {!users.length&&<p role="status">No field users loaded. Close and reopen to retry, or add a field user in Field management.</p>}
    <p className="assignment-note">The APK will show these poles in the field user's validation list, with directions to each estimated location.</p>
    <p className="assignment-secondary">A photo, a GPS fix accurate to 10 m or better, and confirmation beside the pole are required. Successful verification updates the shared pole location in every linked project. “Not okay” reports leave the location unchanged.</p>

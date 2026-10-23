@@ -1,4 +1,5 @@
 "use client";
+import SearchSelect from './SearchSelect';
 import { useEffect, useMemo, useRef, useState } from "react";
 import { X, SlidersHorizontal, MapPin, Plus, Check, Download, RefreshCw } from "lucide-react";
 import { CRITERIA, decisionCriteria, rankBillboards, proposeShortlist, decisionCsv, usableEvidence } from "./planning-decision.mjs";
@@ -96,16 +97,16 @@ export default function PlanningDecision({boards,allBoards,costs,selected,settin
         <aside className="decision-settings">
           <h3><SlidersHorizontal size={17}/>Your priorities</h3>
           <p>Weights express importance, not accuracy. Zero turns a criterion off.</p>
-          <label>Starting point<select disabled={busy} value="" onChange={e=>{
+          <label>Starting point<SearchSelect disabled={busy} value="" onChange={e=>{
             const off=Object.fromEntries(CRITERIA.map(c=>[c.id,0]));
             if(e.target.value==="inventory")onSettings({...settings,weights:{...off,cost:3,faces:2}});
             if(e.target.value==="context")onSettings({...settings,populationBasis:'nbs',weights:{...off,cost:3,faces:2,population:3,commerce:2,transport:2}});
-          }}><option value="">Custom priorities</option><option value="inventory">Inventory value only</option><option value="context">Cost and NBS location context</option></select></label>
-          <label>Population source<select disabled={busy} value={settings.populationBasis} onChange={e=>onSettings({...settings,populationBasis:e.target.value})}><option value="nbs">NBS-based administrative area</option><option value="radius">WorldPop model within radius</option></select></label>
-          <label>Demographic comparison level<select disabled={busy} value={settings.demographicLevel} onChange={e=>onSettings({...settings,demographicLevel:e.target.value})}>{DEMOGRAPHIC_LEVELS.map(([id,label])=><option key={id} value={id}>{label}</option>)}</select></label>
+          }}><option value="">Custom priorities</option><option value="inventory">Inventory value only</option><option value="context">Cost and NBS location context</option></SearchSelect></label>
+          <label>Population source<SearchSelect disabled={busy} value={settings.populationBasis} onChange={e=>onSettings({...settings,populationBasis:e.target.value})}><option value="nbs">NBS-based administrative area</option><option value="radius">WorldPop model within radius</option></SearchSelect></label>
+          <label>Demographic comparison level<SearchSelect disabled={busy} value={settings.demographicLevel} onChange={e=>onSettings({...settings,demographicLevel:e.target.value})}>{DEMOGRAPHIC_LEVELS.map(([id,label])=><option key={id} value={id}>{label}</option>)}</SearchSelect></label>
           <p>Missing village data stays unavailable. No larger area's population is substituted. Choose the same level for a fair comparison. Population and male/female counts overlap; avoid giving the same population multiple weights unintentionally.</p>
           {[['Placement',['cost','faces']],['Demographics',['population','households','male','female']],['Nearby context',['commerce','transport','buildings']]].map(([title,ids])=><fieldset className="decision-criteria-group" key={title as string}><legend>{title}</legend>{decisionCriteria(settings).filter(c=>(ids as string[]).includes(c.id)).map(c=><label className="decision-weight" key={c.id}><span>{c.label}<b>{settings.weights[c.id]??0}/5</b></span><input disabled={busy} aria-label={`${c.label} importance`} type="range" min="0" max="5" step="1" value={settings.weights[c.id]??0} onChange={e=>onSettings({...settings,weights:{...settings.weights,[c.id]:Number(e.target.value)}})}/><small>{c.source}</small></label>)}</fieldset>)}
-          <label>Location radius<select disabled={busy} value={settings.radius} onChange={e=>onSettings({...settings,radius:Number(e.target.value)})}><option value="500">500 metres</option><option value="1000">1 kilometre</option><option value="2000">2 kilometres</option></select></label>
+          <label>Location radius<SearchSelect disabled={busy} value={settings.radius} onChange={e=>onSettings({...settings,radius:Number(e.target.value)})}><option value="500">500 metres</option><option value="1000">1 kilometre</option><option value="2000">2 kilometres</option></SearchSelect></label>
           <label>Total plan budget (TZS)<input type="number" min="0" step="0.01" placeholder="No budget limit" value={settings.budget} onChange={e=>onSettings({...settings,budget:e.target.value})}/></label>
           <label>Additional boards to suggest<input type="number" min="1" max="100" value={settings.count} onChange={e=>onSettings({...settings,count:Math.max(1,Math.min(100,Number(e.target.value)||1))})}/></label>
           <button className="primary-button" onClick={propose} disabled={!complete||busy}>Propose shortlist</button>

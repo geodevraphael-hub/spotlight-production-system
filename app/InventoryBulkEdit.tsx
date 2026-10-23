@@ -1,4 +1,5 @@
 "use client";
+import SearchSelect from './SearchSelect';
 import {useEffect,useRef,useState} from 'react';
 import {X,ArrowLeft,Check} from 'lucide-react';
 import {BULK_FIELDS,normalizeBulkChanges} from './inventory-bulk.mjs';
@@ -85,7 +86,7 @@ export default function InventoryBulkEdit({boards,projectId,projectName,hiddenCo
        const mixed=new Set(boards.map((b:any)=>String(b[field.key]??''))).size>1;
        return <div key={field.key} className={`bulk-field${enabled[field.key]?' is-enabled':''}`}>
         <label className="bulk-enable"><input type="checkbox" checked={!!enabled[field.key]} onChange={e=>toggle(field,e.target.checked)}/>{field.label}</label>
-        {field.options?<select aria-label={`New ${field.label}`} disabled={!enabled[field.key]} value={values[field.key]??''} onChange={e=>setValues(v=>({...v,[field.key]:e.target.value}))}><option value="">Choose a value</option>{field.options.map(([value,title]:any)=><option key={value} value={value}>{title}</option>)}</select>:
+        {field.options?<SearchSelect aria-label={`New ${field.label}`} disabled={!enabled[field.key]} value={values[field.key]??''} onChange={e=>setValues(v=>({...v,[field.key]:e.target.value}))}><option value="">Choose a value</option>{field.options.map(([value,title]:any)=><option key={value} value={value}>{title}</option>)}</SearchSelect>:
          <input aria-label={`New ${field.label}`} disabled={!enabled[field.key]} type={field.number?'number':'text'} min={field.min} max={field.max} step={field.integer?1:'any'} maxLength={300} value={values[field.key]??''} placeholder={mixed?'Mixed values':String(boards[0]?.[field.key]??'Not recorded')} onChange={e=>setValues(v=>({...v,[field.key]:e.target.value}))}/>}
        </div>;
       })}

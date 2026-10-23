@@ -1,4 +1,5 @@
 "use client";
+import SearchSelect from './SearchSelect';
 import {useEffect,useRef,useState} from 'react';
 import {X,Check,FolderPlus,FolderOpen} from 'lucide-react';
 export default function CentralAssignment({boards,projects,hiddenCount,onClose,onSaved}:any){
@@ -47,7 +48,7 @@ export default function CentralAssignment({boards,projects,hiddenCount,onClose,o
       <button disabled={busy||uncertain} aria-pressed={mode==='new'} onClick={()=>{setMode('new');changed();}}><FolderPlus size={16}/>Create project</button>
      </div>
      <fieldset disabled={busy||uncertain}>
-      {mode==='existing'?<label>Destination project<select value={target} onChange={e=>{setTarget(e.target.value);changed();}}><option value="">Choose a project</option>{projects.map((p:any)=><option key={p.id} value={p.id}>{p.name} · #{p.id}</option>)}</select></label>:
+      {mode==='existing'?<label>Destination project<SearchSelect value={target} onChange={e=>{setTarget(e.target.value);changed();}}><option value="">Choose a project</option>{projects.map((p:any)=><option key={p.id} value={p.id}>{p.name} · #{p.id}</option>)}</SearchSelect></label>:
        <><label>New project name<input maxLength={200} value={name} placeholder="Enter project name" onChange={e=>{setName(e.target.value);changed();}}/></label>
         <label>Project type<input maxLength={100} value={type} onChange={e=>{setType(e.target.value);changed();}}/></label></>}
      </fieldset>

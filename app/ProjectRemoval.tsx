@@ -1,4 +1,5 @@
 "use client";
+import SearchSelect from './SearchSelect';
 import {useEffect,useRef,useState} from 'react';
 import {X,ShieldCheck} from 'lucide-react';
 
@@ -42,7 +43,7 @@ export default function ProjectRemoval({boards,projects,initialProjectId,lockedP
   <div className="assignment-content">
    <section className="assignment-destination">
     <h3>Review project removal</h3>
-    <fieldset disabled={busy||uncertain||lockedProject}><label>Remove from this project<select value={target} onChange={e=>{setTarget(e.target.value);setConfirmed(false);setError('');request.current=null;}}><option value="">Choose a project</option>{projects.map((p:any)=><option key={p.id} value={p.id}>{p.name} · #{p.id}</option>)}</select></label></fieldset>
+    <fieldset disabled={busy||uncertain||lockedProject}><label>Remove from this project<SearchSelect value={target} onChange={e=>{setTarget(e.target.value);setConfirmed(false);setError('');request.current=null;}}><option value="">Choose a project</option>{projects.map((p:any)=><option key={p.id} value={p.id}>{p.name} · #{p.id}</option>)}</SearchSelect></label></fieldset>
     <p className="assignment-note" id="project-removal-preserved"><ShieldCheck size={18}/>Billboards, photos and attributes remain in the central inventory. All other project memberships are preserved.</p>
     <p className="assignment-secondary">This removes access through this project, including its shared map. Previous plans, flight schedules and validation records are retained as history; they are not deleted. You can assign the billboards again later.</p>
     {project&&<p className="assignment-preview"><strong>{affected.length}</strong> billboard{affected.length===1?'':'s'} to remove from <strong>{project.name}</strong>.{boards.length>affected.length?` ${boards.length-affected.length} not linked to this project will be skipped.`:''}</p>}
