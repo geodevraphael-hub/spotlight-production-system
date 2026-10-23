@@ -1086,7 +1086,7 @@ export default function Home() {
     setProjectContacts([]);
     setValidationAssignments([]);
     setNotificationSummary({ records: 0, recipientEmails: 0, sent: 0, failed: 0, skipped: 0 });
-    if (user.role === "admin" && currentProjectId === 0) {
+    if ((user.role === "admin" || user.role === "viewer") && currentProjectId === 0) {
       read("/api/app?action=inventory&allProjects=1")
         .then((inventoryData) => {
           if (cancelled) return;
@@ -1923,7 +1923,7 @@ export default function Home() {
 
   useEffect(() => {
     if (!user || activeTab !== "field") return;
-    if (user.role !== "admin" && user.role !== "creator") return;
+    if (!["admin", "creator", "viewer"].includes(user.role)) return;
     Promise.all([
       fetch(`/api/app?action=missions&projectId=${currentProjectId}`).then((r) => r.ok ? r.json() : null),
       fetch("/api/app?action=user-groups").then((r) => r.ok ? r.json() : null),
@@ -2095,11 +2095,13 @@ export default function Home() {
   }
 
   const isSharedView = Boolean(sharedProject && !user);
-  const isAllProjectsMap = Boolean(!planningScope && user?.role === "admin" && currentProjectId === 0);
+  const isViewer = user?.role === "viewer";
+  const isAllProjectsMap = Boolean(!planningScope && (user?.role === "admin" || isViewer) && currentProjectId === 0);
   const canManage = !isAllProjectsMap && (user?.role === "admin" || user?.role === "creator");
   const canPlan = Boolean(user && ["admin", "creator", "planner"].includes(user.role));
-  // Viewers get a read-only project dashboard too.
-  const canSeeDashboard = canPlan || user?.role === "viewer";
+  // Viewers get read-only access to every operational tab (scoped to their projects).
+  const canView = canPlan || isViewer;
+  const canSeeDashboard = canView;
   const planningContext = activeTab === "planner" && mapPurpose === "planning" && canPlan;
   const selectedPlanCosts: CostBreakdown = selected ? {
     rental: String(costs[selected.id]?.rental ?? selected.rentalPrice ?? ""),
@@ -3203,7 +3205,7 @@ export default function Home() {
 
       <WorkspaceDock>
         {canSeeDashboard && <button aria-current={activeTab === "dashboard" ? "page" : undefined} className={activeTab === "dashboard" ? "tab-btn tab-btn--active" : "tab-btn"} onClick={() => {if(!currentProjectId&&projects[0])setCurrentProjectId(projects[0].id);setActiveTab("dashboard");}}><BarChart3 size={16} /> Dashboard</button>}
-        {canPlan&&<button className={activeTab==='operations'?'tab-btn tab-btn--active':'tab-btn'} onClick={()=>setActiveTab('operations')} aria-current={activeTab==='operations'?'page':undefined}><ClipboardList size={16}/> Operations</button>}
+        {canView&&<button className={activeTab==='operations'?'tab-btn tab-btn--active':'tab-btn'} onClick={()=>setActiveTab('operations')} aria-current={activeTab==='operations'?'page':undefined}><ClipboardList size={16}/> Operations</button>}
         <button
           aria-current={activeTab === "planner" && !isAllProjectsMap && mapPurpose === "planning" ? "page" : undefined}
           className={activeTab === "planner" && !isAllProjectsMap && mapPurpose === "planning" ? "tab-btn tab-btn--active" : "tab-btn"}
@@ -3216,7 +3218,7 @@ export default function Home() {
           onClick={() => {if(isAllProjectsMap&&projects[0])setCurrentProjectId(projects[0].id); setMapPurpose("inventory"); setPlanOpen(false); setSelected(null); setActiveTab("planner"); }}>
           <ClipboardList size={16} /> Inventory
         </button>}
-        {user?.role === "admin" && (
+        {(user?.role === "admin" || isViewer) && (
           <button
             aria-current={isAllProjectsMap && activeTab === "planner" ? "page" : undefined}
             className={isAllProjectsMap && activeTab === "planner" ? "tab-btn tab-btn--active" : "tab-btn"}
@@ -3226,19 +3228,19 @@ export default function Home() {
           </button>
         )}
         <button aria-current={activeTab === "library" ? "page" : undefined} className={activeTab === "library" ? "tab-btn tab-btn--active" : "tab-btn"} onClick={() => setActiveTab("library")}><ImageIcon size={16} /> Image Library</button>
-        {canPlan && <button aria-current={activeTab === "flighting" ? "page" : undefined} className={activeTab === "flighting" ? "tab-btn tab-btn--active" : "tab-btn"} onClick={() => setActiveTab("flighting")}><Check size={16} /> Flighting</button>}
-        {canPlan && <button aria-current={activeTab === "tracker" ? "page" : undefined} className={activeTab === "tracker" ? "tab-btn tab-btn--active" : "tab-btn"} onClick={() => {if(!currentProjectId&&projects[0])setCurrentProjectId(projects[0].id);setActiveTab("tracker");}}><ClipboardList size={16} /> Execution</button>}
-        {canPlan && <button aria-current={activeTab === "costs" ? "page" : undefined} className={activeTab === "costs" ? "tab-btn tab-btn--active" : "tab-btn"} onClick={() => {if(!currentProjectId&&projects[0])setCurrentProjectId(projects[0].id);setActiveTab("costs");}}><BarChart3 size={16} /> Costs</button>}
-        {canManage && (
+        {canView && <button aria-current={activeTab === "flighting" ? "page" : undefined} className={activeTab === "flighting" ? "tab-btn tab-btn--active" : "tab-btn"} onClick={() => setActiveTab("flighting")}><Check size={16} /> Flighting</button>}
+        {canView && <button aria-current={activeTab === "tracker" ? "page" : undefined} className={activeTab === "tracker" ? "tab-btn tab-btn--active" : "tab-btn"} onClick={() => {if(!currentProjectId&&projects[0])setCurrentProjectId(projects[0].id);setActiveTab("tracker");}}><ClipboardList size={16} /> Execution</button>}
+        {canView && <button aria-current={activeTab === "costs" ? "page" : undefined} className={activeTab === "costs" ? "tab-btn tab-btn--active" : "tab-btn"} onClick={() => {if(!currentProjectId&&projects[0])setCurrentProjectId(projects[0].id);setActiveTab("costs");}}><BarChart3 size={16} /> Costs</button>}
+        {(canManage || isViewer) && (
           <button aria-current={activeTab === "field" ? "page" : undefined} className={activeTab === "field" ? "tab-btn tab-btn--active" : "tab-btn"} onClick={() => setActiveTab("field")}><Users size={16} /> Field Management</button>
         )}
-        {canPlan&&<button aria-current={activeTab==='reports'?'page':undefined} className={activeTab==='reports'?'tab-btn tab-btn--active':'tab-btn'} onClick={()=>{if(!currentProjectId&&projects[0])setCurrentProjectId(projects[0].id);setActiveTab('reports');}}><FileDown size={16}/> Reports</button>}
+        {canView&&<button aria-current={activeTab==='reports'?'page':undefined} className={activeTab==='reports'?'tab-btn tab-btn--active':'tab-btn'} onClick={()=>{if(!currentProjectId&&projects[0])setCurrentProjectId(projects[0].id);setActiveTab('reports');}}><FileDown size={16}/> Reports</button>}
         {user?.role === "admin" && <button aria-current={activeTab === "users" ? "page" : undefined} className={activeTab === "users" ? "tab-btn tab-btn--active" : "tab-btn"} onClick={() => { setActiveTab("users"); loadUsers(); }}><UserCog size={16} /> User Management</button>}
       </WorkspaceDock>
 
-      {activeTab==='reports'&&canPlan&&<ReportBuilder key={currentProjectId} projectId={currentProjectId}/>}
+      {activeTab==='reports'&&canView&&<ReportBuilder key={currentProjectId} projectId={currentProjectId} readOnly={!canPlan}/>}
 
-      {activeTab==='operations'&&canPlan&&<Operations key={`${currentProjectId}:${operationsSection}`} initialSection={operationsSection} projectId={currentProjectId} boards={billboards} role={user?.role||''}/>}
+      {activeTab==='operations'&&canView&&<Operations key={`${currentProjectId}:${operationsSection}`} initialSection={operationsSection} projectId={currentProjectId} boards={billboards} role={user?.role||''}/>}
       {importReview&&<ImportReview items={importReview} existing={billboards} onCancel={()=>setImportReview(null)} onImport={finishReviewedImport}/>}
       <div className={`workspace planning-workspace${inventoryScope ? " inventory-workspace" : ""}${centralScope?" central-workspace":""}${planningScope ? " planner-desk" : ""}${planOpen && planningScope ? " planning-workspace--review" : ""}${activeTab !== "planner" ? " workspace--hidden" : ""}`} aria-hidden={activeTab !== "planner"}
         data-inventory-view={inventoryScope?inventoryView:undefined}
@@ -4309,7 +4311,7 @@ export default function Home() {
             transport:String(current[id]?.transport??board.transportPrice??""),flighting:String(current[id]?.flighting??board.flightingPrice??"")};}return next;});
         }}/>}
 
-      {activeTab === "flighting" && canPlan && (
+      {activeTab === "flighting" && canView && (
         <div className="workspace flighting-workspace">
           <section className="flighting-page">
             <div className="flighting-hero">
@@ -4323,7 +4325,7 @@ export default function Home() {
                 <button className="text-button" onClick={() => exportTracker("design")}><Download size={15} /> Design tracker</button>
                 <button className="text-button" onClick={() => exportTracker("cost")}><Download size={15} /> Cost tracker</button>
                 <button className="text-button" onClick={() => exportTracker("comprehensive")}><Download size={15} /> Full workbook</button>
-                <button className="primary-button" onClick={sendDueFlightReminders}>Run reminder check now</button>
+                {canPlan && <button className="primary-button" onClick={sendDueFlightReminders}>Run reminder check now</button>}
               </div>
             </div>
 
@@ -4447,7 +4449,7 @@ export default function Home() {
                       <span className={schedule?.flight_status === "flighted" ? "flight-pill flight-pill--on" : "flight-pill"}>{schedule?.flight_status ?? "unflighted"}</span>
                       <span>{shortDate(schedule?.end_at)}</span>
                       <span>{remainingDays(schedule?.end_at)}</span>
-                      <button onClick={(event) => { event.stopPropagation(); openFlightAsset(asset); }}>Manage</button>
+                      {canPlan && <button onClick={(event) => { event.stopPropagation(); openFlightAsset(asset); }}>Manage</button>}
                     </div>
                   );
                 })}
@@ -4509,7 +4511,7 @@ export default function Home() {
         </div>
       )}
 
-      {(activeTab === "tracker" || activeTab === "costs") && canPlan && (
+      {(activeTab === "tracker" || activeTab === "costs") && canView && (
         <div className={`workspace flighting-workspace tracker-workspace tracker-workspace--${activeTab}`}>
           <section className="flighting-page tracker-page">
             <div className="flighting-hero tracker-hero">
@@ -4598,7 +4600,7 @@ export default function Home() {
                     <span className={schedule?.flight_status === "flighted" ? "flight-pill flight-pill--on" : "flight-pill"}>{schedule?.flight_status ?? "unflighted"}</span>
                     <span>{shortDate(schedule?.end_at)}</span>
                     <strong>{remainingDays(schedule?.end_at)}</strong>
-                    <button onClick={() => openFlightAsset(asset)}>Update flight</button>
+                    {canPlan && <button onClick={() => openFlightAsset(asset)}>Update flight</button>}
                     </>:<>
                     <span>{Number(asset.rentalPrice || 0).toLocaleString("en-US")}</span>
                     <span>{Number(asset.printingPrice || 0).toLocaleString("en-US")}</span>
@@ -4649,9 +4651,9 @@ export default function Home() {
             <label className="flight-note"><span>Memo / removal note</span><input value={flightDraft.note} onChange={(event) => setFlightDraft((current) => ({ ...current, note: event.target.value }))} placeholder="Example: remove creative after campaign end" /></label>
             <div className="flight-modal-actions">
               <button className="text-button" onClick={() => showFlightAssetOnMap(flightAssetPopup)}><MapPin size={15} /> Show on main map</button>
-              <button className="primary-button" disabled={flightSaving} onClick={() => saveFlightSchedule([flightAssetPopup.id])}>
+              {canPlan && <button className="primary-button" disabled={flightSaving} onClick={() => saveFlightSchedule([flightAssetPopup.id])}>
                 {flightSaving ? "Saving..." : "Save flight status"}
-              </button>
+              </button>}
             </div>
           </aside>
         </>
@@ -4736,7 +4738,7 @@ export default function Home() {
           setActiveTab(destination as typeof activeTab);
         }}/>}
 
-      {activeTab === "field" && canManage && (
+      {activeTab === "field" && (canManage || isViewer) && (
         <div className="workspace field-workspace field-workspace--command">
           <div className="field-command-page">
             <section className="field-command-hero">
@@ -4745,10 +4747,10 @@ export default function Home() {
                 <h2>{currentProject?.name ?? "Selected project"}</h2>
                 <p>Manage collection missions, field users, groups, and admin boundaries for this project.</p>
               </div>
-              <div className="field-command-actions">
+              {canManage && <div className="field-command-actions">
                 <button className="primary-button" onClick={() => { setEditingMission(null); setMissionFormOpen(true); }}><Plus size={15} /> New mission</button>
                 <button className="text-button" onClick={() => { setEditingGroup(null); setGroupFormOpen(true); }}><Plus size={15} /> New group</button>
-              </div>
+              </div>}
             </section>
 
             <section className="field-kpis">
@@ -4767,7 +4769,7 @@ export default function Home() {
                     <h3>{missions.length} missions - {inactiveMissions.length} inactive</h3>
                     <small>{missionAssignedUserCount} direct user assignments - {missionAssignedGroupCount} group assignments</small>
                   </div>
-                  <button className="primary-button" onClick={() => { setEditingMission(null); setMissionFormOpen(true); }}><Plus size={15} /> Add mission</button>
+                  {canManage && <button className="primary-button" onClick={() => { setEditingMission(null); setMissionFormOpen(true); }}><Plus size={15} /> Add mission</button>}
                 </div>
                 <div className="mission-table">
                   <div className="mission-table-head">
@@ -4799,8 +4801,10 @@ export default function Home() {
                         </div>
                         <div><span className={`status ${m.status === "active" ? "" : "status--occupied"}`}>{m.status}</span></div>
                         <div className="mission-actions">
-                          <button onClick={() => { setEditingMission(m); setMissionFormOpen(true); }}>Edit</button>
-                          <button className="danger-link" onClick={() => deleteMission(m)}><Trash2 size={13} /> Delete</button>
+                          {canManage ? <>
+                            <button onClick={() => { setEditingMission(m); setMissionFormOpen(true); }}>Edit</button>
+                            <button className="danger-link" onClick={() => deleteMission(m)}><Trash2 size={13} /> Delete</button>
+                          </> : <span className="field-view-only">View only</span>}
                         </div>
                       </article>
                     );
@@ -4812,7 +4816,7 @@ export default function Home() {
               <section className="field-panel">
                 <div className="field-panel-head field-panel-head--table">
                   <div><span className="eyebrow">Field Team &amp; Groups</span><h3>{fieldUsers.length} field users - {userGroups.length} groups</h3><small>Group field users to assign missions faster.</small></div>
-                  <button className="text-button" onClick={() => { setEditingGroup(null); setGroupFormOpen(true); }}><Plus size={15} /> New group</button>
+                  {canManage && <button className="text-button" onClick={() => { setEditingGroup(null); setGroupFormOpen(true); }}><Plus size={15} /> New group</button>}
                 </div>
                 <div className="field-list field-list--open">
                   <div className="field-section-label">Groups</div>
@@ -4821,10 +4825,10 @@ export default function Home() {
                       <div className="field-card-head"><strong>{g.name}</strong><span>{g.members?.length ?? 0} members</span></div>
                       <small>{g.description || "No description"}</small>
                       {g.members?.length > 0 && <div className="field-card-members">{g.members.map((m: any) => <span key={m.id}>{m.name}</span>)}</div>}
-                      <div className="field-card-actions">
+                      {canManage && <div className="field-card-actions">
                         <button onClick={() => { setEditingGroup(g); setGroupFormOpen(true); }}>Manage members</button>
                         {user?.role === "admin" && <button className="danger-link" onClick={() => deleteGroup(g.id)}><Trash2 size={13} /> Delete</button>}
-                      </div>
+                      </div>}
                     </article>
                   ))}
                   {!userGroups.length && <div className="empty-state">No groups yet.</div>}

@@ -38,7 +38,10 @@ export async function GET(request: Request) {
     catch{return reply({error:'Dashboard data could not be loaded. Please retry.'},500);}
   }
   const allNotifications=section==='notifications' && url.searchParams.get('scope')==='all';
-  if (!['admin','creator','planner'].includes(user.role) || (allNotifications ? user.role!=='admin' : !(await access(user,projectId)))) return reply({error:'Select an accessible project'},403);
+  // Viewers may read the operational worklists (issues, bookings, costs) for a project
+  // they can access, but not the message-delivery log or activity history.
+  const viewerReadable = user.role==='viewer' && ['issues','bookings','costs'].includes(section||'');
+  if (!(['admin','creator','planner'].includes(user.role) || viewerReadable) || (allNotifications ? user.role!=='admin' : !(await access(user,projectId)))) return reply({error:'Select an accessible project'},403);
   if (section === 'notifications') {
     const page=Math.max(1,Math.min(100000,Math.floor(Number(url.searchParams.get('page'))||1)));
     const limit=50;

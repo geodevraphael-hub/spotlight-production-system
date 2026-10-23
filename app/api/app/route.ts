@@ -1082,17 +1082,22 @@ export async function GET(request: Request) {
     const projectId = Number(url.searchParams.get("projectId")) || 1;
     const allProjects = url.searchParams.get("allProjects") === "1";
     if (allProjects) {
-      if (user.role !== "admin") return json({ error: "Forbidden" }, 403);
-      const rows = await env.DB.prepare(`
+      // Admins see every project; other roles see only projects they are assigned to.
+      const scoped = user.role !== "admin";
+      const rowsStmt = env.DB.prepare(`
         SELECT i.id AS inventory_id,i.data,p.id AS project_id,p.name AS project_name
         FROM inventory i
         LEFT JOIN projects p ON p.id=COALESCE(json_extract(i.data,'$.projectId'),1)
           OR p.id IN (SELECT ip.project_id FROM inventory_projects ip WHERE ip.inventory_id=i.id)
+        ${scoped ? "WHERE p.id IN (SELECT project_id FROM project_users WHERE user_id=?)" : ""}
         ORDER BY p.name,i.id
-      `).all<{ inventory_id: number; data: string; project_id: number; project_name: string }>();
-      const schedules = await env.DB.prepare("SELECT * FROM flight_schedules").all<any>();
+      `);
+      const rows = await (scoped ? rowsStmt.bind(user.id) : rowsStmt).all();
+      const schedules = scoped
+        ? await env.DB.prepare("SELECT * FROM flight_schedules WHERE project_id IN (SELECT project_id FROM project_users WHERE user_id=?)").bind(user.id).all()
+        : await env.DB.prepare("SELECT * FROM flight_schedules").all();
       return json({
-        inventory: await (async()=>{const bookings=await assetBookings(env.DB);return centralInventory(rows.results,schedules.results).map(item=>({...item,...bookings.get(item.inventoryDbId)}));})(),
+        inventory: await (async()=>{const bookings=await assetBookings(env.DB);return centralInventory(rows.results as any[],schedules.results as any[]).map(item=>({...item,...bookings.get(item.inventoryDbId)}));})(),
       });
     }
     const allowed = user.role === "admin" || Boolean(await env.DB.prepare("SELECT 1 FROM project_users WHERE project_id=? AND user_id=?").bind(projectId, user.id).first());
@@ -1157,7 +1162,7 @@ export async function GET(request: Request) {
     const plan = await env.DB.prepare("SELECT data,note FROM plans WHERE user_id=?").bind(user.id).first<{ data: string; note: string }>();
     return json({ plan: plan ? JSON.parse(plan.data) : { shortlist: [], prices: {} }, note: plan?.note ?? "" });
   }
-  if (action === "users" && (user.role === "admin" || user.role === "creator")) {
+  if (action === "users" && (user.role === "admin" || user.role === "creator" || user.role === "viewer")) {
     const rows = await env.DB.prepare(
       user.role === "admin"
         ? "SELECT id,name,email,role,created_at AS createdAt FROM users ORDER BY name"
@@ -1171,7 +1176,7 @@ export async function GET(request: Request) {
     }
     return json({ users: rows.results });
   }
-  if (action === "user-groups" && (user.role === "admin" || user.role === "creator")) {
+  if (action === "user-groups" && (user.role === "admin" || user.role === "creator" || user.role === "viewer")) {
     const rows = await env.DB.prepare("SELECT * FROM user_groups ORDER BY name").all();
     const groups = [];
     for (const g of rows.results as any[]) {
@@ -1180,7 +1185,7 @@ export async function GET(request: Request) {
     }
     return json({ groups });
   }
-  if (action === "missions" && (user.role === "admin" || user.role === "creator" || user.role === "field_user")) {
+  if (action === "missions" && (user.role === "admin" || user.role === "creator" || user.role === "field_user" || user.role === "viewer")) {
     const projectId = Number(url.searchParams.get("projectId")) || 0;
     let rows;
     if (user.role === "field_user") {

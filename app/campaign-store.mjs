@@ -10,7 +10,7 @@ export async function setupCampaignTools(db){
  ]);
 }
 export async function campaignAccess(db,user,projectId,write=false){
- if(!user||!['admin','creator','planner'].includes(user.role)||!Number.isSafeInteger(projectId)||projectId<=0||write&&user.role==='planner')fail('Only project administrators and creators can change campaigns or map road stretches.',403);
+ if(!user||!['admin','creator','planner','viewer'].includes(user.role)||!Number.isSafeInteger(projectId)||projectId<=0||write&&!['admin','creator'].includes(user.role))fail('Only project administrators and creators can change campaigns or map road stretches.',403);
  if(!await db.prepare(`SELECT id FROM projects WHERE id=? AND (?='admin' OR created_by=? OR EXISTS(SELECT 1 FROM project_users WHERE project_id=projects.id AND user_id=?))`).bind(projectId,user.role,user.id,user.id).first())fail('Choose an accessible project.',403);
 }
 export async function campaignInventory(db,projectId){
