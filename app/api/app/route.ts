@@ -1133,6 +1133,17 @@ export async function GET(request: Request) {
       : await env.DB.prepare(query).bind(user.id).all();
     return json({ projects: rows.results });
   }
+  if (action === "account-overview") {
+    const account = await env.DB.prepare("SELECT id,name,email,role,created_at AS createdAt FROM users WHERE id=?").bind(user.id).first();
+    const projects = user.role === "admin"
+      ? (await env.DB.prepare("SELECT id,name,created_at AS createdAt FROM projects ORDER BY created_at DESC").all()).results
+      : (await env.DB.prepare("SELECT p.id,p.name,p.created_at AS createdAt FROM projects p JOIN project_users pu ON pu.project_id=p.id WHERE pu.user_id=? ORDER BY p.created_at DESC").bind(user.id).all()).results;
+    const groups = (await env.DB.prepare("SELECT g.id,g.name FROM user_groups g JOIN user_group_members m ON m.group_id=g.id WHERE m.user_id=? ORDER BY g.name").bind(user.id).all()).results;
+    const token = cookieToken(request);
+    const sessionRows = (await env.DB.prepare("SELECT token,expires_at AS expiresAt FROM sessions WHERE user_id=? AND expires_at>? ORDER BY expires_at DESC").bind(user.id, Date.now()).all()).results as any[];
+    const sessions = sessionRows.map((row) => ({ current: row.token === token, expiresAt: row.expiresAt }));
+    return json({ account, projects, groups, sessions });
+  }
   if (action === "plans") {
     const projectId = Number(url.searchParams.get("projectId")) || 1;
     const rows = await env.DB.prepare(
@@ -1152,6 +1163,12 @@ export async function GET(request: Request) {
         ? "SELECT id,name,email,role,created_at AS createdAt FROM users ORDER BY name"
         : "SELECT id,name,email,role,created_at AS createdAt FROM users WHERE role='field_user' ORDER BY name",
     ).all();
+    if (user.role === "admin") {
+      const links = (await env.DB.prepare("SELECT user_id AS userId, project_id AS projectId FROM project_users").all()).results as any[];
+      const byUser = new Map<number, number[]>();
+      for (const link of links) byUser.set(link.userId, [...(byUser.get(link.userId) ?? []), link.projectId]);
+      for (const row of rows.results as any[]) row.projectIds = byUser.get(row.id) ?? [];
+    }
     return json({ users: rows.results });
   }
   if (action === "user-groups" && (user.role === "admin" || user.role === "creator")) {
@@ -2012,7 +2029,19 @@ export async function POST(request: Request) {
       statements.push(db.prepare("UPDATE users SET password_hash=? WHERE id=?").bind(hash, targetId));
       if (targetId !== user.id) statements.push(db.prepare("DELETE FROM sessions WHERE user_id=?").bind(targetId));
     }
+    if (Array.isArray(body.projectIds)) {
+      const projectIds = body.projectIds.map(Number).filter((id: number) => Number.isInteger(id) && id > 0);
+      statements.push(db.prepare("DELETE FROM project_users WHERE user_id=?").bind(targetId));
+      for (const projectId of projectIds) {
+        statements.push(db.prepare("INSERT OR IGNORE INTO project_users (project_id,user_id) VALUES (?,?)").bind(projectId, targetId));
+      }
+    }
     await db.batch(statements);
+    return json({ ok: true });
+  }
+  if (action === "logout-others") {
+    const token = cookieToken(request);
+    await db.prepare("DELETE FROM sessions WHERE user_id=? AND token<>?").bind(user.id, token).run();
     return json({ ok: true });
   }
   if (action === "reset-password" && user.role === "admin") {

@@ -1095,6 +1095,79 @@ button {
   font-weight: 900;
 }
 
+.assign-projects {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+
+.assign-projects legend {
+  padding: 0 4px;
+  font-size: 9px;
+  font-weight: 850;
+  letter-spacing: .07em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.assign-projects label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.account-overview {
+  display: grid;
+  gap: 18px;
+  padding: 4px 22px 26px;
+}
+
+.account-overview section {
+  display: grid;
+  gap: 8px;
+}
+
+.account-facts {
+  margin: 0;
+  display: grid;
+  gap: 6px;
+}
+
+.account-facts div {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 12px;
+}
+
+.account-facts dt {
+  color: var(--muted);
+}
+
+.account-facts dd {
+  margin: 0;
+  font-weight: 700;
+}
+
+.account-list {
+  margin: 0;
+  padding-left: 16px;
+  display: grid;
+  gap: 4px;
+  font-size: 12px;
+}
+
+.account-muted {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+}
+
 .user-menu {
   position: relative;
 }

@@ -794,7 +794,8 @@ export default function Home() {
   const [editingUserId, setEditingUserId] = useState<number | null>(null);
   const [profileOpen, setProfileOpen] = useState(false);
   const [passwordOpen, setPasswordOpen] = useState(false);
-  const [users, setUsers] = useState<Array<{ id: number; name: string; email: string; role: string }>>([]);
+  const [account, setAccount] = useState<{ account: { name: string; email: string; role: string; createdAt: number }; projects: Array<{ id: number; name: string }>; groups: Array<{ id: number; name: string }>; sessions: Array<{ current: boolean; expiresAt: number }> } | null>(null);
+  const [users, setUsers] = useState<Array<{ id: number; name: string; email: string; role: string; createdAt?: number; projectIds?: number[] }>>([]);
   const [baseMap, setBaseMap] = useState("street");
   const [mapReady, setMapReady] = useState(false);
   const [planNote, setPlanNote] = useState("");
@@ -2505,6 +2506,17 @@ export default function Home() {
     setUser(null);
   }
 
+  async function loadAccountOverview() {
+    const response = await fetch("/api/app?action=account-overview");
+    if (response.ok) setAccount(await response.json());
+  }
+
+  async function signOutOthers() {
+    if (!window.confirm("Sign out of all your other sessions? You will stay signed in here.")) return;
+    const response = await fetch("/api/app?action=logout-others", { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" });
+    if (response.ok) { loadAccountOverview(); window.alert("Your other sessions have been signed out."); }
+  }
+
   async function saveProfile(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const values = Object.fromEntries(new FormData(event.currentTarget)) as Record<string, string>;
@@ -2970,11 +2982,13 @@ export default function Home() {
   async function saveUser(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!editingUserId) return;
-    const values = Object.fromEntries(new FormData(event.currentTarget));
+    const formData = new FormData(event.currentTarget);
+    const values = Object.fromEntries(formData);
+    const projectIds = formData.getAll("projectIds").map(Number).filter(Boolean);
     const response = await fetch("/api/app?action=update-user", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ...values, id: editingUserId }),
+      body: JSON.stringify({ ...values, id: editingUserId, projectIds }),
     });
     const data = await response.json().catch(() => ({}));
     if (!response.ok) {
@@ -3164,7 +3178,7 @@ export default function Home() {
               label={user.name}
               isAdmin={user.role === "admin"}
               onSettings={() => { loadUsers(); setAdminOpen(true); }}
-              onProfile={() => setProfileOpen(true)}
+              onProfile={() => { setAccount(null); void loadAccountOverview(); setProfileOpen(true); }}
               onChangePassword={() => setPasswordOpen(true)}
               onLogout={logout}
             />
@@ -3994,6 +4008,17 @@ export default function Home() {
                       </select>
                       {account.id === user?.id && <input type="hidden" name="role" value={account.role} />}
                       <input name="password" type="password" placeholder="New password (leave blank to keep)" minLength={8} autoComplete="new-password" />
+                      {projects.length > 0 && (
+                        <fieldset className="assign-projects">
+                          <legend>Projects</legend>
+                          {projects.map((project) => (
+                            <label key={project.id}>
+                              <input type="checkbox" name="projectIds" value={project.id} defaultChecked={account.projectIds?.includes(project.id)} />
+                              <span>{project.name}</span>
+                            </label>
+                          ))}
+                        </fieldset>
+                      )}
                       <div className="edit-user-actions">
                         <button type="button" className="text-button" onClick={() => setEditingUserId(null)}>Cancel</button>
                         <button className="primary-button" type="submit"><Save size={15} /> Save</button>
@@ -4030,6 +4055,34 @@ export default function Home() {
                   <label><span>Role</span><input value={user.role} disabled /></label>
                   <button className="primary-button" type="submit"><Save size={15} /> Save profile</button>
                 </form>
+                <div className="account-overview">
+                  <section>
+                    <span className="eyebrow">Account</span>
+                    {account ? (
+                      <dl className="account-facts">
+                        <div><dt>Role</dt><dd>{account.account.role}</dd></div>
+                        <div><dt>Member since</dt><dd>{account.account.createdAt ? new Date(account.account.createdAt).toLocaleDateString() : "—"}</dd></div>
+                      </dl>
+                    ) : <p className="account-muted">Loading…</p>}
+                  </section>
+                  {account && (
+                    <>
+                      <section>
+                        <span className="eyebrow">Your projects ({account.projects.length})</span>
+                        {account.projects.length ? <ul className="account-list">{account.projects.map((project) => <li key={project.id}>{project.name}</li>)}</ul> : <p className="account-muted">No projects assigned.</p>}
+                      </section>
+                      <section>
+                        <span className="eyebrow">Your groups ({account.groups.length})</span>
+                        {account.groups.length ? <ul className="account-list">{account.groups.map((group) => <li key={group.id}>{group.name}</li>)}</ul> : <p className="account-muted">Not in any group.</p>}
+                      </section>
+                      <section>
+                        <span className="eyebrow">Active sessions ({account.sessions.length})</span>
+                        <ul className="account-list">{account.sessions.map((session, index) => <li key={index}>{session.current ? "This device" : "Another device"} · expires {new Date(session.expiresAt).toLocaleDateString()}</li>)}</ul>
+                        {account.sessions.length > 1 && <button type="button" className="text-button" onClick={signOutOthers}><LogOut size={15} /> Sign out everywhere else</button>}
+                      </section>
+                    </>
+                  )}
+                </div>
               </aside>
             </>
           )}
