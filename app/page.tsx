@@ -4201,7 +4201,7 @@ export default function Home() {
             if (!account) return null;
             return (
               <div className="user-modal-backdrop" role="dialog" aria-modal="true" aria-label="Edit user">
-                <div className="user-modal">
+                <div className="user-modal user-modal--wide">
                   <div className="user-modal-head">
                     <h3>Edit {account.name}</h3>
                     <button className="close-detail" onClick={() => setEditingUserId(null)} aria-label="Close"><X size={17} /></button>
@@ -4215,14 +4215,16 @@ export default function Home() {
                     {account.id === user?.id && <input type="hidden" name="role" value={account.role} />}
                     <label><span>New password</span><input name="password" type="password" placeholder="Leave blank to keep" minLength={8} autoComplete="new-password" /></label>
                     {projects.length > 0 && (
-                      <fieldset className="assign-projects">
+                      <fieldset className="assign-projects assign-projects--switches">
                         <legend>Projects</legend>
-                        {projects.map((project) => (
-                          <label key={project.id}>
-                            <input type="checkbox" name="projectIds" value={project.id} defaultChecked={account.projectIds?.includes(project.id)} />
-                            <span>{project.name}</span>
-                          </label>
-                        ))}
+                        <div className="assign-projects-grid">
+                          {projects.map((project) => (
+                            <label key={project.id} className="switch-row">
+                              <span>{project.name}</span>
+                              <input type="checkbox" className="switch" name="projectIds" value={project.id} defaultChecked={account.projectIds?.includes(project.id)} />
+                            </label>
+                          ))}
+                        </div>
                       </fieldset>
                     )}
                     <div className="user-modal-actions">
