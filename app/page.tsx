@@ -755,6 +755,7 @@ export default function Home() {
   const [decision,setDecision]=useState<DecisionSettings>(defaultDecision);
   const [importMessage, setImportMessage] = useState("");
   const [projects, setProjects] = useState<Project[]>([]);
+  const [projectsLoaded, setProjectsLoaded] = useState(false);
   const [currentProjectId, setCurrentProjectId] = useState(1);
   const [projectOpen, setProjectOpen] = useState(false);
   const [plans, setPlans] = useState<CampaignPlan[]>([]);
@@ -921,14 +922,18 @@ export default function Home() {
 
   useEffect(() => {
     if (!user) return;
+    setProjectsLoaded(false);
     fetch("/api/app?action=projects")
       .then((response) => response.ok ? response.json() : null)
       .then((projectData) => {
       if (projectData?.projects?.length) {
         setProjects(projectData.projects);
         setCurrentProjectId(projectData.projects[0].id);
+      } else {
+        setProjects([]);
       }
-    });
+      setProjectsLoaded(true);
+    }).catch(() => setProjectsLoaded(true));
   }, [user]);
 
   useEffect(() => {
@@ -1000,6 +1005,19 @@ export default function Home() {
     let cancelled = false;
     const controller = new AbortController();
     setProjectLoadError('');
+    // Non-admins can only read projects they are assigned to. Wait for the
+    // project list before loading inventory so we never request a project the
+    // viewer cannot access, which the server rejects with 403 and the UI would
+    // otherwise surface as a misleading "Unable to load the map" error.
+    if (user.role !== "admin") {
+      if (!projectsLoaded) return () => { cancelled = true; controller.abort(); };
+      if (!projects.some((project) => Number(project.id) === Number(currentProjectId))) {
+        setBillboards([]);
+        setSelected(null);
+        setLoading(false);
+        return () => { cancelled = true; controller.abort(); };
+      }
+    }
     const read = async (url: string) => {
       const response = await fetch(url, { signal: controller.signal });
       if (!response.ok) throw new Error(`Unable to load project data (${response.status})`);
@@ -1059,7 +1077,7 @@ export default function Home() {
       void read(`/api/app?action=${action}&projectId=${currentProjectId}`).then(data=>{if(!cancelled)update(data);}).catch(()=>{if(!cancelled)setProjectLoadError('Some project panels could not load. Retry to refresh their information.');});
     }
     return () => { cancelled = true; controller.abort(); };
-  }, [user, currentProjectId, projectLoadRevision]);
+  }, [user, currentProjectId, projectLoadRevision, projectsLoaded, projects]);
 
   const districts = useMemo(
     () => Array.from(new Set(billboards.map((item) => item.district))).sort(),
@@ -2991,6 +3009,7 @@ export default function Home() {
 
   return (
     <main className={isSharedView ? "app-shell app-shell--shared-view" : "app-shell"}>
+      {user&&user.role!=='admin'&&projectsLoaded&&projects.length===0&&activeTab!=='dashboard'&&<div className="ops-error" role="alert">No projects have been assigned to your account yet. Please contact an administrator.</div>}
       {projectLoadError&&activeTab!=='dashboard'&&<div className="ops-error" role="alert">{projectLoadError} <button className="text-button" onClick={()=>setProjectLoadRevision(value=>value+1)}>Retry loading</button></div>}
       <header className="topbar">
         <div className="brand">
