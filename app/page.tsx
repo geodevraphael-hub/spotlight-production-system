@@ -3025,7 +3025,7 @@ export default function Home() {
           </span>
         </div>
         <div className="topbar-actions">
-          {activeTab==='dashboard'?<div className="project-view-label"><span>Operational overview</span><strong>{currentProject?.name||'Select a project'}</strong></div>:centralScope?<div className="project-view-label"><span>Central inventory</span><strong>All-project workspace</strong></div>:user && planningScope ? <div className="project-view-label"><span>Planning inventory</span><strong>All accessible billboards</strong></div> : user ? <label className="project-select">
+          {user ? <label className="project-select">
             <span>Project</span>
             <select value={currentProjectId} onChange={(event) => setCurrentProjectId(Number(event.target.value))}>
               {user.role === "admin" && <option value={0}>All projects map</option>}
@@ -3037,7 +3037,7 @@ export default function Home() {
               <strong>{sharedProject?.name}</strong>
             </div>
           )}
-          {canManage && !planningScope && activeTab!=='dashboard' && (
+          {canManage && (
             <WorkspaceActions>
               <span className="action-section-label">Project</span>
               <button className="text-button" onClick={() => { setActiveTab("planner"); setProjectOpen(true); }}><Plus size={15} /> Create project</button>
@@ -3066,7 +3066,7 @@ export default function Home() {
               </>}
             </WorkspaceActions>
           )}
-          {user && !planningScope && !centralScope && (
+          {user && (
             <button
               className="text-button"
               onClick={() => setSharePanelOpen(true)}
