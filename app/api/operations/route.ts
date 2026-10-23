@@ -30,12 +30,15 @@ export async function GET(request: Request) {
     const rows = await env.DB.prepare(`SELECT t.*,v.report,p.name AS project_name FROM issue_tasks t JOIN validation_assignments v ON v.id=t.assignment_id JOIN projects p ON p.id=t.project_id WHERE t.owner_id=? AND t.status!='approved' ORDER BY t.due_date`).bind(user.id).all();
     return reply({rows:rows.results});
   }
-  const allNotifications=section==='notifications' && url.searchParams.get('scope')==='all';
-  if (!['admin','creator','planner'].includes(user.role) || (allNotifications ? user.role!=='admin' : !(await access(user,projectId)))) return reply({error:'Select an accessible project'},403);
+  // The project dashboard is read-only overview data: any user with access to the
+  // project (including viewers) may read it.
   if(section==='dashboard'){
+    if(!(await access(user,projectId))) return reply({error:'Select an accessible project'},403);
     try{return new Response(JSON.stringify(await projectDashboard(env.DB,projectId)),{headers:{...cors,'Content-Type':'application/json','Cache-Control':'no-store'}});}
     catch{return reply({error:'Dashboard data could not be loaded. Please retry.'},500);}
   }
+  const allNotifications=section==='notifications' && url.searchParams.get('scope')==='all';
+  if (!['admin','creator','planner'].includes(user.role) || (allNotifications ? user.role!=='admin' : !(await access(user,projectId)))) return reply({error:'Select an accessible project'},403);
   if (section === 'notifications') {
     const page=Math.max(1,Math.min(100000,Math.floor(Number(url.searchParams.get('page'))||1)));
     const limit=50;

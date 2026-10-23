@@ -2098,6 +2098,8 @@ export default function Home() {
   const isAllProjectsMap = Boolean(!planningScope && user?.role === "admin" && currentProjectId === 0);
   const canManage = !isAllProjectsMap && (user?.role === "admin" || user?.role === "creator");
   const canPlan = Boolean(user && ["admin", "creator", "planner"].includes(user.role));
+  // Viewers get a read-only project dashboard too.
+  const canSeeDashboard = canPlan || user?.role === "viewer";
   const planningContext = activeTab === "planner" && mapPurpose === "planning" && canPlan;
   const selectedPlanCosts: CostBreakdown = selected ? {
     rental: String(costs[selected.id]?.rental ?? selected.rentalPrice ?? ""),
@@ -3200,7 +3202,7 @@ export default function Home() {
       </header>
 
       <WorkspaceDock>
-        {canPlan && <button aria-current={activeTab === "dashboard" ? "page" : undefined} className={activeTab === "dashboard" ? "tab-btn tab-btn--active" : "tab-btn"} onClick={() => {if(!currentProjectId&&projects[0])setCurrentProjectId(projects[0].id);setActiveTab("dashboard");}}><BarChart3 size={16} /> Dashboard</button>}
+        {canSeeDashboard && <button aria-current={activeTab === "dashboard" ? "page" : undefined} className={activeTab === "dashboard" ? "tab-btn tab-btn--active" : "tab-btn"} onClick={() => {if(!currentProjectId&&projects[0])setCurrentProjectId(projects[0].id);setActiveTab("dashboard");}}><BarChart3 size={16} /> Dashboard</button>}
         {canPlan&&<button className={activeTab==='operations'?'tab-btn tab-btn--active':'tab-btn'} onClick={()=>setActiveTab('operations')} aria-current={activeTab==='operations'?'page':undefined}><ClipboardList size={16}/> Operations</button>}
         <button
           aria-current={activeTab === "planner" && !isAllProjectsMap && mapPurpose === "planning" ? "page" : undefined}
@@ -4716,8 +4718,13 @@ export default function Home() {
         </div>
       )}
 
-      {activeTab === "dashboard" && canPlan && <Dashboard projectId={currentProjectId} projects={projects} onProject={setCurrentProjectId}
+      {activeTab === "dashboard" && canSeeDashboard && <Dashboard projectId={currentProjectId} projects={projects} onProject={setCurrentProjectId}
         onNavigate={(destination:string,filters:any={})=>{
+          // Viewers can only reach the read-only inventory; other dashboard tiles are inert for them.
+          if(user?.role==='viewer'){
+            if(destination==='inventory'){dashboardInventoryFilters.current=filters;setMapPurpose("inventory");setPlanOpen(false);setInventoryView("split");setSelected(null);setActiveTab("planner");}
+            return;
+          }
           if(destination==='history'||destination==='notifications'||destination==='bookings'){
             setOperationsSection(destination);setActiveTab('operations');return;
           }
