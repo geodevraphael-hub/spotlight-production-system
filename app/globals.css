@@ -1267,47 +1267,53 @@ button {
 }
 
 .assign-projects--switches .switch-row span {
+  flex: 1;
+  min-width: 0;
   overflow: hidden;
   white-space: nowrap;
   text-overflow: ellipsis;
 }
 
-input.switch {
+/* High-specificity selectors so the generic .add-user-form input rule does not
+   turn the toggle back into a full-size input box. */
+.assign-projects--switches input.switch {
   appearance: none;
   -webkit-appearance: none;
   flex: 0 0 auto;
   position: relative;
-  width: 30px;
-  height: 17px;
+  width: 32px;
+  height: 18px;
+  padding: 0;
   margin: 0;
+  border: 0;
   border-radius: 999px;
   background: #cdd8d2;
   cursor: pointer;
   transition: background .16s ease;
 }
 
-input.switch::after {
+.assign-projects--switches input.switch::after {
   content: "";
   position: absolute;
   top: 2px;
   left: 2px;
-  width: 13px;
-  height: 13px;
+  width: 14px;
+  height: 14px;
   border-radius: 50%;
   background: #fff;
   box-shadow: 0 1px 2px rgba(15, 35, 27, .3);
   transition: transform .16s ease;
 }
 
-input.switch:checked {
+.assign-projects--switches input.switch:checked {
   background: var(--green);
 }
 
-input.switch:checked::after {
-  transform: translateX(13px);
+.assign-projects--switches input.switch:checked::after {
+  transform: translateX(14px);
 }
 
-input.switch:focus-visible {
+.assign-projects--switches input.switch:focus-visible {
   outline: 3px solid rgba(16, 164, 114, .25);
   outline-offset: 2px;
 }
