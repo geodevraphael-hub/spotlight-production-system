@@ -38,6 +38,11 @@ def healthy(port):
     raise RuntimeError('HTTP readiness failed')
 
 
+def mounts(container):
+    # Docker does not keep bind mounts in the order they were passed to `docker run`.
+    return sorted((m['Type'], m['Source'], m['Destination'], m['RW']) for m in container['Mounts'])
+
+
 def checkout(ref):
     stamp = time.strftime('%Y%m%d%H%M%S')
     work = ROOT / f'releases/git-{stamp}'
@@ -94,7 +99,7 @@ def promote(release, image, sha):
         healthy(LIVE_PORT)
         deployed = json.loads(docker('inspect', LIVE))[0]
         assert sorted(deployed['Config']['Env']) == sorted(original['Config']['Env'])
-        assert deployed['Mounts'] == original['Mounts']
+        assert mounts(deployed) == mounts(original)
         run(sys.executable, str(release / 'deploy/smoke-reports.py'))
     except Exception:
         if docker('ps', '-aq', '--filter', f'name=^{LIVE}$'): docker('rm', '-f', LIVE)
