@@ -1168,6 +1168,38 @@ button {
   font-size: 12px;
 }
 
+.notice-card {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 2001;
+  display: grid;
+  gap: 8px;
+  width: min(380px, calc(100vw - 40px));
+  padding: 24px;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  box-shadow: 0 20px 50px rgba(20, 40, 30, 0.22);
+  text-align: left;
+}
+
+.notice-card h2 {
+  margin: 0;
+  font-size: 18px;
+}
+
+.notice-card p {
+  margin: 0 0 6px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.notice-card .primary-button {
+  justify-self: start;
+}
+
 .user-menu {
   position: relative;
 }
@@ -1176,7 +1208,7 @@ button {
   position: absolute;
   top: calc(100% + 8px);
   right: 0;
-  z-index: 40;
+  z-index: 1200;
   min-width: 184px;
   display: flex;
   flex-direction: column;

@@ -794,6 +794,7 @@ export default function Home() {
   const [editingUserId, setEditingUserId] = useState<number | null>(null);
   const [profileOpen, setProfileOpen] = useState(false);
   const [passwordOpen, setPasswordOpen] = useState(false);
+  const [noProjectsDismissed, setNoProjectsDismissed] = useState(false);
   const [account, setAccount] = useState<{ account: { name: string; email: string; role: string; createdAt: number }; projects: Array<{ id: number; name: string }>; groups: Array<{ id: number; name: string }>; sessions: Array<{ current: boolean; expiresAt: number }> } | null>(null);
   const [users, setUsers] = useState<Array<{ id: number; name: string; email: string; role: string; createdAt?: number; projectIds?: number[] }>>([]);
   const [baseMap, setBaseMap] = useState("street");
@@ -987,6 +988,7 @@ export default function Home() {
   useEffect(() => {
     // Admins land on the dashboard overview first; other roles keep the planner default.
     if (user?.role === "admin") setActiveTab("dashboard");
+    setNoProjectsDismissed(false);
   }, [user?.id]);
 
   useEffect(() => {
@@ -3106,7 +3108,17 @@ export default function Home() {
 
   return (
     <main className={isSharedView ? "app-shell app-shell--shared-view" : "app-shell"}>
-      {user&&user.role!=='admin'&&projectsLoaded&&projects.length===0&&activeTab!=='dashboard'&&<div className="ops-error" role="alert">No projects have been assigned to your account yet. Please contact an administrator.</div>}
+      {user&&user.role!=='admin'&&projectsLoaded&&projects.length===0&&!noProjectsDismissed&&(
+        <>
+          <button className="plan-backdrop" onClick={() => setNoProjectsDismissed(true)} aria-label="Dismiss" />
+          <div className="notice-card" role="dialog" aria-modal="true" aria-label="No projects assigned">
+            <span className="eyebrow">Account</span>
+            <h2>No projects yet</h2>
+            <p>No projects have been assigned to your account yet. Please contact an administrator.</p>
+            <button className="primary-button" onClick={() => setNoProjectsDismissed(true)}>Got it</button>
+          </div>
+        </>
+      )}
       {projectLoadError&&activeTab!=='dashboard'&&<div className="ops-error" role="alert">{projectLoadError} <button className="text-button" onClick={()=>setProjectLoadRevision(value=>value+1)}>Retry loading</button></div>}
       <header className="topbar">
         <div className="brand">
