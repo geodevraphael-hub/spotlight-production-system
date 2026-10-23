@@ -937,6 +937,11 @@ export default function Home() {
   }, [user]);
 
   useEffect(() => {
+    // Admins land on the dashboard overview first; other roles keep the planner default.
+    if (user?.role === "admin") setActiveTab("dashboard");
+  }, [user?.id]);
+
+  useEffect(() => {
     setPlanningShortlist([]); setPlanningCosts({}); setCurrentPlanId(null); setPlanTarget("");
     setPlanName("Campaign Plan 1"); setPlanNote(""); setPlans([]); setPlanningInventory([]);
   }, [user?.id]);
@@ -3086,6 +3091,7 @@ export default function Home() {
       </header>
 
       <WorkspaceDock>
+        {canPlan && <button aria-current={activeTab === "dashboard" ? "page" : undefined} className={activeTab === "dashboard" ? "tab-btn tab-btn--active" : "tab-btn"} onClick={() => {if(!currentProjectId&&projects[0])setCurrentProjectId(projects[0].id);setActiveTab("dashboard");}}><BarChart3 size={16} /> Dashboard</button>}
         {canPlan&&<button className={activeTab==='operations'?'tab-btn tab-btn--active':'tab-btn'} onClick={()=>setActiveTab('operations')} aria-current={activeTab==='operations'?'page':undefined}><ClipboardList size={16}/> Operations</button>}
         <button
           aria-current={activeTab === "planner" && !isAllProjectsMap && mapPurpose === "planning" ? "page" : undefined}
@@ -3108,7 +3114,6 @@ export default function Home() {
             <Layers3 size={16} /> All Projects Map
           </button>
         )}
-        {canPlan && <button aria-current={activeTab === "dashboard" ? "page" : undefined} className={activeTab === "dashboard" ? "tab-btn tab-btn--active" : "tab-btn"} onClick={() => {if(!currentProjectId&&projects[0])setCurrentProjectId(projects[0].id);setActiveTab("dashboard");}}><BarChart3 size={16} /> Dashboard</button>}
         <button aria-current={activeTab === "library" ? "page" : undefined} className={activeTab === "library" ? "tab-btn tab-btn--active" : "tab-btn"} onClick={() => setActiveTab("library")}><ImageIcon size={16} /> Image Library</button>
         {canPlan && <button aria-current={activeTab === "flighting" ? "page" : undefined} className={activeTab === "flighting" ? "tab-btn tab-btn--active" : "tab-btn"} onClick={() => setActiveTab("flighting")}><Check size={16} /> Flighting</button>}
         {canPlan && <button aria-current={activeTab === "tracker" ? "page" : undefined} className={activeTab === "tracker" ? "tab-btn tab-btn--active" : "tab-btn"} onClick={() => {if(!currentProjectId&&projects[0])setCurrentProjectId(projects[0].id);setActiveTab("tracker");}}><ClipboardList size={16} /> Execution</button>}
