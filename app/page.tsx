@@ -3230,17 +3230,17 @@ export default function Home() {
           </button>
         )}
         <button aria-current={activeTab === "library" ? "page" : undefined} className={activeTab === "library" ? "tab-btn tab-btn--active" : "tab-btn"} onClick={() => setActiveTab("library")}><ImageIcon size={16} /> Image Library</button>
-        {canView && <button aria-current={activeTab === "flighting" ? "page" : undefined} className={activeTab === "flighting" ? "tab-btn tab-btn--active" : "tab-btn"} onClick={() => setActiveTab("flighting")}><Check size={16} /> Flighting</button>}
-        {canView && <button aria-current={activeTab === "tracker" ? "page" : undefined} className={activeTab === "tracker" ? "tab-btn tab-btn--active" : "tab-btn"} onClick={() => {if(!currentProjectId&&projects[0])setCurrentProjectId(projects[0].id);setActiveTab("tracker");}}><ClipboardList size={16} /> Execution</button>}
+        {canPlan && <button aria-current={activeTab === "flighting" ? "page" : undefined} className={activeTab === "flighting" ? "tab-btn tab-btn--active" : "tab-btn"} onClick={() => setActiveTab("flighting")}><Check size={16} /> Flighting</button>}
+        {canPlan && <button aria-current={activeTab === "tracker" ? "page" : undefined} className={activeTab === "tracker" ? "tab-btn tab-btn--active" : "tab-btn"} onClick={() => {if(!currentProjectId&&projects[0])setCurrentProjectId(projects[0].id);setActiveTab("tracker");}}><ClipboardList size={16} /> Execution</button>}
         {canView && <button aria-current={activeTab === "costs" ? "page" : undefined} className={activeTab === "costs" ? "tab-btn tab-btn--active" : "tab-btn"} onClick={() => {if(!currentProjectId&&projects[0])setCurrentProjectId(projects[0].id);setActiveTab("costs");}}><BarChart3 size={16} /> Costs</button>}
-        {(canManage || isViewer) && (
+        {canManage && (
           <button aria-current={activeTab === "field" ? "page" : undefined} className={activeTab === "field" ? "tab-btn tab-btn--active" : "tab-btn"} onClick={() => setActiveTab("field")}><Users size={16} /> Field Management</button>
         )}
-        {canView&&<button aria-current={activeTab==='reports'?'page':undefined} className={activeTab==='reports'?'tab-btn tab-btn--active':'tab-btn'} onClick={()=>{if(!currentProjectId&&projects[0])setCurrentProjectId(projects[0].id);setActiveTab('reports');}}><FileDown size={16}/> Reports</button>}
+        {canPlan&&<button aria-current={activeTab==='reports'?'page':undefined} className={activeTab==='reports'?'tab-btn tab-btn--active':'tab-btn'} onClick={()=>{if(!currentProjectId&&projects[0])setCurrentProjectId(projects[0].id);setActiveTab('reports');}}><FileDown size={16}/> Reports</button>}
         {user?.role === "admin" && <button aria-current={activeTab === "users" ? "page" : undefined} className={activeTab === "users" ? "tab-btn tab-btn--active" : "tab-btn"} onClick={() => { setActiveTab("users"); loadUsers(); }}><UserCog size={16} /> User Management</button>}
       </WorkspaceDock>
 
-      {activeTab==='reports'&&canView&&<ReportBuilder key={currentProjectId} projectId={currentProjectId} readOnly={!canPlan}/>}
+      {activeTab==='reports'&&canPlan&&<ReportBuilder key={currentProjectId} projectId={currentProjectId} readOnly={!canPlan}/>}
 
       {activeTab==='operations'&&canView&&<Operations key={`${currentProjectId}:${operationsSection}`} initialSection={operationsSection} projectId={currentProjectId} boards={billboards} role={user?.role||''}/>}
       {importReview&&<ImportReview items={importReview} existing={billboards} onCancel={()=>setImportReview(null)} onImport={finishReviewedImport}/>}
@@ -4345,7 +4345,7 @@ export default function Home() {
             transport:String(current[id]?.transport??board.transportPrice??""),flighting:String(current[id]?.flighting??board.flightingPrice??"")};}return next;});
         }}/>}
 
-      {activeTab === "flighting" && canView && (
+      {activeTab === "flighting" && canPlan && (
         <div className="workspace flighting-workspace">
           <section className="flighting-page">
             <div className="flighting-hero">
@@ -4545,7 +4545,7 @@ export default function Home() {
         </div>
       )}
 
-      {(activeTab === "tracker" || activeTab === "costs") && canView && (
+      {((activeTab === "tracker" && canPlan) || (activeTab === "costs" && canView)) && (
         <div className={`workspace flighting-workspace tracker-workspace tracker-workspace--${activeTab}`}>
           <section className="flighting-page tracker-page">
             <div className="flighting-hero tracker-hero">
@@ -4772,7 +4772,7 @@ export default function Home() {
           setActiveTab(destination as typeof activeTab);
         }}/>}
 
-      {activeTab === "field" && (canManage || isViewer) && (
+      {activeTab === "field" && canManage && (
         <div className="workspace field-workspace field-workspace--command">
           <div className="field-command-page">
             <section className="field-command-hero">
