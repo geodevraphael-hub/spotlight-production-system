@@ -6367,3 +6367,14 @@ body { background: var(--soft); color: var(--ink); }
   .field-panel:hover,
   .primary-button:hover { transform: none; }
 }
+
+/* Project selector: one third of the header width from the md breakpoint. */
+.topbar-actions > .project-select {width:100%;min-width:0;}
+.project-select > .search-select {flex:1;min-width:0;width:auto;height:100%;}
+.project-select .search-select-trigger {height:100%;min-height:0;padding:0 0 0 6px;border:0;border-radius:0;background:transparent;box-shadow:none;}
+.project-select .search-select-trigger > span {min-width:0;}
+.project-select:focus-within {border-color:var(--green);outline:2px solid var(--green);outline-offset:2px;}
+.project-select .search-select-trigger:focus-visible {outline:none;}
+@media(min-width:768px){
+ .topbar-actions > .project-select {width:calc((100vw - 44px)/3);flex:0 1 calc((100vw - 44px)/3);}
+}
