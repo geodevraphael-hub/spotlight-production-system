@@ -30,7 +30,7 @@ body:has(.inventory-workspace) {overflow:hidden;}
 .inventory-file-button:focus-within {outline:2px solid #087f63;}
 .inventory-quick-filters {display:flex;align-items:end;gap:10px;margin-top:10px;}
 .inventory-quick-filters>label {flex:1;}
-.inventory-quick-filters>.inventory-search {flex:1.6;}
+.inventory-quick-filters>.inventory-vendor {flex:1.6;}
 .inventory-workspace :is(.inventory-controls,.inventory-register) label {display:flex;flex-direction:column;gap:3px;font-size:12px;color:#52645b;min-width:0;}
 .inventory-workspace :is(.inventory-controls,.inventory-register) :is(input:not([type=checkbox]):not([type=file]),select) {height:34px;min-height:34px;border:1px solid #cdd9d2;border-radius:0;padding:5px 8px;background:white;min-width:0;width:100%;font-size:14px;color:#192d24;}
 .inventory-quick-filters>button {height:34px;}
@@ -195,7 +195,7 @@ body:has(.inventory-workspace) {overflow:hidden;}
  .inventory-title span {display:none;}
  .inventory-quick-filters {overflow-x:auto;padding-bottom:4px;}
  .inventory-quick-filters>label {flex:0 0 130px;}
- .inventory-quick-filters>.inventory-search {flex:0 0 180px;}
+ .inventory-quick-filters>.inventory-vendor {flex:0 0 180px;}
  .inventory-actions {margin-left:auto;}
  .inventory-filters {grid-template-columns:repeat(2,minmax(0,1fr));}
  .inventory-filter-popover {max-height:calc(100dvh - 260px);right:8px;}

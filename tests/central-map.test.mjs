@@ -73,3 +73,21 @@ test('selection isolation is explicit and empty map cannot fit unrelated billboa
  const html=renderToStaticMarkup(React.createElement(component.exports.CentralMapContext,{name:'A',visible:0,total:0,selected:2,onlySelected:true}));
  assert.match(html,/Show all matches/);assert.match(html,/Clear selection/);assert.match(html,/disabled=""[^>]*>Fit results/);
 });
+
+
+test('filtered rail counts follow vendor results and each project flight status',()=>{
+ const boards=centralInventory(rows,schedules).map(b=>({...b,owner:'Vendor A'}));
+ const projects=[{id:1,name:'A'},{id:2,name:'B'}];
+ assert.deepEqual(centralProjectCounts(boards.filter(b=>b.owner==='Vendor B'),projects).map(p=>p.count),[0,0]);
+ assert.deepEqual(centralProjectCounts(boards,projects,'flighted',1000).map(p=>p.count),[0,1]);
+ assert.deepEqual(centralProjectCounts(boards,projects,'unflighted',1000).map(p=>p.count),[1,0]);
+});
+
+test('project browser hides nonmatching projects and retains the selected empty project',()=>{
+ const props={boards:centralInventory(rows,schedules),projects:[{id:1,name:'A'},{id:2,name:'B'},{id:3,name:'Empty project'}]};
+ const html=renderToStaticMarkup(React.createElement(component.exports.CentralProjects,{...props,value:'all'}));
+ assert.doesNotMatch(html,/Empty project/);
+ const selected=renderToStaticMarkup(React.createElement(component.exports.CentralProjects,{...props,value:'3'}));
+ assert.match(selected,/Empty project/);
+ assert.match(selected,/aria-pressed="true"/);
+});

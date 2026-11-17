@@ -1145,10 +1145,10 @@ export default function Home() {
     [billboards],
   );
 
-  const filtered = useMemo(() => {
-    const term = query.trim().toLowerCase();
+  const {filtered,centralFilterBoards} = useMemo(() => {
+    const term = inventoryScope ? "" : query.trim().toLowerCase();
     const allProjectsMode = planningScope || (user?.role === "admin" && currentProjectId === 0);
-    return billboards.filter((item) => {
+    const filterBoards = (boards:Billboard[]) => boards.filter((item) => {
       const matchesSearch =
         !term ||
         [item.projectName, item.district, item.street, item.owner, item.advert,item.from,item.to,registrationNumber(item),
@@ -1181,7 +1181,8 @@ export default function Home() {
       const matchesPriority=!inventoryScope||!inventoryPriority||(inventoryPriority==='__missing__'?!assetPriority(item):assetPriority(item)===inventoryPriority);
       return matchesSearch && matchesProject && matchesDistrict && matchesAvailability && matchesBoardType && matchesFaces && matchesFlightStatus && matchesLocation && matchesVendor && matchesPriority;
     });
-  }, [billboards, query, user?.role, currentProjectId, planningScope,centralScope, allProjectsProjectFilter, district, availability, boardTypeFilter, facesFilter, mapFlightFilter,inventoryScope,inventoryEvidence,inventoryGeo,inventoryVendor,inventoryPriority]);
+    return {filtered:filterBoards(billboards),centralFilterBoards:centralScope?filterBoards(centralAllBoards):[]};
+  }, [centralAllBoards,billboards, query, user?.role, currentProjectId, planningScope,centralScope, allProjectsProjectFilter, district, availability, boardTypeFilter, facesFilter, mapFlightFilter,inventoryScope,inventoryEvidence,inventoryGeo,inventoryVendor,inventoryPriority]);
 
   const visibleAssets = useMemo(
     () =>
@@ -3206,6 +3207,11 @@ export default function Home() {
       </header>
 
       <WorkspaceDock>
+        {(user?.role==="admin"||user?.role==="creator"||user?.role==="viewer") && <button aria-current={activeTab === "planner" && mapPurpose === "inventory" && !isAllProjectsMap ? "page" : undefined}
+          className={activeTab === "planner" && mapPurpose === "inventory" && !isAllProjectsMap ? "tab-btn tab-btn--active" : "tab-btn"}
+          onClick={() => {if(isAllProjectsMap&&projects[0])setCurrentProjectId(projects[0].id); setMapPurpose("inventory"); setPlanOpen(false); setSelected(null); setActiveTab("planner"); }}>
+          <ClipboardList size={16} /> Inventory
+        </button>}
         {canSeeDashboard && <button aria-current={activeTab === "dashboard" ? "page" : undefined} className={activeTab === "dashboard" ? "tab-btn tab-btn--active" : "tab-btn"} onClick={() => {if(!currentProjectId&&projects[0])setCurrentProjectId(projects[0].id);setActiveTab("dashboard");}}><BarChart3 size={16} /> Dashboard</button>}
         {canView&&<button className={activeTab==='operations'?'tab-btn tab-btn--active':'tab-btn'} onClick={()=>setActiveTab('operations')} aria-current={activeTab==='operations'?'page':undefined}><ClipboardList size={16}/> Operations</button>}
         <button
@@ -3215,11 +3221,6 @@ export default function Home() {
         >
           <MapPin size={16} /> Planner
         </button>
-        {(user?.role==="admin"||user?.role==="creator"||user?.role==="viewer") && <button aria-current={activeTab === "planner" && mapPurpose === "inventory" && !isAllProjectsMap ? "page" : undefined}
-          className={activeTab === "planner" && mapPurpose === "inventory" && !isAllProjectsMap ? "tab-btn tab-btn--active" : "tab-btn"}
-          onClick={() => {if(isAllProjectsMap&&projects[0])setCurrentProjectId(projects[0].id); setMapPurpose("inventory"); setPlanOpen(false); setSelected(null); setActiveTab("planner"); }}>
-          <ClipboardList size={16} /> Inventory
-        </button>}
         {(user?.role === "admin" || isViewer) && (
           <button
             aria-current={isAllProjectsMap && activeTab === "planner" ? "page" : undefined}
@@ -3247,12 +3248,12 @@ export default function Home() {
       <div className={`workspace planning-workspace${inventoryScope ? " inventory-workspace" : ""}${centralScope?" central-workspace":""}${planningScope ? " planner-desk" : ""}${planOpen && planningScope ? " planning-workspace--review" : ""}${activeTab !== "planner" ? " workspace--hidden" : ""}`} aria-hidden={activeTab !== "planner"}
         data-inventory-view={inventoryScope?inventoryView:undefined}
         style={inventoryScope?{"--inventory-map-share":`${inventoryMapShare}fr`,"--inventory-table-share":`${100-inventoryMapShare}fr`} as React.CSSProperties:undefined}>
-        {centralScope&&<CentralProjects boards={projectBillboards} projects={projects} value={centralProject} loading={loading}
+        {centralScope&&<CentralProjects boards={centralFilterBoards} flightFilter={mapFlightFilter} projects={projects} value={centralProject} loading={loading}
           onChange={(value:string)=>{setCentralProject(value);setAllProjectsProjectFilter("All projects");setSelected(null);setInventoryFocusedId(null);setShowSelectedOnly(false);}}
           onOpen={(id:number)=>{setSelected(null);setCurrentProjectId(id);}}/>}
-        {inventoryScope&&<InventoryControls central={centralScope} boards={billboards} rows={filtered} evidence={inventoryEvidence} geo={inventoryGeo} onGeo={setInventoryGeo}
+        {inventoryScope&&<InventoryControls central={centralScope} boards={centralScope?centralAllBoards:billboards} rows={filtered} evidence={inventoryEvidence} geo={inventoryGeo} onGeo={setInventoryGeo}
           geoLoading={inventoryGeoLoading} geoError={inventoryGeoError} loading={loading} error={projectLoadError}
-          query={query} onQuery={setQuery} type={boardTypeFilter} onType={setBoardTypeFilter} status={availability} onStatus={setAvailability}
+          type={boardTypeFilter} onType={setBoardTypeFilter} status={availability} onStatus={setAvailability}
           flight={mapFlightFilter} onFlight={setMapFlightFilter} vendor={inventoryVendor} onVendor={setInventoryVendor}
           priority={inventoryPriority} onPriority={setInventoryPriority}
           onRoad={()=>setRoadOpen(true)}

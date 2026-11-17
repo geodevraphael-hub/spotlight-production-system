@@ -11,13 +11,13 @@ function exportRows(items:any[],evidence:any){
  const url=URL.createObjectURL(new Blob([inventoryCsv(items,evidence,(b:any)=>b.centralStates?.join(' / ')||markerState(b))],{type:'text/csv;charset=utf-8'}));
  const link=document.createElement('a');link.href=url;link.download='spotlight-inventory.csv';link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
 }
-export function InventoryControls({boards,rows,evidence,geo,onGeo,geoLoading,geoError,loading,error,query,onQuery,
+export function InventoryControls({boards,rows,evidence,geo,onGeo,geoLoading,geoError,loading,error,
  type,onType,status,onStatus,flight,onFlight,vendor,onVendor,priority='',onPriority,onRefresh,onReset,
  onAdd,onRoad,onImport,onTemplate,canManage,isAdmin,projectFilter,onProject,projectNames,view,onView,message,central=false}:any){
  const [expanded,setExpanded]=useState(false);
  const vendors=[...new Set(boards.map((b:any)=>b.owner).filter(Boolean))].sort() as string[];
  const ready=boards.filter((b:any)=>inventoryGeography(b,evidence).ready).length;
- const active=Object.values(geo).filter(Boolean).length+Number(Boolean(query))+Number(type!=='All types')+Number(Boolean(vendor))+Number(Boolean(priority))+Number(status!=='All status')+Number(flight!=='All flight status')+Number(projectFilter!=='All projects');
+ const active=Object.values(geo).filter(Boolean).length+Number(type!=='All types')+Number(Boolean(vendor))+Number(Boolean(priority))+Number(status!=='All status')+Number(flight!=='All flight status')+Number(projectFilter!=='All projects');
  function areaSelect(key:string,title:string){return <label key={key}>{title}<SearchSelect aria-label={`Inventory ${title}`} disabled={geoLoading} value={geo[key]} onChange={e=>onGeo(changeGeography(geo,key,e.target.value))}><option value="">All {title.toLowerCase()}</option><option value="__missing__">Not available / stale</option>{geographyOptions(boards,evidence,geo,key).map((o:any)=><option key={o.value} value={o.value}>{o.label}</option>)}</SearchSelect></label>;}
  return <section className="inventory-controls" aria-label="Inventory controls">
   <header className="inventory-register-head">
@@ -34,7 +34,7 @@ export function InventoryControls({boards,rows,evidence,geo,onGeo,geoLoading,geo
    </div>
   </header>
   <div className="inventory-quick-filters">
-   <label className="inventory-search">Search<input aria-label="Search inventory table" value={query} onChange={e=>onQuery(e.target.value)} placeholder="Name, vendor or location"/></label>
+   <label className="inventory-vendor">Vendor<SearchSelect aria-label="Inventory vendor filter" value={vendor} onChange={e=>onVendor(e.target.value)}><option value="">All vendors</option>{vendors.map(v=><option key={v} value={v}>{v}</option>)}</SearchSelect></label>
    {central?<><label>Board type<SearchSelect aria-label="Central board type" value={type} onChange={e=>onType(e.target.value)}><option>All types</option>{['large-format','digital-screen','lamp-post','fabricated-banner'].map(v=><option key={v} value={v}>{label(v)}</option>)}</SearchSelect></label>
     <label>Flight status<SearchSelect aria-label="Central flight status" value={flight} onChange={e=>onFlight(e.target.value)}><option>All flight status</option>{['flighted','unflighted','expired','deflighted'].map(v=><option key={v} value={v}>{label(v)}</option>)}</SearchSelect></label>
     {areaSelect('region','Region')}</>:GEO_LEVELS.filter(([key])=>key!=='council').map(([key,title])=>areaSelect(key,title))}
@@ -46,7 +46,6 @@ export function InventoryControls({boards,rows,evidence,geo,onGeo,geoLoading,geo
    <div className="inventory-filters">
     {projectNames&&<label>Project<SearchSelect aria-label="Inventory project filter" value={projectFilter} onChange={e=>onProject(e.target.value)}><option>All projects</option>{projectNames.map((p:string)=><option key={p}>{p}</option>)}</SearchSelect></label>}
     <label>Board type<SearchSelect value={type} onChange={e=>onType(e.target.value)}><option value="All types">All types</option>{['large-format','digital-screen','lamp-post','fabricated-banner'].map(v=><option key={v} value={v}>{label(v)}</option>)}</SearchSelect></label>
-    <label>Vendor<SearchSelect value={vendor} onChange={e=>onVendor(e.target.value)}><option value="">All vendors</option>{vendors.map(v=><option key={v}>{v}</option>)}</SearchSelect></label>
     <label>Priority<SearchSelect value={priority} onChange={e=>onPriority(e.target.value)}><option value="">All priorities</option>{PRIORITIES.map(([v,title]:any)=><option key={v} value={v}>{title}</option>)}<option value="__missing__">Not assigned</option></SearchSelect></label>
     <label>Inventory status<SearchSelect value={status} onChange={e=>onStatus(e.target.value)}><option>All status</option><option value="selected">Selected</option><option value="not-selected">Not selected</option></SearchSelect></label>
     <label>Flight status<SearchSelect value={flight} onChange={e=>onFlight(e.target.value)}><option>All flight status</option>{['flighted','unflighted','expired','deflighted'].map(v=><option key={v} value={v}>{label(v)}</option>)}</SearchSelect></label>

@@ -4,17 +4,17 @@ import {Layers3,ArrowUpRight,Search,MapPin} from 'lucide-react';
 import {centralProjectCounts} from './central-map.mjs';
 import {markerState} from './map-symbols.mjs';
 const readable=(s:string)=>s.replaceAll('-',' ').replace(/^./,c=>c.toUpperCase());
-export function CentralProjects({boards,projects,value,onChange,onOpen,loading}:any) {
+export function CentralProjects({boards,projects,value,onChange,onOpen,loading,flightFilter='All flight status'}:any) {
  const [search,setSearch]=useState('');
- const counts=useMemo(()=>centralProjectCounts(boards,projects),[boards,projects]);
- const matches=counts.filter((p:any)=>p.name.toLowerCase().includes(search.toLowerCase()));
+ const counts=useMemo(()=>centralProjectCounts(boards,projects,flightFilter),[boards,projects,flightFilter]);
+ const matches=counts.filter((p:any)=>p.count>0||String(p.id)===value).filter((p:any)=>p.name.toLowerCase().includes(search.toLowerCase()));
  const unassigned=boards.filter((b:any)=>!b.memberships?.length).length;
  const selected=projects.find((p:any)=>String(p.id)===value);
  return <aside className="central-projects" aria-label="Browse projects">
-   <header><Layers3 size={17}/><h2>Projects</h2><span>{projects.length}</span></header>
+   <header><Layers3 size={17}/><h2>Projects</h2><span>{counts.filter((p:any)=>p.count>0).length}</span></header>
    <label className="central-project-search"><Search size={15}/><input aria-label="Find a project" placeholder="Find a project" value={search} onChange={e=>setSearch(e.target.value)}/></label>
    <nav aria-label="Project map filters">
-    <button aria-pressed={value==='all'} onClick={()=>onChange('all')}><span>All projects<small>Unique billboards in the database</small></span><b>{loading?'—':boards.length}</b></button>
+    <button aria-pressed={value==='all'} onClick={()=>onChange('all')}><span>All projects<small>Billboards matching current filters</small></span><b>{loading?'—':boards.length}</b></button>
     <div className="central-project-list">
      {matches.map((p:any)=><button key={p.id} aria-pressed={value===String(p.id)} onClick={()=>onChange(String(p.id))}><span>{p.name}<small>{p.project_type||'Project'} · #{p.id}</small></span><b>{loading?'—':p.count}</b></button>)}
      {!matches.length&&<p>No matching projects.</p>}

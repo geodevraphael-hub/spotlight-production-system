@@ -34,9 +34,9 @@ export function centralProjectView(boards,project='all',now=Date.now(),flightFil
         centralStates:[...new Set(scoped.length?scoped.map(p=>markerState(p,now)):[markerState(b,now)])]};
     });
 }
-export function centralProjectCounts(boards,projects) {
+export function centralProjectCounts(boards,projects,flightFilter='All flight status',now=Date.now()) {
   const counts=new Map(projects.map(p=>[p.id,{...p,count:0}]));
-  for(const b of boards)for(const id of new Set((b.memberships??[]).map(p=>p.id))) {
+  for(const b of boards)for(const id of new Set((b.memberships??[]).filter(p=>flightFilter==='All flight status'||markerState(p,now)===flightFilter).map(p=>p.id))) {
     if(counts.has(id))counts.get(id).count++;
   }
   return [...counts.values()].sort((a,b)=>a.name.localeCompare(b.name)||a.id-b.id);

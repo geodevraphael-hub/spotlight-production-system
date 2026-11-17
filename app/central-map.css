@@ -80,7 +80,7 @@
 }
 .central-workspace .inventory-title h1 {font-size:23px;}
 .central-workspace .inventory-title span {font-size:12px;}
-.central-workspace .inventory-quick-filters>.inventory-search {flex:1.6;}
+.central-workspace .inventory-quick-filters>.inventory-vendor {flex:1.6;}
 .workspace.inventory-workspace.central-workspace[data-inventory-view=map],
 .workspace.inventory-workspace.central-workspace[data-inventory-view=table] {grid-template-rows:auto 39px minmax(0,1fr);}
 .workspace.central-workspace[data-inventory-view=table]>.inventory-register {grid-row:3;}
