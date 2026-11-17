@@ -778,7 +778,7 @@ export default function Home() {
   const [planningCosts, setPlanningCosts] = useState<Record<number, CostBreakdown>>({});
   const [projectCosts, setProjectCosts] = useState<Record<number, CostBreakdown>>({});
   const [planOpen, setPlanOpen] = useState(false);
-  const [mapPurpose, setMapPurpose] = useState<"planning" | "inventory">("planning");
+  const [mapPurpose, setMapPurpose] = useState<"planning" | "inventory">("inventory");
   const [operationsSection,setOperationsSection]=useState<'notifications'|'history'|'issues'|'bookings'>('notifications');
   const dashboardInventoryFilters=useRef<any>(null);
   const [showSelectedOnly, setShowSelectedOnly] = useState(false);
@@ -987,8 +987,12 @@ export default function Home() {
   }, [user]);
 
   useEffect(() => {
-    // Admins land on the dashboard overview first; other roles keep the planner default.
-    if (user?.role === "admin") setActiveTab("dashboard");
+    // Open Inventory for roles with inventory access; planners start in planning.
+    if (user) {
+      setActiveTab("planner");
+      setMapPurpose(["admin", "creator", "viewer"].includes(user.role) ? "inventory" : "planning");
+      setPlanOpen(false);
+    }
     setNoProjectsDismissed(false);
   }, [user?.id]);
 
