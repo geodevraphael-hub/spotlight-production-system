@@ -8,3 +8,5 @@
 .settings-page fieldset{border:0;padding:0;display:flex;flex-direction:column;gap:16px;}.settings-page label{display:flex;flex-direction:column;gap:7px;}.settings-page input{padding:10px;border:1px solid #bdcfc3;border-radius:4px;font:inherit;width:100%;}.settings-page input[readonly]{background:#f2f5f3;color:#68796e;}
 .settings-page .primary-button{background:#087f63;color:white;}.settings-error,.settings-delete{padding:12px;background:#fff0ed;border:1px solid #e9b5ab;}.settings-notice{padding:12px;background:#e4f4ea;}.settings-page :focus-visible{outline:2px solid #087f63;outline-offset:2px;}
 @media(max-width:850px){.settings-columns{grid-template-columns:1fr;}.settings-page{padding:20px 12px;}}
+
+.settings-page>.admin-page{padding:0;margin:0;}

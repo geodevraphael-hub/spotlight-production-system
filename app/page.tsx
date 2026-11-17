@@ -858,7 +858,7 @@ export default function Home() {
   const [assetDraft, setAssetDraft] = useState<Partial<Billboard>>({});
   const [positionHint, setPositionHint] = useState<string | null>(null);
   const [addressQuery, setAddressQuery] = useState("");
-  const [activeTab, setActiveTab] = useState<"planner" | "dashboard" | "library" | "flighting" | "tracker" | "costs" | "field" | "operations" | "reports" | "settings" | "users">("planner");
+  const [activeTab, setActiveTab] = useState<"planner" | "dashboard" | "library" | "flighting" | "tracker" | "costs" | "field" | "operations" | "reports" | "settings">("planner");
   const planningScope = activeTab === "planner" && mapPurpose === "planning" && Boolean(user && ["admin", "creator", "planner"].includes(user.role));
   const inventoryScope = activeTab === "planner" && mapPurpose === "inventory" && Boolean(user && ["admin","creator","viewer"].includes(user.role));
   const centralScope=inventoryScope&&user?.role==="admin"&&currentProjectId===0;
@@ -867,6 +867,7 @@ export default function Home() {
   const [projectRemovalBoards,setProjectRemovalBoards]=useState<Billboard[]|null>(null);
   const [inventoryEvidence,setInventoryEvidence]=useState<Record<number,any>>({});
   const [inventoryGeo,setInventoryGeo]=useState<Record<string,string>>(emptyGeoFilters);
+  const [settingsSection,setSettingsSection]=useState("mediaType");
   const [dictionaries,setDictionaries]=useState(DEFAULT_DICTIONARIES);
   useEffect(()=>{if(!user)return;let alive=true;fetch("/api/app?action=inventory-dictionaries").then(async r=>r.ok?r.json():null).then(d=>{if(alive&&d)setDictionaries(d.dictionaries);}).catch(()=>{});return()=>{alive=false;};},[user?.id]);
   const [excludeFabricated,setExcludeFabricated]=useState(false);
@@ -2911,6 +2912,8 @@ export default function Home() {
     URL.revokeObjectURL(url);
   }
 
+  useEffect(()=>{if(activeTab==="settings"&&settingsSection==="users"&&user?.role==="admin")void loadUsers();},[activeTab,settingsSection,user?.id]);
+
   async function loadUsers() {
     const response = await fetch("/api/app?action=users");
     if (response.ok) setUsers((await response.json()).users);
@@ -3184,7 +3187,7 @@ export default function Home() {
                 </label>
                 <button className="text-button" onClick={downloadCsvTemplate}><Download size={16} /> Download CSV template</button>
                 <span className="action-section-label">Administration</span>
-                <button className="text-button" onClick={() => { setActiveTab("users"); loadUsers(); }}><UserCog size={16} /> Manage users</button>
+                <button className="text-button" onClick={() => { setSettingsSection("users"); setActiveTab("settings"); }}><UserCog size={16} /> Manage users</button>
                 <button className="text-button clear-project-button" onClick={clearProjectBillboards}><Trash2 size={16} /> Clear project inventory</button>
               </>}
             </WorkspaceActions>
@@ -3251,11 +3254,31 @@ export default function Home() {
           <button aria-current={activeTab === "field" ? "page" : undefined} className={activeTab === "field" ? "tab-btn tab-btn--active" : "tab-btn"} onClick={() => setActiveTab("field")}><Users size={16} /> Field Management</button>
         )}
         {canPlan&&<button aria-current={activeTab==='reports'?'page':undefined} className={activeTab==='reports'?'tab-btn tab-btn--active':'tab-btn'} onClick={()=>{if(!currentProjectId&&projects[0])setCurrentProjectId(projects[0].id);setActiveTab('reports');}}><FileDown size={16}/> Reports</button>}
-        {user?.role === "admin" && <button aria-current={activeTab === "users" ? "page" : undefined} className={activeTab === "users" ? "tab-btn tab-btn--active" : "tab-btn"} onClick={() => { setActiveTab("users"); loadUsers(); }}><UserCog size={16} /> User Management</button>}
-        {user?.role === "admin" && <button aria-current={activeTab === "settings" ? "page" : undefined} className={activeTab === "settings" ? "tab-btn tab-btn--active" : "tab-btn"} onClick={()=>setActiveTab("settings")}><SlidersHorizontal size={16}/> Settings</button>}
       </WorkspaceDock>
       {projectToDelete&&<DeleteProjectModal key={projectToDelete.id} project={projectToDelete} onClose={()=>setProjectToDelete(null)} onDelete={confirmDeleteProject}/>}
-      {activeTab === "settings" && user?.role === "admin" && <Settings onChanged={data=>setDictionaries(data.dictionaries)}/> }
+      {activeTab === "settings" && user?.role === "admin" && <Settings section={settingsSection} onSection={setSettingsSection} onChanged={data=>setDictionaries(data.dictionaries)} userManagement={<section className="admin-page">
+                <div className="admin-page-head admin-page-head--bar">
+                  <div>
+                    <span className="eyebrow">Administration</span>
+                    <h2>User management</h2>
+                    <p>Add team members, set their role, and assign them to projects.</p>
+                  </div>
+                  <button className="primary-button" onClick={() => setAddUserOpen(true)}><Plus size={15} /> Add user</button>
+                </div>
+                <div className="user-list">
+                  {users.map((account) => (
+                    <article key={account.id}>
+                      <span className="user-avatar">{account.name.slice(0, 1).toUpperCase()}</span>
+                      <span><strong>{account.name}</strong><small>{account.email} · {account.role}</small></span>
+                      <span className="user-actions">
+                        <button onClick={() => setEditingUserId(account.id)} aria-label={`Edit ${account.name}`}><Pencil size={15} /></button>
+                        {account.id !== user?.id && <button onClick={() => removeUser(account.id)} aria-label={`Remove ${account.name}`}><Trash2 size={15} /></button>}
+                      </span>
+                    </article>
+                  ))}
+                  {!users.length && <div className="empty-state">No users yet. Add your first team member.</div>}
+                </div>
+              </section>}/> }
 
       {activeTab==='reports'&&canPlan&&<ReportBuilder key={currentProjectId} projectId={currentProjectId} readOnly={!canPlan}/>}
 
@@ -4156,32 +4179,6 @@ export default function Home() {
           projectName={isAllProjectsMap?'All projects':projects.find(p=>p.id===currentProjectId)?.name??'Current project'}
           projectFilter={allProjectsProjectFilter} onProject={setAllProjectsProjectFilter} projectNames={isAllProjectsMap?allProjectNames:null}/>}
       </div>
-
-          {activeTab === "users" && user?.role === "admin" && (
-              <section className="admin-page">
-                <div className="admin-page-head admin-page-head--bar">
-                  <div>
-                    <span className="eyebrow">Administration</span>
-                    <h2>User management</h2>
-                    <p>Add team members, set their role, and assign them to projects.</p>
-                  </div>
-                  <button className="primary-button" onClick={() => setAddUserOpen(true)}><Plus size={15} /> Add user</button>
-                </div>
-                <div className="user-list">
-                  {users.map((account) => (
-                    <article key={account.id}>
-                      <span className="user-avatar">{account.name.slice(0, 1).toUpperCase()}</span>
-                      <span><strong>{account.name}</strong><small>{account.email} · {account.role}</small></span>
-                      <span className="user-actions">
-                        <button onClick={() => setEditingUserId(account.id)} aria-label={`Edit ${account.name}`}><Pencil size={15} /></button>
-                        {account.id !== user?.id && <button onClick={() => removeUser(account.id)} aria-label={`Remove ${account.name}`}><Trash2 size={15} /></button>}
-                      </span>
-                    </article>
-                  ))}
-                  {!users.length && <div className="empty-state">No users yet. Add your first team member.</div>}
-                </div>
-              </section>
-          )}
 
           {addUserOpen && (
             <div className="user-modal-backdrop" role="dialog" aria-modal="true" aria-label="Add user">
