@@ -12,13 +12,13 @@ function exportRows(items:any[],evidence:any){
  const url=URL.createObjectURL(new Blob([inventoryCsv(items,evidence,(b:any)=>b.centralStates?.join(' / ')||markerState(b))],{type:'text/csv;charset=utf-8'}));
  const link=document.createElement('a');link.href=url;link.download='spotlight-inventory.csv';link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
 }
-export function InventoryControls({dictionaries=DEFAULT_DICTIONARIES,boards,rows,evidence,geo,onGeo,geoLoading,geoError,loading,error,
+export function InventoryControls({excludeFabricated=false,onExcludeFabricated,dictionaries=DEFAULT_DICTIONARIES,boards,rows,evidence,geo,onGeo,geoLoading,geoError,loading,error,
  type,onType,status,onStatus,flight,onFlight,vendor,onVendor,priority='',onPriority,onRefresh,onReset,
  onAdd,onRoad,onImport,onTemplate,canManage,isAdmin,projectFilter,onProject,projectNames,view,onView,message,central=false}:any){
  const [expanded,setExpanded]=useState(false);
  const vendors=[...new Set(boards.map((b:any)=>b.owner).filter(Boolean))].sort() as string[];
  const ready=boards.filter((b:any)=>inventoryGeography(b,evidence).ready).length;
- const active=Object.values(geo).filter(Boolean).length+Number(type!=='All types')+Number(Boolean(vendor))+Number(Boolean(priority))+Number(status!=='All status')+Number(flight!=='All flight status')+Number(projectFilter!=='All projects');
+ const active=Number(excludeFabricated)+Object.values(geo).filter(Boolean).length+Number(type!=='All types')+Number(Boolean(vendor))+Number(Boolean(priority))+Number(status!=='All status')+Number(flight!=='All flight status')+Number(projectFilter!=='All projects');
  function areaSelect(key:string,title:string){return <label key={key}>{title}<SearchSelect aria-label={`Inventory ${title}`} disabled={geoLoading} value={geo[key]} onChange={e=>onGeo(changeGeography(geo,key,e.target.value))}><option value="">All {title.toLowerCase()}</option><option value="__missing__">Not available / stale</option>{geographyOptions(boards,evidence,geo,key).map((o:any)=><option key={o.value} value={o.value}>{o.label}</option>)}</SearchSelect></label>;}
  return <section className="inventory-controls" aria-label="Inventory controls">
   <header className="inventory-register-head">
@@ -26,6 +26,7 @@ export function InventoryControls({dictionaries=DEFAULT_DICTIONARIES,boards,rows
    <div className="inventory-view-switch" role="group" aria-label="Inventory view">
     {[['split','Split',PanelsTopLeft],['map','Map',Map],['table','Table',Table2]].map(([value,title,Icon]:any)=><button key={value} aria-pressed={view===value} onClick={()=>onView(value)}><Icon size={15}/>{title}</button>)}
    </div>
+   <button className="inventory-exclude-fabricated" aria-pressed={excludeFabricated} onClick={onExcludeFabricated}>Exclude Fabricated banners</button>
    <div className="inventory-actions">
     <button disabled={loading} onClick={onRefresh} aria-label="Refresh inventory" title="Refresh inventory"><RefreshCw size={15}/></button>
     <button disabled={!rows.length||loading} onClick={()=>exportRows(rows,evidence)}><Download size={15}/>Export</button>

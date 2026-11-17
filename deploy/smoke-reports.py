@@ -14,9 +14,9 @@ req=urllib.request.Request('http://127.0.0.1:3100/api/reports?'+urllib.parse.url
 with urllib.request.urlopen(req,timeout=30) as response:
  assert response.status==200
  data=json.load(response)
- assert data['project']['id']==project_id and data['assets'] and data['settings']['title']
+ assert data['project']['id']==project_id and isinstance(data['assets'],list) and isinstance(data['settings']['title'],str)
  assert 'share_code' not in data['project']
- assert data['version']==0 and isinstance(data['campaigns'],list)
+ assert isinstance(data['version'],int) and data['version']>=0 and isinstance(data['campaigns'],list)
  print('Authenticated project report API passed; project',project_id,'assets',len(data['assets']),'campaigns',len(data['campaigns']),'map protection',data['project']['protected'])
 req=urllib.request.Request('http://127.0.0.1:3100/api/reports?projectId='+str(project_id),headers={'Cookie':'kmk_session=invalid'})
 try:

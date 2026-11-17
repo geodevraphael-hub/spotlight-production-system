@@ -1,4 +1,5 @@
 "use client";
+import DeleteProjectModal from './DeleteProjectModal';
 import Settings from './Settings';
 import {DEFAULT_DICTIONARIES} from './inventory-dictionaries.mjs';
 import SearchSelect from './SearchSelect';
@@ -868,6 +869,8 @@ export default function Home() {
   const [inventoryGeo,setInventoryGeo]=useState<Record<string,string>>(emptyGeoFilters);
   const [dictionaries,setDictionaries]=useState(DEFAULT_DICTIONARIES);
   useEffect(()=>{if(!user)return;let alive=true;fetch("/api/app?action=inventory-dictionaries").then(async r=>r.ok?r.json():null).then(d=>{if(alive&&d)setDictionaries(d.dictionaries);}).catch(()=>{});return()=>{alive=false;};},[user?.id]);
+  const [excludeFabricated,setExcludeFabricated]=useState(false);
+  const [projectToDelete,setProjectToDelete]=useState<{id:number;name:string}|null>(null);
   const [inventoryVendor,setInventoryVendor]=useState("");
   const [inventoryPriority,setInventoryPriority]=useState("");
   const [inventoryGeoLoading,setInventoryGeoLoading]=useState(false);
@@ -1187,10 +1190,10 @@ export default function Home() {
       const matchesLocation=!inventoryScope||matchesGeography(item,inventoryEvidence,inventoryGeo);
       const matchesVendor=!inventoryScope||!inventoryVendor||item.owner===inventoryVendor;
       const matchesPriority=!inventoryScope||!inventoryPriority||(inventoryPriority==='__missing__'?!assetPriority(item):assetPriority(item)===inventoryPriority);
-      return matchesSearch && matchesProject && matchesDistrict && matchesAvailability && matchesBoardType && matchesFaces && matchesFlightStatus && matchesLocation && matchesVendor && matchesPriority;
+      return (!inventoryScope||!excludeFabricated||item.mediaType!=='fabricated-banner') && matchesSearch && matchesProject && matchesDistrict && matchesAvailability && matchesBoardType && matchesFaces && matchesFlightStatus && matchesLocation && matchesVendor && matchesPriority;
     });
     return {filtered:filterBoards(billboards),centralFilterBoards:centralScope?filterBoards(centralAllBoards):[]};
-  }, [centralAllBoards,billboards, query, user?.role, currentProjectId, planningScope,centralScope, allProjectsProjectFilter, district, availability, boardTypeFilter, facesFilter, mapFlightFilter,inventoryScope,inventoryEvidence,inventoryGeo,inventoryVendor,inventoryPriority]);
+  }, [excludeFabricated,centralAllBoards,billboards, query, user?.role, currentProjectId, planningScope,centralScope, allProjectsProjectFilter, district, availability, boardTypeFilter, facesFilter, mapFlightFilter,inventoryScope,inventoryEvidence,inventoryGeo,inventoryVendor,inventoryPriority]);
 
   const visibleAssets = useMemo(
     () =>
@@ -2456,18 +2459,21 @@ export default function Home() {
       window.setTimeout(() => setImportMessage(""), 3000);
       return;
     }
-    const typedName = window.prompt(`Delete project "${project.name}" and all its data? This removes billboards, plans, missions, field collections, contacts, flight schedules, and user assignments.\n\nType DELETE to confirm.`);
-    if (typedName !== "DELETE") return;
+    setProjectToDelete({id:project.id,name:project.name});
+  }
+
+  async function confirmDeleteProject(projectId:number) {
+    const project=projects.find(item=>item.id===projectId);
+    if(!project)throw Error("Project no longer exists. Close this dialog and refresh.");
     try {
       const response = await fetch("/api/app?action=delete-project", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ projectId: currentProjectId }),
+        body: JSON.stringify({ projectId }),
       });
       const result = await response.json();
       if (!response.ok) throw new Error(result.error ?? "Delete failed");
-      const refreshed = await fetch("/api/app?action=projects").then((value) => value.json());
-      const nextProjects = refreshed.projects ?? [];
+      const nextProjects = projects.filter(item=>item.id!==projectId);
       setProjects(nextProjects);
       const nextProjectId = nextProjects[0]?.id ?? 0;
       setCurrentProjectId(nextProjectId);
@@ -2482,9 +2488,7 @@ export default function Home() {
       if (!nextProjectId && canManage) setProjectOpen(true);
       window.setTimeout(() => setImportMessage(""), 3000);
     } catch (error) {
-      console.error(error);
-      setImportMessage(error instanceof Error ? error.message : "Failed to delete project");
-      window.setTimeout(() => setImportMessage(""), 3000);
+      throw error;
     }
   }
 
@@ -3030,6 +3034,7 @@ export default function Home() {
   }
 
   function resetFilters() {
+    setExcludeFabricated(false);
     setCentralProject("all");
     setInventoryGeo(emptyGeoFilters());setInventoryVendor("");setInventoryPriority("");setShowSelectedOnly(false);
     setQuery("");
@@ -3249,6 +3254,7 @@ export default function Home() {
         {user?.role === "admin" && <button aria-current={activeTab === "users" ? "page" : undefined} className={activeTab === "users" ? "tab-btn tab-btn--active" : "tab-btn"} onClick={() => { setActiveTab("users"); loadUsers(); }}><UserCog size={16} /> User Management</button>}
         {user?.role === "admin" && <button aria-current={activeTab === "settings" ? "page" : undefined} className={activeTab === "settings" ? "tab-btn tab-btn--active" : "tab-btn"} onClick={()=>setActiveTab("settings")}><SlidersHorizontal size={16}/> Settings</button>}
       </WorkspaceDock>
+      {projectToDelete&&<DeleteProjectModal key={projectToDelete.id} project={projectToDelete} onClose={()=>setProjectToDelete(null)} onDelete={confirmDeleteProject}/>}
       {activeTab === "settings" && user?.role === "admin" && <Settings onChanged={data=>setDictionaries(data.dictionaries)}/> }
 
       {activeTab==='reports'&&canPlan&&<ReportBuilder key={currentProjectId} projectId={currentProjectId} readOnly={!canPlan}/>}
@@ -3261,7 +3267,7 @@ export default function Home() {
         {centralScope&&<CentralProjects boards={centralFilterBoards} flightFilter={mapFlightFilter} projects={projects} value={centralProject} loading={loading}
           onChange={(value:string)=>{setCentralProject(value);setAllProjectsProjectFilter("All projects");setSelected(null);setInventoryFocusedId(null);setShowSelectedOnly(false);}}
           onOpen={(id:number)=>{setSelected(null);setCurrentProjectId(id);}}/>}
-        {inventoryScope&&<InventoryControls dictionaries={dictionaries} central={centralScope} boards={centralScope?centralAllBoards:billboards} rows={filtered} evidence={inventoryEvidence} geo={inventoryGeo} onGeo={setInventoryGeo}
+        {inventoryScope&&<InventoryControls excludeFabricated={excludeFabricated} onExcludeFabricated={()=>setExcludeFabricated(value=>!value)} dictionaries={dictionaries} central={centralScope} boards={centralScope?centralAllBoards:billboards} rows={filtered} evidence={inventoryEvidence} geo={inventoryGeo} onGeo={setInventoryGeo}
           geoLoading={inventoryGeoLoading} geoError={inventoryGeoError} loading={loading} error={projectLoadError}
           type={boardTypeFilter} onType={setBoardTypeFilter} status={availability} onStatus={setAvailability}
           flight={mapFlightFilter} onFlight={setMapFlightFilter} vendor={inventoryVendor} onVendor={setInventoryVendor}
