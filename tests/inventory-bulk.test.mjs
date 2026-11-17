@@ -88,3 +88,26 @@ test('uploaded attributes receive canonical fields when the imported file only h
  const after=applyBulkChanges(item,normalizeBulkChanges({street:'New place',district:'South',width:5}));
  assert.equal(after.sourceAttributes['SPECIFIC LOCATION'],'New place');assert.equal(after.sourceAttributes.DISTRICT,'South');assert.equal(after.sourceAttributes.REGION,'Zone');assert.equal(after.sourceAttributes.Size,'5 × 3 m');
 });
+
+
+test('central attributes edit uses database IDs across projects and unassigned inventory without changing memberships',async()=>{
+ const {raw,sql,read}=setup();const db=auditedDatabase(raw,admin);
+ sql.prepare('INSERT INTO inventory VALUES(?,?)').run(4,JSON.stringify({id:999,street:'Unassigned',owner:'Old',lat:-6,lng:39}));
+ const memberships=sql.prepare('SELECT * FROM inventory_projects ORDER BY inventory_id,project_id').all();
+ const result=await commit(db,admin,{projectId:0,ids:[1,3,4],changes:{owner:'Central vendor'}});
+ assert.equal(result.changedCount,3);
+ assert.equal(read(1).id,101);assert.equal(read(3).projectId,20);assert.equal(read(4).id,999);
+ for(const id of [1,3,4])assert.equal(read(id).owner,'Central vendor');
+ assert.equal(read(2).owner,'Old');
+ assert.deepEqual(sql.prepare('SELECT * FROM inventory_projects ORDER BY inventory_id,project_id').all(),memberships);
+ assert.equal(sql.prepare('SELECT COUNT(*) n FROM audit WHERE actor_id=1').get().n,3);
+});
+
+test('central editing cannot be forged by creators or viewers and retains version guards',async()=>{
+ const {db,sql,read}=setup(),body={projectId:0,ids:[1],changes:{owner:'Central vendor'}};
+ for(const role of ['creator','planner','viewer','field_user'])await assert.rejects(bulkInventoryEdit(db,{id:2,role},body),{status:403});
+ const preview=await bulkInventoryEdit(db,admin,body);
+ sql.prepare("UPDATE inventory SET data=json_set(data,'$.faces',2) WHERE id=1").run();
+ await assert.rejects(bulkInventoryEdit(db,admin,{...body,confirmed:true,versions:{1:preview.rows[0].version}},true),{status:409});
+ assert.equal(read(1).owner,'Old');
+});

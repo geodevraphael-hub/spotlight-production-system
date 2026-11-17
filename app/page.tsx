@@ -2112,6 +2112,7 @@ export default function Home() {
   const isViewer = user?.role === "viewer";
   const isAllProjectsMap = Boolean(!planningScope && (user?.role === "admin" || isViewer) && currentProjectId === 0);
   const canManage = !isAllProjectsMap && (user?.role === "admin" || user?.role === "creator");
+  const canEditInventoryAttributes=canManage||(centralScope&&user?.role==="admin");
   const canPlan = Boolean(user && ["admin", "creator", "planner"].includes(user.role));
   // Viewers get read-only access to every operational tab (scoped to their projects).
   const canView = canPlan || isViewer;
@@ -3624,12 +3625,12 @@ export default function Home() {
                 </div>
               </div>
               {inventoryScope&&<nav className="inventory-detail-tabs" aria-label="Billboard detail sections">
-                {[["overview","Overview"],...canPlan&&!isAllProjectsMap?[["flight","Flighting"]]:[],...canManage?[["validation","Validation"]]:[],...selected.sourceAttributes&&Object.keys(selected.sourceAttributes).length?[["attributes","Attributes"]]:[]].map(([key,title])=>
+                {[["overview","Overview"],...canPlan&&!isAllProjectsMap?[["flight","Flighting"]]:[],...canManage?[["validation","Validation"]]:[],...(centralScope||selected.sourceAttributes&&Object.keys(selected.sourceAttributes).length)?[["attributes","Attributes"]]:[]].map(([key,title])=>
                   <button key={key} aria-pressed={inventoryDetailCategory===key} onClick={()=>{setInventoryDetailCategory(key);inventoryDetailRef.current?.querySelector(".inventory-detail-content")?.scrollTo({top:0});}}>{title}</button>)}
               </nav>}
               <div className={inventoryScope?"inventory-detail-content":"detail-content-legacy"}>
               <AssetOverview dictionaries={dictionaries} board={selected} type={mediaTypeLabel(selected.mediaType)} flight={markerState(selected)}
-                selection={statusLabel(selected.status)} onEdit={inventoryScope&&canManage?()=>{setBulkEditBoards([selected]);setSelected(null);}:undefined}/>
+                selection={statusLabel(selected.status)} onEdit={inventoryScope&&canEditInventoryAttributes?()=>{setBulkEditBoards([selected]);setSelected(null);}:undefined}/>
               {centralScope&&<CentralMemberships board={selected} onOpen={(id:number)=>{setSelected(null);setCurrentProjectId(id);}}/>}
               {canPlan && !centralScope && (
                 <section className="flight-card">
@@ -3779,9 +3780,10 @@ export default function Home() {
                   </div>
                 </section>
               )}
-              {selected.sourceAttributes && Object.keys(selected.sourceAttributes).length > 0 && (
+              {(centralScope||selected.sourceAttributes && Object.keys(selected.sourceAttributes).length > 0) && (
                 <details className="source-attributes" open>
-                  <summary>Uploaded CSV attributes · {Object.keys(sourceAttrDraft).length} fields</summary>
+                  <summary>{centralScope?"Billboard attributes":`Uploaded CSV attributes · ${Object.keys(sourceAttrDraft).length} fields`}</summary>
+                  {centralScope&&canEditInventoryAttributes&&<div className="source-attributes-actions"><p>Changes to a shared billboard apply to all its projects. Review the changes before saving.</p><button type="button" className="primary-button" onClick={()=>{setBulkEditBoards([selected]);setSelected(null);}}><Pencil size={15}/> Edit attributes</button></div>}
                   <div className="source-attributes-grid">
                     {Object.entries(sourceAttrDraft)
                       .filter(([key, value]) => !isTransportAttribute(key)&&(key.trim() || String(value ?? "").trim()))
@@ -4175,7 +4177,7 @@ export default function Home() {
           onRemove={user?.role==="admin"?openProjectRemoval:undefined}
           selected={projectShortlist} onSelection={setProjectShortlist} onOpen={focusItem}
           onLocate={(item:Billboard)=>focusItem(item,false)} focusedId={inventoryFocusedId} focusRevision={inventoryFocusRevision} onReset={resetFilters}
-          onAssign={()=>centralScope?openCentralAssignment():setAssignProjectOpen(true)} canAssign={canManage||centralScope} onBulkEdit={()=>{setSelected(null);setBulkEditBoards(billboards.filter(item=>projectShortlist.includes(item.id)));}} canManage={canManage} isAdmin={user?.role==='admin'}
+          onAssign={()=>centralScope?openCentralAssignment():setAssignProjectOpen(true)} canAssign={canManage||centralScope} onBulkEdit={()=>{setSelected(null);setBulkEditBoards(billboards.filter(item=>projectShortlist.includes(item.id)));}} canManage={canEditInventoryAttributes} isAdmin={user?.role==='admin'}
           projectName={isAllProjectsMap?'All projects':projects.find(p=>p.id===currentProjectId)?.name??'Current project'}
           projectFilter={allProjectsProjectFilter} onProject={setAllProjectsProjectFilter} projectNames={isAllProjectsMap?allProjectNames:null}/>}
       </div>
@@ -4330,8 +4332,8 @@ export default function Home() {
           setProjectLoadRevision(value=>value+1);setPlanningRevision(value=>value+1);
           setImportMessage(`${result.assigned} billboard${result.assigned===1?"":"s"} added to ${result.project.name}. ${result.alreadyAssigned?`${result.alreadyAssigned} already linked. `:""}Current project memberships preserved.`);
         }}/>}
-      {inventoryScope&&canManage&&bulkEditBoards&&<InventoryBulkEdit dictionaries={dictionaries} boards={bulkEditBoards} projectId={currentProjectId}
-        projectName={projects.find(p=>p.id===currentProjectId)?.name??'Current project'}
+      {inventoryScope&&canEditInventoryAttributes&&bulkEditBoards&&<InventoryBulkEdit dictionaries={dictionaries} boards={bulkEditBoards} projectId={currentProjectId}
+        projectName={centralScope?'All projects':projects.find(p=>p.id===currentProjectId)?.name??'Current project'}
         hiddenCount={bulkEditBoards.filter(item=>!filtered.some(row=>row.id===item.id)).length}
         onClose={()=>setBulkEditBoards(null)}
         onSaved={(result:any)=>{

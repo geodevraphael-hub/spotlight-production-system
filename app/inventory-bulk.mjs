@@ -78,7 +78,9 @@ const permission=`(?='admin' OR EXISTS(SELECT 1 FROM project_users pu WHERE pu.p
 export async function bulkInventoryEdit(db,user,body,commit=false){
   if(!['admin','creator'].includes(user?.role))fail('Only administrators and creators can bulk edit inventory.',403);
   const projectId=body.projectId,ids=body.ids;
-  if(!Number.isSafeInteger(projectId)||projectId<=0)fail('Choose a project before bulk editing.');
+  const central=projectId===0;
+  if(central&&user.role!=='admin')fail('Only administrators can edit attributes across all projects.',403);
+  if(!Number.isSafeInteger(projectId)||projectId<0)fail('Choose a project before bulk editing.');
   if(!Array.isArray(ids)||ids.length<1||ids.length>500||ids.some(id=>!Number.isSafeInteger(id)||id<=0)||new Set(ids).size!==ids.length)fail('Select between 1 and 500 unique billboards.');
   const {dictionaries}=await readDictionaries(db);
   const changes=normalizeBulkChanges(body.changes,dictionaries);
@@ -86,8 +88,8 @@ export async function bulkInventoryEdit(db,user,body,commit=false){
   for(const id of ids){
     const row=await db.prepare(`SELECT i.id,i.data,
       (SELECT COUNT(DISTINCT project_id) FROM (SELECT project_id FROM inventory_projects WHERE inventory_id=i.id UNION SELECT COALESCE(json_extract(i.data,'$.projectId'),1)) WHERE project_id>0) AS project_count
-      FROM inventory i WHERE i.id=? AND ${membership} AND ${permission}`)
-      .bind(id,projectId,projectId,user.role,projectId,user.id).first();
+      FROM inventory i WHERE i.id=? AND (?=1 OR ${membership}) AND ${permission}`)
+      .bind(id,central?1:0,projectId,projectId,user.role,projectId,user.id).first();
     if(!row)fail('Some selected billboards are missing or no longer editable in this project. Refresh inventory.',403);
     row.version=await version(row.data);
     if(commit&&body.versions?.[id]!==row.version)fail('A selected billboard changed after your review. Review the latest values before saving.',409);
@@ -108,8 +110,8 @@ export async function bulkInventoryEdit(db,user,body,commit=false){
   const now=Date.now();
   // Guards and writes share ONE transaction. Any concurrent edit, deletion or
   // permission change aborts the entire batch, including its audit entries.
-  const guards=rows.map(row=>db.prepare(`SELECT CASE WHEN EXISTS(SELECT 1 FROM inventory i WHERE i.id=? AND i.data=? AND ${membership} AND ${permission}) THEN 1 ELSE json('Inventory conflict') END`)
-    .bind(row.id,row.data,projectId,projectId,user.role,projectId,user.id));
+  const guards=rows.map(row=>db.prepare(`SELECT CASE WHEN EXISTS(SELECT 1 FROM inventory i WHERE i.id=? AND i.data=? AND (?=1 OR ${membership}) AND ${permission}) THEN 1 ELSE json('Inventory conflict') END`)
+    .bind(row.id,row.data,central?1:0,projectId,projectId,user.role,projectId,user.id));
   const writes=changed.map(row=>db.prepare('UPDATE inventory SET data=? WHERE id=?')
     .bind(JSON.stringify({...row.after,lastEditedBy:user.id,lastEditedAt:now}),row.id));
   try{await db.batch([...guards,...writes]);}
