@@ -22,7 +22,7 @@ export function InventoryControls({excludeFabricated=false,onExcludeFabricated,d
  function areaSelect(key:string,title:string){return <label key={key}>{title}<SearchSelect aria-label={`Inventory ${title}`} disabled={geoLoading} value={geo[key]} onChange={e=>onGeo(changeGeography(geo,key,e.target.value))}><option value="">All {title.toLowerCase()}</option><option value="__missing__">Not available / stale</option>{geographyOptions(boards,evidence,geo,key).map((o:any)=><option key={o.value} value={o.value}>{o.label}</option>)}</SearchSelect></label>;}
  return <section className="inventory-controls" aria-label="Inventory controls">
   <header className="inventory-register-head">
-   <div className="inventory-title"><h1>{central?'All-project map':'Inventory'}</h1><span>{loading?'Loading…':`${rows.length} of ${boards.length} billboards`}</span></div>
+   <div className="inventory-title"><h1>{central?'All-project map':'Inventory'}</h1><span>{loading?'Loading…':`${rows.length} of ${boards.length} Assets`}</span></div>
    <div className="inventory-view-switch" role="group" aria-label="Inventory view">
     {[['split','Split',PanelsTopLeft],['map','Map',Map],['table','Table',Table2]].map(([value,title,Icon]:any)=><button key={value} aria-pressed={view===value} onClick={()=>onView(value)}><Icon size={15}/>{title}</button>)}
    </div>
