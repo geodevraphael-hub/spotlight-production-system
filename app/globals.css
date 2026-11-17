@@ -6378,3 +6378,10 @@ body { background: var(--soft); color: var(--ink); }
 @media(min-width:768px){
  .topbar-actions > .project-select {width:calc((100vw - 44px)/3);flex:0 1 calc((100vw - 44px)/3);}
 }
+
+.topbar-actions > .header-board-type {width:clamp(180px,18vw,260px);flex:0 1 clamp(180px,18vw,260px);}
+@media(max-width:760px){
+ .topbar-actions:has(>.header-board-type){display:flex;flex-wrap:wrap;}
+ .topbar-actions:has(>.header-board-type)>.project-select{width:auto;flex:1 1 calc(60% - 8px);}
+ .topbar-actions:has(>.header-board-type)>.header-board-type{flex-basis:calc(40% - 8px);}
+}

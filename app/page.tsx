@@ -3167,6 +3167,7 @@ export default function Home() {
               <strong>{sharedProject?.name}</strong>
             </div>
           )}
+          {user&&activeTab==="planner"&&<label className="project-select header-board-type"><span>Board type</span><SearchSelect aria-label="Header board type" value={boardTypeFilter} onChange={event=>{setBoardTypeFilter(event.target.value);setSelected(null);}}><option value="All types">All types</option>{dictionaries.mediaType.map(([value,title])=><option key={value} value={value}>{title}</option>)}</SearchSelect></label>}
           {canManage && (
             <WorkspaceActions>
               <span className="action-section-label">Project</span>
