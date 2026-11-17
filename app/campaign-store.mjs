@@ -25,7 +25,7 @@ export async function campaignList(db,user,projectId){
  await campaignAccess(db,user,projectId);
  const [rows,assets,schedules,bookings]=await Promise.all([
   db.prepare('SELECT * FROM project_campaigns WHERE project_id=? ORDER BY starts_on DESC,name').bind(projectId).all(),campaignInventory(db,projectId),
-  db.prepare('SELECT asset_id,stage,flight_status,end_at FROM flight_schedules WHERE project_id=?').bind(projectId).all(),assetBookings(db),
+  db.prepare('SELECT asset_id,stage,flight_status,end_at FROM flight_schedules WHERE project_id=?').bind(projectId).all(),assetBookings(db,Date.now(),projectId),
  ]);
  const inventory=assets.map(b=>({...b,...bookings.get(b.inventoryDbId)}));
  return {projectId,assets:inventory,canManage:user.role!=='planner',campaigns:rows.results.map(c=>{const ids=JSON.parse(c.asset_ids);const included=inventory.filter(b=>ids.includes(b.inventoryDbId));return {...c,assetIds:ids,asset_ids:undefined,missingAssets:ids.length-included.length,clock:campaignClock(c.starts_on,c.ends_on),summary:dashboardInventory(included,schedules.results,projectId)};})};

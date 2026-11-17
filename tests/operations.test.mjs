@@ -74,7 +74,7 @@ const rulesUrl=new URL('../app/operations-rules.mjs',import.meta.url).href;
 const compile=source=>'data:text/javascript;base64,'+Buffer.from(ts.transpileModule(source,{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.ESNext}}).outputText).toString('base64');
 const storeSource=(await readFile(new URL('../app/operations-store.ts',import.meta.url),'utf8')).replace("import { env } from 'cloudflare:workers';",'const env=globalThis.__testEnv;').replace("'./operations-rules.mjs'",JSON.stringify(rulesUrl)).replace("'./initialize-once.mjs'",JSON.stringify(new URL('../app/initialize-once.mjs',import.meta.url).href));
 const auditUrl=new URL('../app/activity-audit.mjs',import.meta.url).href;
-const storeUrl=compile(storeSource.replace("'./activity-audit.mjs'",JSON.stringify(auditUrl)));
+const storeUrl=compile(storeSource.replace("'./performance-indexes.mjs'",JSON.stringify(new URL('../app/performance-indexes.mjs',import.meta.url).href)).replace("'./activity-audit.mjs'",JSON.stringify(auditUrl)));
 const store=await import(storeUrl);
 await store.setupOperations();
 await store.setupOperations();
@@ -431,13 +431,15 @@ test('new field assignments, corrections, bookings and costs have before/after a
 
 test('authenticated main API writes record the editor for inventory, flight and field validation',async()=>{
   const handler=routeSource.slice(routeSource.indexOf('export async function POST(request: Request)'),routeSource.indexOf('export async function DELETE(request: Request)'));
-  const prefix=`import {readDictionaries,mutateDictionary} from ${JSON.stringify(new URL('../app/dictionary-store.mjs',import.meta.url).href)};
+  const prefix=`import {restoreInventoryImages} from ${JSON.stringify(new URL('../app/inventory-images.mjs',import.meta.url).href)};
+    import {readDictionaries,mutateDictionary} from ${JSON.stringify(new URL('../app/dictionary-store.mjs',import.meta.url).href)};
     import {auditedDatabase} from ${JSON.stringify(auditUrl)};
     import {validateRegisterFields} from ${JSON.stringify(new URL('../app/asset-register.mjs',import.meta.url).href)};
     import {validCoordinates} from ${JSON.stringify(rulesUrl)};
     const env=globalThis.__testEnv; const setup=async()=>{}; const currentUser=async()=>globalThis.__testUser;
     const json=(value,status=200)=>Response.json(value,{status});
     const normalizedFlightStatus=(stage,status)=>status;
+    const scheduleLocationEnrichment=()=>{};
   `;
   const main=await import(compile(prefix+handler));
   const request=(action,body)=>main.POST(new Request('http://local/api/app?action='+action,{method:'POST',body:JSON.stringify(body)}));

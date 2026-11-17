@@ -13,40 +13,53 @@ export function applyLocationNames(asset,names,now){
  next.locationAddress={...names,lat:Number(asset.lat),lng:Number(asset.lng),source:'Location IQ',checkedAt:now,status:names.district&&names.village?'complete':'partial',retryAfter:now+(names.district&&names.village?30:1)*86400000};
  return next;
 }
-export async function populateLocations(db,key,paused='',fetcher=fetch,now=Date.now()){
+export async function populateLocations(db,key,paused='',fetcher=fetch,now=Date.now(),options={}){
  if(!key||paused)return {state:'paused',message:paused||'Location IQ is not configured'};
  await setupLocationEvidence(db);
- const state=await db.prepare('SELECT * FROM planning_provider_state WHERE id=1').first();
- if(state.blocked_until>now||state.lease_until>now)return {state:'waiting'};
- const rows=(await db.prepare(`SELECT i.id,i.data FROM inventory i WHERE
-  json_type(data,'$.lat') IN ('integer','real') AND json_type(data,'$.lng') IN ('integer','real') AND abs(json_extract(data,'$.lat'))<=90 AND abs(json_extract(data,'$.lng'))<=180 AND
-  (json_extract(data,'$.locationAddress.lat') IS NOT json_extract(data,'$.lat') OR json_extract(data,'$.locationAddress.lng') IS NOT json_extract(data,'$.lng') OR COALESCE(json_extract(data,'$.locationAddress.retryAfter'),0)<=?)
-  ORDER BY COALESCE(json_extract(data,'$.locationAddress.checkedAt'),0),i.id LIMIT 20`).bind(now).all()).results;
- let updated=0,lookedUp=false;
- for(const row of rows){
-  const asset=JSON.parse(row.data);
-  const cached=await db.prepare("SELECT json_extract(data,'$.facts.reverse') reverse FROM planning_location_evidence WHERE inventory_id=? AND lat=? AND lng=? AND json_extract(data,'$.facts.reverse') IS NOT NULL ORDER BY updated_at DESC LIMIT 1").bind(row.id,asset.lat,asset.lng).first();
-  let reverse=cached?.reverse?JSON.parse(cached.reverse):null;
-  if(!reverse){
-   if(lookedUp)break;
-   const lease=await db.prepare('UPDATE planning_provider_state SET lease_until=? WHERE id=1 AND lease_until<=? AND blocked_until<=?').bind(now+95000,now,now).run();
-   if(!lease.meta.changes)break;
-   lookedUp=true;
-   try{
-    const url=new URL('https://locationiq.co.tz/v1/reverse');url.searchParams.set('latitude',String(asset.lat));url.searchParams.set('longitude',String(asset.lng));url.searchParams.set('limit','10');
-    const r=await fetcher(url,{headers:{'X-API-Key':key,Accept:'application/json'},redirect:'manual',signal:AbortSignal.timeout(40000)});
-    if(!r.ok){if([401,403,429].includes(r.status))await db.prepare('UPDATE planning_provider_state SET blocked_until=?,message=? WHERE id=1').bind(now+(r.status===429?60000:1800000),'Automatic location lookup is waiting for provider access or rate limits.').run();throw new Error('Provider unavailable');}
-    const text=await r.text();if(text.length>1500000)throw new Error('Response too large');reverse=JSON.parse(text);
-    if(!reverse||reverse.error||reverse.detail||(!reverse.administration&&!reverse.census_administration))throw new Error('Location unavailable');
-   }catch{
-    const next={...asset,locationAddress:{lat:asset.lat,lng:asset.lng,status:'pending',checkedAt:now,retryAfter:now+1800000,source:'Location IQ'}};
-    await db.prepare('UPDATE inventory SET data=? WHERE id=? AND data=?').bind(JSON.stringify(next),row.id,row.data).run();
-    return {state:'retrying',updated};
-   }finally{await db.prepare('UPDATE planning_provider_state SET lease_until=? WHERE id=1').bind(Date.now()+1000).run();}
+ const leaseUntil=Date.now()+95000;
+ const lease=await db.prepare('UPDATE planning_provider_state SET lease_until=? WHERE id=1 AND lease_until<=? AND blocked_until<=?').bind(leaseUntil,now,now).run();
+ if(!lease.meta.changes)return {state:'waiting',updated:0};
+ let updated=0,lookedUp=0,failed=0;
+ const started=Date.now(),limit=options.maxLookups??8,budget=options.maxMs??25000;
+ try{
+  const jobs=(await db.prepare(`SELECT * FROM location_enrichment_queue WHERE next_attempt_at<=? ORDER BY CASE WHEN status='queued' AND attempts=0 THEN 0 ELSE 1 END,queued_at DESC,inventory_id LIMIT 100`).bind(now).all()).results;
+  for(const job of jobs){
+   if(Date.now()-started>=budget)break;
+   const coordinates=[job.lat,job.lng],cacheNow=Date.now();
+   const cached=await db.prepare('SELECT data FROM location_reverse_cache WHERE lat=? AND lng=? AND fetched_at<=? AND fetched_at>?').bind(...coordinates,cacheNow,cacheNow-30*86400000).first();
+   const evidence=cached?null:await db.prepare("SELECT json_extract(data,'$.facts.reverse') reverse FROM planning_location_evidence WHERE lat=? AND lng=? AND updated_at<=? AND updated_at>? AND json_extract(data,'$.facts.reverse') IS NOT NULL ORDER BY updated_at DESC LIMIT 1").bind(...coordinates,cacheNow,cacheNow-7*86400000).first();
+   let reverse=cached?JSON.parse(cached.data):evidence?.reverse?JSON.parse(evidence.reverse):null;
+   if(!reverse){
+    if(lookedUp>=limit)break;
+    if(lookedUp)await new Promise(resolve=>setTimeout(resolve,1050));
+    lookedUp++;
+    try{
+     const url=new URL('https://locationiq.co.tz/v1/reverse');url.searchParams.set('latitude',String(job.lat));url.searchParams.set('longitude',String(job.lng));url.searchParams.set('limit','10');
+     const response=await fetcher(url,{headers:{'X-API-Key':key,Accept:'application/json'},redirect:'manual',signal:AbortSignal.timeout(Math.max(1000,Math.min(15000,budget-(Date.now()-started))))});
+     if(!response.ok){
+      if([401,403,429].includes(response.status))await db.prepare('UPDATE planning_provider_state SET blocked_until=?,message=? WHERE id=1').bind(Date.now()+(response.status===429?60000:1800000),'Automatic location lookup is waiting for provider access or rate limits.').run();
+      throw Object.assign(new Error('Provider unavailable'),{blocked:[401,403,429].includes(response.status)});
+     }
+     const text=await response.text();if(text.length>1500000)throw Error('Response too large');reverse=JSON.parse(text);
+     if(!reverse||reverse.error||reverse.detail||(!reverse.administration&&!reverse.census_administration))throw Error('Location unavailable');
+     await db.prepare('INSERT INTO location_reverse_cache(lat,lng,data,fetched_at) VALUES(?,?,?,?) ON CONFLICT(lat,lng) DO UPDATE SET data=excluded.data,fetched_at=excluded.fetched_at').bind(...coordinates,JSON.stringify(reverse),Date.now()).run();
+    }catch(error){
+     failed++;
+     await db.prepare("UPDATE location_enrichment_queue SET status='retrying',attempts=attempts+1,next_attempt_at=?,updated_at=? WHERE inventory_id=? AND lat=? AND lng=?").bind(Date.now()+Math.min(1800000,30000*2**Math.min(job.attempts,5)),Date.now(),job.inventory_id,...coordinates).run();
+     const row=await db.prepare('SELECT data FROM inventory WHERE id=?').bind(job.inventory_id).first();
+     if(row){const asset=JSON.parse(row.data);if(Number(asset.lat)===job.lat&&Number(asset.lng)===job.lng&&!asset.locationAddress){const next={...asset,locationAddress:{lat:job.lat,lng:job.lng,status:'pending',checkedAt:now,retryAfter:now+30000,source:'Location IQ'}};await db.prepare('UPDATE inventory SET data=? WHERE id=? AND data=?').bind(JSON.stringify(next),job.inventory_id,row.data).run();}}
+     if(error.blocked)break;
+     continue;
+    }
+   }
+   // Merge into the latest record: a concurrent edit or GPS fix must never be overwritten.
+   const row=await db.prepare('SELECT data FROM inventory WHERE id=?').bind(job.inventory_id).first();
+   if(!row)continue;
+   const asset=JSON.parse(row.data);if(Number(asset.lat)!==job.lat||Number(asset.lng)!==job.lng)continue;
+   const next=applyLocationNames(asset,locationNames(reverse),Date.now());
+   const result=await db.prepare('UPDATE inventory SET data=? WHERE id=? AND data=?').bind(JSON.stringify(next),job.inventory_id,row.data).run();
+   if(result.meta.changes){updated++;await db.prepare('UPDATE location_enrichment_queue SET status=?,next_attempt_at=?,updated_at=?,attempts=0 WHERE inventory_id=? AND lat=? AND lng=?').bind(next.locationAddress.status,next.locationAddress.retryAfter,Date.now(),job.inventory_id,...coordinates).run();}
   }
-  const next=applyLocationNames(asset,locationNames(reverse),now);
-  const result=await db.prepare('UPDATE inventory SET data=? WHERE id=? AND data=?').bind(JSON.stringify(next),row.id,row.data).run();
-  updated+=Number(result.meta.changes||0);
- }
- return {state:'complete',updated,lookedUp};
+ }finally{await db.prepare('UPDATE planning_provider_state SET lease_until=? WHERE id=1 AND lease_until=?').bind(Date.now()+1000,leaseUntil).run();}
+ return {state:failed?'retrying':'complete',updated,lookedUp:Boolean(lookedUp),requests:lookedUp};
 }

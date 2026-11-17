@@ -16,7 +16,7 @@ async function scopeData(db,projectId,scope=''){
 export async function reportWorkspace(db,user,projectId,scope=''){
  await campaignAccess(db,user,projectId);const {project,campaign,assets}=await scopeData(db,projectId,scope);
  const [schedules,bookings,settings,campaigns,link,variant]=await Promise.all([
- db.prepare('SELECT asset_id,stage,flight_status,start_at,end_at FROM flight_schedules WHERE project_id=?').bind(projectId).all(),assetBookings(db),
+ db.prepare('SELECT asset_id,stage,flight_status,start_at,end_at FROM flight_schedules WHERE project_id=?').bind(projectId).all(),assetBookings(db,Date.now(),projectId),
  db.prepare('SELECT settings,version FROM report_settings WHERE project_id=? AND scope=?').bind(projectId,scope).first(),
  db.prepare('SELECT id,name,starts_on,ends_on FROM project_campaigns WHERE project_id=? ORDER BY name').bind(projectId).all(),
  db.prepare('SELECT token FROM report_map_links WHERE project_id=? AND scope=?').bind(projectId,scope).first(),

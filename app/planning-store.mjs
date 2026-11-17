@@ -3,6 +3,15 @@ const plannerRoles = new Set(['admin', 'creator', 'planner']);
 export const mayPlan = user => plannerRoles.has(user?.role);
 const access = `(?='admin' OR EXISTS (SELECT 1 FROM project_users pu WHERE pu.project_id=p.id AND pu.user_id=?))`;
 
+/** Geography reads do not need image blobs, saved plans, prices or full asset JSON. */
+export async function planningCoordinates(db,user,detailId=null){
+ if(!mayPlan(user))throw Object.assign(new Error('Forbidden'),{status:403});
+ const args=detailId===null?[user.role,user.id]:[detailId,user.role,user.id];
+ return (await db.prepare(`SELECT i.id,json_extract(i.data,'$.lat') lat,json_extract(i.data,'$.lng') lng FROM inventory i
+  WHERE ${detailId===null?'':'i.id=? AND '}EXISTS(SELECT 1 FROM projects p WHERE
+   (EXISTS(SELECT 1 FROM inventory_projects ip WHERE ip.inventory_id=i.id AND ip.project_id=p.id) OR p.id=COALESCE(json_extract(i.data,'$.projectId'),1)) AND ${access})`).bind(...args).all()).results;
+}
+
 export async function planningWorkspace(db, user) {
   if (!mayPlan(user)) throw Object.assign(new Error('Forbidden'), { status: 403 });
   const rows = await db.prepare(`SELECT i.id AS inventory_id,i.data,p.id AS project_id,p.name AS project_name

@@ -1,6 +1,8 @@
 // D1 batch is a single SQLite transaction. Context exists only inside the same
 // transaction as its writes, so parallel requests cannot exchange identities.
 const rawStatements = new WeakMap();
+const rawDatabases = new WeakMap();
+export const rawDatabase=db=>rawDatabases.get(db)||db;
 export function auditedDatabase(db, user) {
   if (!Number.isInteger(user?.id) || user.id <= 0) throw new Error('Authenticated audit actor required');
   async function batch(statements) {
@@ -21,7 +23,9 @@ export function auditedDatabase(db, user) {
     rawStatements.set(wrapped,statement);
     return wrapped;
   }
-  return {prepare(sql){return wrap(db.prepare(sql));},batch};
+  const wrapped={prepare(sql){return wrap(db.prepare(sql));},batch};
+  rawDatabases.set(wrapped,rawDatabase(db));
+  return wrapped;
 }
 
 const quote = value => `'${value.replaceAll("'","''")}'`;

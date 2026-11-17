@@ -1,3 +1,4 @@
+import {installPerformanceIndexes} from './performance-indexes.mjs';
 import { env } from 'cloudflare:workers';
 import { dayKey } from './operations-rules.mjs';
 import { initializeOnce } from './initialize-once.mjs';
@@ -43,6 +44,7 @@ export const setupOperations = initializeOnce(async () => {
     env.DB.prepare(`CREATE TRIGGER IF NOT EXISTS close_approved_validation_issue AFTER UPDATE ON validation_assignments WHEN NEW.status='ok' AND json_extract(NEW.report,'$.approvedBy') IS NOT NULL BEGIN UPDATE issue_tasks SET status='approved',admin_remark=COALESCE(json_extract(NEW.report,'$.adminRemark'),''),updated_at=NEW.updated_at WHERE assignment_id=NEW.id; END`),
   ]);
   await installActivityAudit(env.DB);
+  await installPerformanceIndexes(env.DB);
 });
 
 export async function activity(projectId: number, assetId: number, actorId: number, event: string, detail: unknown) {

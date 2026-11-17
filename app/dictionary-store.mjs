@@ -1,9 +1,7 @@
 import {DEFAULT_DICTIONARIES,DICTIONARY_TABS,validateDictionaryEntry} from './inventory-dictionaries.mjs';
-import {initializeOnce} from './initialize-once.mjs';
+import {databaseInitialization} from './database-initialization.mjs';
 import {assetPriority} from './asset-register.mjs';
-const setups=new WeakMap();
-export async function setupDictionaries(db){
- if(!setups.has(db))setups.set(db,initializeOnce(async()=>{
+export const setupDictionaries=databaseInitialization(async db=>{
   await db.batch([
    db.prepare('CREATE TABLE IF NOT EXISTS inventory_dictionaries(kind TEXT NOT NULL,value TEXT NOT NULL,label TEXT NOT NULL,version INTEGER NOT NULL DEFAULT 1,PRIMARY KEY(kind,value))'),
    db.prepare('CREATE UNIQUE INDEX IF NOT EXISTS dictionary_labels ON inventory_dictionaries(kind,lower(trim(label)))'),
@@ -13,9 +11,7 @@ export async function setupDictionaries(db){
   for(const [kind,options] of Object.entries(DEFAULT_DICTIONARIES))for(const [value,label] of options)writes.push(db.prepare('INSERT OR IGNORE INTO inventory_dictionaries(kind,value,label) SELECT ?,?,? WHERE NOT EXISTS(SELECT 1 FROM dictionary_migrations WHERE id=1)').bind(kind,value,label));
   writes.push(db.prepare('INSERT OR IGNORE INTO dictionary_migrations(id) VALUES(1)'));
   await db.batch(writes);
- }));
- await setups.get(db)();
-}
+});
 export async function readDictionaries(db){
  await setupDictionaries(db);
  const {results}=await db.prepare('SELECT kind,value,label,version FROM inventory_dictionaries ORDER BY kind,label COLLATE NOCASE,value').all();

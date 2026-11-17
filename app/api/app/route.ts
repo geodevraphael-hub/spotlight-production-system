@@ -1,3 +1,6 @@
+import {compactInventoryData,inventoryImage,restoreInventoryImages} from '../../inventory-images.mjs';
+import {locationProgress} from '../../location-progress.mjs';
+import {after} from 'next/server';
 import {readDictionaries,mutateDictionary} from '../../dictionary-store.mjs';
 import { env } from "cloudflare:workers";
 import {sharedReport} from '../../report-store.mjs';
@@ -9,7 +12,7 @@ import { validCoordinates, dayKey, inventoryFingerprint } from '../../operations
 import { initializeOnce } from '../../initialize-once.mjs';
 import { parseSmsAcknowledgement } from '../../sms-provider.mjs';
 import { planningWorkspace, savePlanningWorkspace } from '../../planning-store.mjs';
-import { readLocationEvidence, enrichLocation } from '../../location-evidence.mjs';
+import { readLocationEvidence, enrichLocation,setupLocationEvidence } from '../../location-evidence.mjs';
 import { bulkInventoryEdit } from '../../inventory-bulk.mjs';
 import { validateRegisterFields } from '../../asset-register.mjs';
 import { assetBookings } from '../../asset-booking.mjs';
@@ -434,6 +437,7 @@ const setup = initializeOnce(async () => {
   } catch {
     // Existing databases already have this column.
   }
+  await setupLocationEvidence(db);
   const count = await db.prepare("SELECT COUNT(*) AS total FROM users").first<{ total: number }>();
   if (!count?.total) {
     const salt = crypto.randomUUID();
@@ -455,7 +459,7 @@ const setup = initializeOnce(async () => {
   for (const project of projects.results) {
     await db.prepare("UPDATE projects SET share_code=? WHERE id=?").bind(shareCode(), project.id).run();
   }
-  await db.prepare("UPDATE field_collections SET project_id=COALESCE((SELECT project_id FROM missions WHERE missions.id=field_collections.mission_id), project_id, 1)").run();
+  await db.prepare("UPDATE field_collections SET project_id=COALESCE((SELECT project_id FROM missions WHERE missions.id=field_collections.mission_id), project_id, 1) WHERE project_id IS NOT COALESCE((SELECT project_id FROM missions WHERE missions.id=field_collections.mission_id), project_id, 1)").run();
   await db.prepare(inventoryMembershipBackfill).bind(Date.now()).run();
   await db.prepare("UPDATE flight_schedules SET flight_status='flighted' WHERE stage='flighted' AND flight_status!='flighted'").run();
   await db.prepare("UPDATE flight_schedules SET flight_status='deflighted' WHERE stage='removed' AND flight_status!='deflighted'").run();
@@ -472,11 +476,18 @@ const setup = initializeOnce(async () => {
         WHERE flight_schedules.project_id=COALESCE(json_extract(inventory.data,'$.projectId'),1)
         AND flight_schedules.asset_id=CAST(json_extract(inventory.data,'$.id') AS INTEGER)
       )
+      AND (json_extract(data,'$.flightStatus') IS NOT COALESCE((SELECT flight_status FROM flight_schedules WHERE flight_schedules.project_id=COALESCE(json_extract(inventory.data,'$.projectId'),1) AND flight_schedules.asset_id=CAST(json_extract(inventory.data,'$.id') AS INTEGER)),'unflighted')
+       OR json_extract(data,'$.flightExpiry') IS NOT COALESCE((SELECT end_at FROM flight_schedules WHERE flight_schedules.project_id=COALESCE(json_extract(inventory.data,'$.projectId'),1) AND flight_schedules.asset_id=CAST(json_extract(inventory.data,'$.id') AS INTEGER)),''))
     `).run();
   } catch {
     // Older runtimes without JSON mutation functions can still use flight_schedules directly.
   }
 });
+
+export function scheduleLocationEnrichment(){
+  if(!runtimeSecret('LOCATIONIQ_KEY')||runtimeSecret('LOCATIONIQ_PAUSED_REASON'))return;
+  after(async()=>{try{await populateLocations(env.DB,runtimeSecret('LOCATIONIQ_KEY'),'');}catch{console.error('Background location enrichment deferred to the durable queue.');}});
+}
 
 export async function currentUser(request: Request): Promise<User | null> {
   await setup();
@@ -490,6 +501,7 @@ export async function currentUser(request: Request): Promise<User | null> {
 
 function json(data: unknown, status = 200, headers?: HeadersInit) {
   const responseHeaders = new Headers(headers);
+  if(!responseHeaders.has("Cache-Control"))responseHeaders.set("Cache-Control","no-store");
   responseHeaders.set("Access-Control-Allow-Origin", "http://localhost");
   responseHeaders.set("Access-Control-Allow-Credentials", "true");
   responseHeaders.set("Vary", "Origin");
@@ -1067,6 +1079,11 @@ export async function GET(request: Request) {
   const user = await currentUser(request);
   if (!user) return json({ error: "Unauthorized" }, 401);
   if (action === "me") return json({ user });
+  if(action === "inventory-image")return inventoryImage(env.DB,user,url.searchParams);
+  if(action === "location-status"){
+    try{const progress=await locationProgress(env.DB,user,Number(url.searchParams.get('projectId')),Number(url.searchParams.get('since')));const enabled=Boolean(runtimeSecret('LOCATIONIQ_KEY')&&!runtimeSecret('LOCATIONIQ_PAUSED_REASON'));if(progress.pending&&enabled&&progress.blockedUntil<=Date.now())scheduleLocationEnrichment();return json({...progress,enabled});}
+    catch(error:any){return json({error:error.status?error.message:'Location status unavailable.'},error.status||500);}
+  }
   if(action === "inventory-dictionaries") return json(await readDictionaries(env.DB));
   if (action === "planning-evidence") {
     try {
@@ -1082,12 +1099,13 @@ export async function GET(request: Request) {
   }
   if (action === "inventory") {
     const projectId = Number(url.searchParams.get("projectId")) || 1;
+    const inventoryData=url.searchParams.get("compact")==="1"?compactInventoryData(user.id):"i.data";
     const allProjects = url.searchParams.get("allProjects") === "1";
     if (allProjects) {
       // Admins see every project; other roles see only projects they are assigned to.
       const scoped = user.role !== "admin";
       const rowsStmt = env.DB.prepare(`
-        SELECT i.id AS inventory_id,i.data,p.id AS project_id,p.name AS project_name
+        SELECT i.id AS inventory_id,${inventoryData} AS data,p.id AS project_id,p.name AS project_name
         FROM inventory i
         LEFT JOIN projects p ON p.id=COALESCE(json_extract(i.data,'$.projectId'),1)
           OR p.id IN (SELECT ip.project_id FROM inventory_projects ip WHERE ip.inventory_id=i.id)
@@ -1104,16 +1122,16 @@ export async function GET(request: Request) {
     }
     const allowed = user.role === "admin" || Boolean(await env.DB.prepare("SELECT 1 FROM project_users WHERE project_id=? AND user_id=?").bind(projectId, user.id).first());
     if (!allowed) return json({ error: "Forbidden" }, 403);
-    const rows = await env.DB.prepare(`
-      SELECT i.id AS inventory_id,i.data
+    const rowsPromise = env.DB.prepare(`
+      SELECT i.id AS inventory_id,${inventoryData} AS data
       FROM inventory i
       LEFT JOIN inventory_projects ip ON ip.inventory_id=i.id AND ip.project_id=?
       WHERE ip.project_id IS NOT NULL OR COALESCE(json_extract(i.data,'$.projectId'),1)=?
       ORDER BY i.id
     `).bind(projectId, projectId).all<{ inventory_id: number; data: string }>();
-    const schedules = await env.DB.prepare("SELECT asset_id,stage,flight_status,start_at,end_at,duration_days FROM flight_schedules WHERE project_id=?").bind(projectId).all<any>();
+    const [rows,schedules,bookingByInventory] = await Promise.all([rowsPromise,env.DB.prepare("SELECT asset_id,stage,flight_status,start_at,end_at,duration_days FROM flight_schedules WHERE project_id=?").bind(projectId).all<any>(),assetBookings(env.DB,Date.now(),projectId)]);
     const schedulesByAsset = new Map((schedules.results as any[]).map((row) => [Number(row.asset_id), row]));
-    const bookingByInventory=await assetBookings(env.DB);
+
     return json({
       inventory: rows.results.map((row: { inventory_id: number; data: string }) => {
         const item = JSON.parse(row.data);
@@ -1513,7 +1531,7 @@ export async function POST(request: Request) {
     let valid;
     try {
       valid = items.filter((item) => validCoordinates(item.lat,item.lng))
-        .map((item) => ({ ...validateRegisterFields(item,dictionaries.priority.map(([code]:any)=>code)), projectId,lastEditedBy:user.id }));
+        .map((item) => ({ ...validateRegisterFields(item,dictionaries.priority.map(([code]:any)=>code)), projectId,lastEditedBy:user.id,lastEditedAt:Date.now() }));
     } catch(error) { return json({error:error instanceof Error?error.message:'Invalid asset registration fields'},400); }
     if (body.importMode) {
       if (valid.length!==items.length) return json({error:'Some rows have invalid GPS. Correct them in the review before importing.'},400);
@@ -1533,17 +1551,20 @@ export async function POST(request: Request) {
           db.prepare('INSERT INTO inventory_projects(inventory_id,project_id,assigned_by,assigned_at) SELECT id,?,?,? FROM inventory WHERE data=? AND created_at=? ORDER BY id DESC LIMIT 1').bind(projectId,user.id,importedAt,serialized,importedAt)];
       });
       if(writes.length)await db.batch(writes);
+      scheduleLocationEnrichment();
       return json({imported:valid.length,rejected:0});
     }
-    for (const item of valid) {
+    for (const candidate of valid) {
+      let item=candidate;
       const sourceId = Number(item.id) || null;
       const exists = await db.prepare(`
-        SELECT i.id
+        SELECT i.id,i.data
         FROM inventory i
         LEFT JOIN inventory_projects ip ON ip.inventory_id=i.id AND ip.project_id=?
-        WHERE i.source_id=? AND (ip.project_id IS NOT NULL OR COALESCE(json_extract(i.data,'$.projectId'),1)=?)
+        WHERE ${Number.isSafeInteger(item.inventoryDbId)?'i.id=?':'i.source_id=?'} AND (ip.project_id IS NOT NULL OR COALESCE(json_extract(i.data,'$.projectId'),1)=?)
         LIMIT 1
-      `).bind(projectId, sourceId, projectId).first<{ id: number }>();
+      `).bind(projectId, Number.isSafeInteger(item.inventoryDbId)?item.inventoryDbId:sourceId, projectId).first<{ id: number;data:string }>();
+      try{item=restoreInventoryImages(item,exists?JSON.parse(exists.data):null,exists?.id??0);}catch(error:any){return json({error:error.message},error.status||400);}
       let inventoryId = exists?.id ?? 0;
       if (!exists) {
         const result = await db.prepare("INSERT INTO inventory (source_id,data,latitude,longitude,created_at) VALUES (?,?,?,?,?)")
@@ -1558,6 +1579,7 @@ export async function POST(request: Request) {
           .bind(inventoryId, projectId, user.id, Date.now()).run();
       }
     }
+    scheduleLocationEnrichment();
     return json({ imported: valid.length, rejected: items.length - valid.length });
   }
   if (action === "projects" && (user.role === "admin" || user.role === "creator")) {
@@ -1657,7 +1679,7 @@ export async function POST(request: Request) {
       .bind(assignmentId, user.id).first<any>();
     if (!assignment) return json({ error: "Assignment not found" }, 404);
     if(JSON.parse(assignment.report||'{}').purpose==='pole-gps'){
-      try{return json(await submitPoleGps(db,user,body,assignment));}catch(e:any){return json({error:e.message},e.status||400);}
+      try{const result=await submitPoleGps(db,user,body,assignment);if(result.locationUpdated)scheduleLocationEnrichment();return json(result);}catch(e:any){return json({error:e.message},e.status||400);}
     }
     const submissionId=String(body.submissionId||'');
     if(submissionId&&JSON.parse(assignment.report||'{}').submissionId===submissionId)return json({ok:true,replayed:true});

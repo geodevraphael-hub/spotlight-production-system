@@ -80,6 +80,7 @@ function renameDistrict(name: string) {
 }
 
 type Billboard = {
+  locationAddress?:{lat:number;lng:number;status:string;checkedAt?:number;region?:string;district?:string;council?:string;local?:string;village?:string;retryAfter?:number};
   priority?: string;
   registrationNumber?: string;
   mediaGroup?: string;
@@ -875,6 +876,7 @@ export default function Home() {
   const [projectToDelete,setProjectToDelete]=useState<{id:number;name:string}|null>(null);
   const [inventoryVendor,setInventoryVendor]=useState("");
   const [inventoryPriority,setInventoryPriority]=useState("");
+  const [enrichmentPending,setEnrichmentPending]=useState(0);
   const [inventoryGeoLoading,setInventoryGeoLoading]=useState(false);
   const [inventoryGeoError,setInventoryGeoError]=useState("");
   const [inventoryView,setInventoryView]=useState("split");
@@ -1053,6 +1055,7 @@ export default function Home() {
   },[inventoryScope,selected?.id]);
   useEffect(()=>{
     if(!inventoryScope)return;
+    if(user?.role==="viewer"){setInventoryEvidence({});setInventoryGeoLoading(false);setInventoryGeoError("");return;}
     const controller=new AbortController();
     setInventoryEvidence({});setInventoryGeoLoading(true);setInventoryGeoError("");
     fetch('/api/app?action=planning-evidence&radius=1000',{signal:controller.signal})
@@ -1071,7 +1074,7 @@ export default function Home() {
   },[mapReady]);
 
   useEffect(() => {
-    if (!user || currentProjectId === null || currentProjectId === undefined) return;
+    if (!user || !projectsLoaded || currentProjectId === null || currentProjectId === undefined) return;
     let cancelled = false;
     const controller = new AbortController();
     setProjectLoadError('');
@@ -1102,7 +1105,7 @@ export default function Home() {
     setValidationAssignments([]);
     setNotificationSummary({ records: 0, recipientEmails: 0, sent: 0, failed: 0, skipped: 0 });
     if ((user.role === "admin" || user.role === "viewer") && currentProjectId === 0) {
-      read("/api/app?action=inventory&allProjects=1")
+      read("/api/app?action=inventory&allProjects=1&compact=1")
         .then((inventoryData) => {
           if (cancelled) return;
           const inventory = inventoryData?.inventory ?? [];
@@ -1121,7 +1124,7 @@ export default function Home() {
     }
     // Display the inventory as soon as it arrives; secondary panels must not
     // hold the map behind photos, notification history, or slower requests.
-    read(`/api/app?action=inventory&projectId=${currentProjectId}`).then(async (inventoryData) => {
+    read(`/api/app?action=inventory&compact=1&projectId=${currentProjectId}`).then(async (inventoryData) => {
       if (cancelled) return;
       // Loading is read-only: an intentionally empty project stays empty.
       const inventory = inventoryData?.inventory ?? [];
@@ -1135,6 +1138,42 @@ export default function Home() {
         );
       }
     }).catch(()=>{if(!cancelled)setProjectLoadError('Unable to load the map. Check your connection and try again.');}).finally(()=>{if(!cancelled)setLoading(false);});
+    return () => { cancelled = true; controller.abort(); };
+  }, [user?.id,user?.role, currentProjectId, projectLoadRevision, projectsLoaded, projects]);
+
+  const locationCoordinateKey=useMemo(()=>billboards.map(board=>`${board.inventoryDbId}:${board.lat}:${board.lng}`).join("|"),[billboards]);
+  const needsLocationUpdates=inventoryScope&&billboards.some(board=>{
+    const address=board.locationAddress;
+    return !address||address.status==='pending'||Number(address.lat)!==Number(board.lat)||Number(address.lng)!==Number(board.lng);
+  });
+  useEffect(()=>{
+    setEnrichmentPending(0);
+    if(!user||!inventoryScope||!needsLocationUpdates||!billboards.length)return;
+    const controller=new AbortController();let timer:ReturnType<typeof setTimeout>,since=Date.now()-30000,failures=0;
+    async function refreshLocations(){
+      try{
+        const response=await fetch('/api/app?action=location-status&projectId='+currentProjectId+'&since='+since,{signal:controller.signal});
+        if(!response.ok)throw Error('Location progress unavailable');
+        const data=await response.json();if(controller.signal.aborted)return;
+        since=data.cursor;failures=0;setEnrichmentPending(data.pending||0);
+        const updates=new Map<number,any>((data.updates||[]).map((row:any)=>[row.inventoryDbId,row]));
+        if(updates.size)setBillboards(current=>current.map(board=>{
+          const update=updates.get(board.inventoryDbId??-1),address=update?.locationAddress;
+          return address&&Number(address.lat)===Number(board.lat)&&Number(address.lng)===Number(board.lng)&&address.checkedAt!==board.locationAddress?.checkedAt?{...board,locationAddress:address}:board;
+        }));
+        if(data.pending&&data.enabled)timer=setTimeout(refreshLocations,Math.max(5000,Math.min(60000,(data.blockedUntil||0)-Date.now())));
+      }catch{if(!controller.signal.aborted&&++failures<4)timer=setTimeout(refreshLocations,5000*2**failures);}
+    }
+    timer=setTimeout(refreshLocations,1000);
+    return()=>{controller.abort();clearTimeout(timer);};
+  },[inventoryScope,needsLocationUpdates,currentProjectId,user?.id,projectLoadRevision,locationCoordinateKey]);
+
+  const needsProjectPanels=['flighting','tracker','costs','field'].includes(activeTab)||Boolean(selected)||sharePanelOpen;
+  useEffect(()=>{
+    if(!user||!projectsLoaded||currentProjectId<=0||!needsProjectPanels)return;
+    if(user.role!=='admin'&&!projects.some(project=>project.id===currentProjectId))return;
+    let cancelled=false;const controller=new AbortController();
+    const read=async(url:string)=>{const response=await fetch(url,{signal:controller.signal});if(!response.ok)throw Error('Project panel unavailable');return response.json();};
     const panels: [string, (data: any)=>void][] = [
       ['flight-schedules', data=>setFlightSchedules(data.schedules ?? [])],
       ['project-contacts', data=>setProjectContacts(data.contacts ?? [])],
@@ -1146,8 +1185,8 @@ export default function Home() {
       if (action.startsWith('notification-audit') && !['admin','creator'].includes(user.role)) continue;
       void read(`/api/app?action=${action}&projectId=${currentProjectId}`).then(data=>{if(!cancelled)update(data);}).catch(()=>{if(!cancelled)setProjectLoadError('Some project panels could not load. Retry to refresh their information.');});
     }
-    return () => { cancelled = true; controller.abort(); };
-  }, [user, currentProjectId, projectLoadRevision, projectsLoaded, projects]);
+    return()=>{cancelled=true;controller.abort();};
+  },[user?.id,user?.role,currentProjectId,projectsLoaded,projectLoadRevision,needsProjectPanels]);
 
   const districts = useMemo(
     () => Array.from(new Set(billboards.map((item) => item.district))).sort(),
@@ -1929,13 +1968,11 @@ export default function Home() {
   }, [activeTab, currentProjectId, sharedProject, billboards.length]);
 
   useEffect(() => {
-    if (!user || (activeTab !== "dashboard" && activeTab !== "library")) return;
-    setFieldCollections([]);
-    setSelectedCollection(null);
-    setCollectionPhotos([]);
-    fetch(`/api/app?action=field-collections&projectId=${currentProjectId}`).then((r) => r.ok ? r.json() : null).then((d) => {
-      if (d?.collections) setFieldCollections(d.collections);
-    });
+    if (!user || activeTab !== "library") return;
+    const controller=new AbortController();
+    setFieldCollections([]);setSelectedCollection(null);setCollectionPhotos([]);
+    fetch(`/api/app?action=field-collections&projectId=${currentProjectId}`,{signal:controller.signal}).then(r=>r.ok?r.json():null).then(d=>{if(!controller.signal.aborted&&d?.collections)setFieldCollections(d.collections);}).catch(()=>{});
+    return()=>controller.abort();
   }, [user, activeTab, currentProjectId]);
 
   useEffect(() => {
@@ -3295,7 +3332,7 @@ export default function Home() {
         {centralScope&&<CentralProjects boards={centralFilterBoards} flightFilter={mapFlightFilter} projects={projects} value={centralProject} loading={loading}
           onChange={(value:string)=>{setCentralProject(value);setAllProjectsProjectFilter("All projects");setSelected(null);setInventoryFocusedId(null);setShowSelectedOnly(false);}}
           onOpen={(id:number)=>{setSelected(null);setCurrentProjectId(id);}}/>}
-        {inventoryScope&&<InventoryControls excludeFabricated={excludeFabricated} onExcludeFabricated={()=>setExcludeFabricated(value=>!value)} dictionaries={dictionaries} central={centralScope} boards={centralScope?centralAllBoards:billboards} rows={filtered} evidence={inventoryEvidence} geo={inventoryGeo} onGeo={setInventoryGeo}
+        {inventoryScope&&<InventoryControls enrichmentPending={enrichmentPending} excludeFabricated={excludeFabricated} onExcludeFabricated={()=>setExcludeFabricated(value=>!value)} dictionaries={dictionaries} central={centralScope} boards={centralScope?centralAllBoards:billboards} rows={filtered} evidence={inventoryEvidence} geo={inventoryGeo} onGeo={setInventoryGeo}
           geoLoading={inventoryGeoLoading} geoError={inventoryGeoError} loading={loading} error={projectLoadError}
           type={boardTypeFilter} onType={setBoardTypeFilter} status={availability} onStatus={setAvailability}
           flight={mapFlightFilter} onFlight={setMapFlightFilter} vendor={inventoryVendor} onVendor={setInventoryVendor}

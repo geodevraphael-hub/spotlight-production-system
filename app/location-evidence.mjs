@@ -1,5 +1,7 @@
+import {databaseInitialization} from './database-initialization.mjs';
+import {setupLocationQueue} from './location-queue.mjs';
 import { knownNumber } from './planning-decision.mjs';
-import { mayPlan, planningWorkspace } from './planning-store.mjs';
+import { mayPlan, planningCoordinates } from './planning-store.mjs';
 import { demographicAreas } from './planning-demographics.mjs';
 
 const PROVIDER='https://locationiq.co.tz';
@@ -23,7 +25,7 @@ export function normalizeLocation(reverse,catchment,board,radius,now=Date.now())
     notes:[...(catchment?.coverageStatus==='outside-official-coverage'?['Location IQ returned administrative demographics but rejected this coordinate for radius catchment coverage. Radius population, facilities and building counts are unavailable, not zero.']:[]),'Population is modelled resident population, not billboard impressions or daily reach.','Facility records are not observed footfall; building detections are not households.','Nearby roads do not establish viewing direction, visibility or current traffic.','Catchments overlap: do not sum their populations as unique reach.'],
   };
 }
-export async function setupLocationEvidence(db) {
+export const setupLocationEvidence=databaseInitialization(async db=>{
   await db.prepare(`CREATE TABLE IF NOT EXISTS planning_location_evidence (
     inventory_id INTEGER NOT NULL,radius INTEGER NOT NULL,lat REAL NOT NULL,lng REAL NOT NULL,
     data TEXT NOT NULL,updated_at INTEGER NOT NULL,PRIMARY KEY(inventory_id,radius))`).run();
@@ -31,12 +33,15 @@ export async function setupLocationEvidence(db) {
     id INTEGER PRIMARY KEY CHECK(id=1),lease_until INTEGER NOT NULL DEFAULT 0,
     blocked_until INTEGER NOT NULL DEFAULT 0,message TEXT NOT NULL DEFAULT '')`).run();
   await db.prepare('INSERT OR IGNORE INTO planning_provider_state(id) VALUES(1)').run();
-}
+  await db.prepare('CREATE INDEX IF NOT EXISTS idx_location_evidence_coordinates ON planning_location_evidence(lat,lng,updated_at)').run();
+  await setupLocationQueue(db);
+});
+/** @param {number|null} [detailId] */
 export async function readLocationEvidence(db,user,radius,keyConfigured,detailId=null) {
   if(!mayPlan(user))throw Object.assign(new Error('Forbidden'),{status:403});
   if(![500,1000,2000].includes(radius))throw Object.assign(new Error('Invalid radius.'),{status:400});
   await setupLocationEvidence(db);
-  const workspace=await planningWorkspace(db,user), allowed=new Map(workspace.inventory.map(b=>[b.id,b]));
+  const coordinates=await planningCoordinates(db,user,detailId), allowed=new Map(coordinates.map(b=>[b.id,b]));
   if(detailId!==null&&!allowed.has(detailId))throw Object.assign(new Error('Billboard is not accessible.'),{status:403});
   const result=detailId===null
     ? await db.prepare("SELECT inventory_id,radius,lat,lng,json_remove(data,'$.facts') AS data,json_extract(data,'$.facts.reverse') AS reverse,updated_at FROM planning_location_evidence WHERE radius=?").bind(radius).all()
@@ -58,7 +63,7 @@ export async function enrichLocation(db,user,body,key,fetcher=fetch,now=Date.now
   if(!mayPlan(user))throw Object.assign(new Error('Forbidden'),{status:403});
   const radius=Number(body.radius), id=Number(body.id);
   if(![500,1000,2000].includes(radius)||!Number.isSafeInteger(id))throw Object.assign(new Error('Invalid billboard or radius.'),{status:400});
-  const workspace=await planningWorkspace(db,user),board=workspace.inventory.find(item=>item.id===id);
+  const board=(await planningCoordinates(db,user,id))[0];
   if(!board)throw Object.assign(new Error('Billboard is not accessible.'),{status:403});
   if(!validPoint(board))throw Object.assign(new Error('This billboard needs valid GPS coordinates.'),{status:400});
   if(!key)throw Object.assign(new Error('Location IQ server key is not configured.'),{status:503});
@@ -109,7 +114,8 @@ export async function enrichLocation(db,user,body,key,fetcher=fetch,now=Date.now
   }
   try {
     const params={latitude:board.lat,longitude:board.lng,radius_m:radius};
-    const reverse=await request('/v1/reverse',{...params,limit:10});
+    const reverseCache=await db.prepare('SELECT data FROM location_reverse_cache WHERE lat=? AND lng=? AND fetched_at<=? AND fetched_at>?').bind(Number(board.lat),Number(board.lng),now,now-7*86400000).first();
+    const reverse=reverseCache?JSON.parse(reverseCache.data):await request('/v1/reverse',{...params,limit:10});
     const catchment=await request('/v1/catchment',{...params,mode:'radius',minimum_confidence:0.75,include_geometry:false});
     if(catchment.mode!=='radius'||!catchment.population||!catchment.facilities||!catchment.coordinate)throw Object.assign(new Error('Location IQ response format changed; no scoring data was stored.'),{status:502});
     const evidence=normalizeLocation(reverse,catchment,board,radius,Date.now());
@@ -117,5 +123,5 @@ export async function enrichLocation(db,user,body,key,fetcher=fetch,now=Date.now
       ON CONFLICT(inventory_id,radius) DO UPDATE SET lat=excluded.lat,lng=excluded.lng,data=excluded.data,updated_at=excluded.updated_at`)
       .bind(id,radius,Number(board.lat),Number(board.lng),JSON.stringify(evidence),evidence.fetchedAt).run();
     return {evidence,cached:false};
-  } finally {await db.prepare('UPDATE planning_provider_state SET lease_until=? WHERE id=1').bind(Date.now()+1000).run();}
+  } finally {await db.prepare('UPDATE planning_provider_state SET lease_until=? WHERE id=1 AND lease_until=?').bind(Date.now()+1000,now+95000).run();}
 }
