@@ -12,9 +12,14 @@ export function inventoryGeography(board,evidence,now=Date.now()){
   if(addressValid)for(const [level] of GEO_LEVELS)if(!result[level]&&address[level])result[level]={name:address[level],key:`address:${level}:${address.region||''}:${address.district||''}:${address[level]}`,population:null};
   return {region:result.region,district:result.district,council:result.council,local:result.local,village:result.village,ready:Boolean(valid),partial:entry?.coverageStatus==='administrative-only',fetchedAt:entry?.fetchedAt??null};
 }
+// Region identity is shared across verified evidence and reverse-geocoded addresses.
+function regionOption(area){
+  const name=String(area?.name??'').normalize('NFKC').trim().replace(/\s+/g,' ').replace(/\s+region$/i,'').trim().toLowerCase();
+  return {value:`region:${name}`,label:name.replace(/\b\p{L}/gu,c=>c.toUpperCase()).replace(/\bEs\b/g,'es')};
+}
 export function matchesGeography(board,evidence,filters,now=Date.now()){
   const geo=inventoryGeography(board,evidence,now);
-  return GEO_LEVELS.every(([key])=>!filters[key]||(filters[key]==='__missing__'?!geo[key]:geo[key]?.key===filters[key]));
+  return GEO_LEVELS.every(([key])=>!filters[key]||(filters[key]==='__missing__'?!geo[key]:(geo[key]?.key===filters[key]||(key==='region'&&geo.region&&regionOption(geo.region).value===filters[key]))));
 }
 export function geographyOptions(boards,evidence,filters,level,now=Date.now()){
   const index=GEO_LEVELS.findIndex(([key])=>key===level);
@@ -23,7 +28,7 @@ export function geographyOptions(boards,evidence,filters,level,now=Date.now()){
   for(const board of boards){
     if(!matchesGeography(board,evidence,parents,now))continue;
     const area=inventoryGeography(board,evidence,now)[level];
-    if(area)options.set(area.key,area.name);
+    if(area){const option=level==='region'?regionOption(area):{value:area.key,label:area.name};options.set(option.value,option.label);}
   }
   return [...options].map(([value,label])=>({value,label})).sort((a,b)=>a.label.localeCompare(b.label)||a.value.localeCompare(b.value));
 }
