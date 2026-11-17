@@ -30,7 +30,7 @@ export default function PlanningBillboard({ board, costs, inPlan, type, image, f
     <div className="planning-placement-body">
       <section className="planning-placement-context" aria-label="Placement information">
         {image ? <button className="planning-placement-photo" onClick={onPhoto} aria-label={`Preview photo of ${board.street}`}>
-          {!imageFailed && <img src={image} alt={board.street} onError={() => setImageFailed(true)} />}
+          {!imageFailed && <img decoding="async" loading="lazy" src={image} alt={board.street} onError={() => setImageFailed(true)} />}
           {imageFailed && <p>Image preview unavailable</p>}
           <span><Eye size={15} /> Open photo</span>
         </button> : <div className="planning-placement-photo planning-placement-photo--empty"><ImageOff size={24} aria-hidden="true" /><p>No placement photo available</p></div>}

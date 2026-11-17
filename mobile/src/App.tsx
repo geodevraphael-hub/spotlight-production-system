@@ -815,7 +815,7 @@ export default function App() {
             <div className="form-section-title"><span>02</span><div><h3>Evidence photo</h3><p>Photo is saved into the billboard image field when marked okay.</p></div></div>
             <button className="btn-secondary" onClick={() => capturePhoto("billboard")}><Camera size={16} /> Take validation photo</button>
             <input ref={fileInputRef} type="file" accept="image/*" capture="environment" hidden onChange={handleFileInput} />
-            {validationPhoto && <div className="photo-preview single"><img src={validationPhoto} alt="Validation" /><button className="photo-remove" onClick={() => { setValidationPhoto(""); setPhotos([]); }}><Trash2 size={14} /></button></div>}
+            {validationPhoto && <div className="photo-preview single"><img decoding="async" loading="lazy" src={validationPhoto} alt="Validation" /><button className="photo-remove" onClick={() => { setValidationPhoto(""); setPhotos([]); }}><Trash2 size={14} /></button></div>}
           </div>
 
           {validationVerdict === "issue" && (
@@ -1083,7 +1083,7 @@ export default function App() {
               <div className="photo-preview-grid">
                 {photos.map((p, i) => (
                   <div key={i} className="photo-preview">
-                    <img src={p.data} alt={p.type} />
+                    <img decoding="async" loading="lazy" src={p.data} alt={p.type} />
                     <span className="photo-label">{p.type}</span>
                     <button className="photo-remove" onClick={() => removePhoto(i)}><Trash2 size={14} /></button>
                   </div>

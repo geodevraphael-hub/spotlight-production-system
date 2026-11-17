@@ -1,4 +1,5 @@
 "use client";
+import useImageCache,{invalidateImageCache} from './useImageCache';
 import DeleteProjectModal from './DeleteProjectModal';
 import Settings from './Settings';
 import {DEFAULT_DICTIONARIES} from './inventory-dictionaries.mjs';
@@ -465,7 +466,7 @@ function applySourceAttributesToBillboard(item: Billboard, attrs: Record<string,
 function popupHtml(item: Billboard) {
   const imageUrl = billboardImageUrl(item);
   const image = imageUrl
-    ? `<button type="button" class="asset-popup-image" data-image-url="${escapeHtml(imageUrl)}"><img src="${escapeHtml(imageUrl)}" alt="${escapeHtml(item.street)} image" loading="lazy" onerror="${imageErrorHandler()}" /><em>Image unavailable</em><span>Open image</span></button>`
+    ? `<button type="button" class="asset-popup-image" data-image-url="${escapeHtml(imageUrl)}"><img decoding="async" src="${escapeHtml(imageUrl)}" alt="${escapeHtml(item.street)} image" loading="lazy" onerror="${imageErrorHandler()}" /><em>Image unavailable</em><span>Open image</span></button>`
     : `<div class="asset-popup-empty">No image link</div>`;
   const project = item.projectName ? `<small>${escapeHtml(item.projectName)}</small>` : "";
   return `<div class="asset-popup">${image}<strong>${escapeHtml(item.street)}</strong>${project}<small>${escapeHtml(mediaTypeLabel(item.mediaType))} · ${escapeHtml(item.district)}</small><span>${escapeHtml(item.from)} → ${escapeHtml(item.to)}</span></div>`;
@@ -907,6 +908,7 @@ export default function Home() {
   const [groupFormOpen, setGroupFormOpen] = useState(false);
   const [editingGroup, setEditingGroup] = useState<any | null>(null);
   const [sharedToken, setSharedToken] = useState<string | null>(null);
+  useImageCache(user?.id,sharedToken);
   const [shareCodeInput, setShareCodeInput] = useState("");
   const [shareError, setShareError] = useState("");
   const [sharedProject, setSharedProject] = useState<Project | null>(null);
@@ -1434,6 +1436,7 @@ export default function Home() {
     const saved = await persistAsset(updated);
     setPhotoSaving(false);
     if (!saved) return;
+    invalidateImageCache([billboardImageUrl(selected),normalizedPhotoUrl]);
     setBillboards((current) => current.map((item) => (item.id === updated.id ? updated : item)));
     setSelected(updated);
     const imageLink=updated.photoOriginalUrl || updated.photoUrl || "";
@@ -3080,7 +3083,7 @@ export default function Home() {
       <main className="auth-screen">
         {shareChecking && !shareRequiresCode ? (
           <div className="login-card share-access-card">
-            <span className="brand-mark brand-mark--logo"><img src="/favicon.svg" alt="Billboard 360" /></span>
+            <span className="brand-mark brand-mark--logo"><img decoding="async" loading="lazy" src="/favicon.svg" alt="Billboard 360" /></span>
             <span className="eyebrow">Shared map</span>
             <h1>Opening map</h1>
             <p>Checking the project sharing settings.</p>
@@ -3088,7 +3091,7 @@ export default function Home() {
           </div>
         ) : (
         <form className="login-card share-access-card" onSubmit={openSharedMap}>
-          <span className="brand-mark brand-mark--logo"><img src="/favicon.svg" alt="Billboard 360" /></span>
+          <span className="brand-mark brand-mark--logo"><img decoding="async" loading="lazy" src="/favicon.svg" alt="Billboard 360" /></span>
           <span className="eyebrow">Shared map</span>
           <h1>Billboard 360</h1>
           <p>Enter the secret code supplied with this project map link.</p>
@@ -3116,7 +3119,7 @@ export default function Home() {
     return (
       <main className="auth-screen">
         <form className="login-card" onSubmit={login}>
-          <span className="brand-mark brand-mark--logo"><img src="/favicon.svg" alt="Spotlight OOH" /></span>
+          <span className="brand-mark brand-mark--logo"><img decoding="async" loading="lazy" src="/favicon.svg" alt="Spotlight OOH" /></span>
           <span className="eyebrow">Secure access</span>
           <h1>Spotlight OOH</h1>
           <p>Sign in to manage inventory and campaign plans.</p>
@@ -3145,7 +3148,7 @@ export default function Home() {
       {projectLoadError&&activeTab!=='dashboard'&&<div className="ops-error" role="alert">{projectLoadError} <button className="text-button" onClick={()=>setProjectLoadRevision(value=>value+1)}>Retry loading</button></div>}
       <header className="topbar">
         <div className="brand">
-          <span className="brand-mark brand-mark--logo"><img src="/favicon.svg" alt="" /></span>
+          <span className="brand-mark brand-mark--logo"><img decoding="async" loading="lazy" src="/favicon.svg" alt="" /></span>
           <span>
             <strong>Spotlight OOH</strong>
             <small>Inventory management</small>
@@ -3676,7 +3679,7 @@ export default function Home() {
               <div className="selected-media-panel">
                 {billboardImageUrl(selected) ? (
                   <button className="linked-image-preview" onClick={() => { setViewingPhoto(billboardImageUrl(selected)); setPhotoViewerOpen(true); }}>
-                    <img src={billboardImageUrl(selected)} alt={`${selected.street} linked media`} onError={markImageFailed} />
+                    <img decoding="async" loading="lazy" src={billboardImageUrl(selected)} alt={`${selected.street} linked media`} onError={markImageFailed} />
                     <em>Image unavailable. Replace it by uploading a photo or attaching a new link.</em>
                     <span><Eye size={14} /> Preview linked photo</span>
                   </button>
@@ -4732,7 +4735,7 @@ export default function Home() {
                     {group.items.map((item) => (
                       <article className="image-library-card" key={item.id}>
                         <button className="image-library-thumb" onClick={() => { setViewingPhoto(item.image); setPhotoViewerOpen(true); }}>
-                          <img src={item.image} alt={item.title} loading="lazy" onError={markImageFailed} />
+                          <img decoding="async" src={item.image} alt={item.title} loading="lazy" onError={markImageFailed} />
                           <em>Image unavailable</em>
                           <span><Eye size={14} /> Preview</span>
                         </button>
@@ -4963,7 +4966,7 @@ export default function Home() {
             if(event.key==="Escape"){event.stopPropagation();setPhotoViewerOpen(false);setViewingPhoto(null);inventoryDetailRef.current?.querySelector<HTMLButtonElement>(".linked-image-preview")?.focus();}
           }}>
             <button autoFocus className="close-detail" aria-label="Close photo preview" onClick={() => { setPhotoViewerOpen(false); setViewingPhoto(null); inventoryDetailRef.current?.querySelector<HTMLButtonElement>(".linked-image-preview")?.focus(); }}><X size={17} /></button>
-            <img src={viewingPhoto} alt="Billboard media preview" />
+            <img decoding="async" loading="lazy" src={viewingPhoto} alt="Billboard media preview" />
           </div>
         </>
       )}
