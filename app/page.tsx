@@ -1,4 +1,6 @@
 "use client";
+import Settings from './Settings';
+import {DEFAULT_DICTIONARIES} from './inventory-dictionaries.mjs';
 import SearchSelect from './SearchSelect';
 
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -22,7 +24,7 @@ import ProjectRemoval from './ProjectRemoval';
 import './central-map.css';
 import InventoryBulkEdit from './InventoryBulkEdit';
 import AssetOverview from './AssetOverview';
-import {assetPriority,installationCount,registrationNumber,mediaGroup,attributeLabel,isTransportAttribute,PRIORITIES} from './asset-register.mjs';
+import {assetPriority,installationCount,registrationNumber,mediaGroup,attributeLabel,isTransportAttribute} from './asset-register.mjs';
 import {emptyGeoFilters,matchesGeography,inventoryGeography} from './inventory-workflow.mjs';
 import './operations.css';
 import {
@@ -101,7 +103,7 @@ type Billboard = {
   lampPosts: number;
   lat: number;
   lng: number;
-  mediaType?: "lamp-post" | "large-format" | "digital-screen" | "fabricated-banner";
+  mediaType?: string;
   status?: "selected" | "not-selected" | string;
   orientation?: string;
   areaSqm?: number;
@@ -855,7 +857,7 @@ export default function Home() {
   const [assetDraft, setAssetDraft] = useState<Partial<Billboard>>({});
   const [positionHint, setPositionHint] = useState<string | null>(null);
   const [addressQuery, setAddressQuery] = useState("");
-  const [activeTab, setActiveTab] = useState<"planner" | "dashboard" | "library" | "flighting" | "tracker" | "costs" | "field" | "operations" | "reports" | "users">("planner");
+  const [activeTab, setActiveTab] = useState<"planner" | "dashboard" | "library" | "flighting" | "tracker" | "costs" | "field" | "operations" | "reports" | "settings" | "users">("planner");
   const planningScope = activeTab === "planner" && mapPurpose === "planning" && Boolean(user && ["admin", "creator", "planner"].includes(user.role));
   const inventoryScope = activeTab === "planner" && mapPurpose === "inventory" && Boolean(user && ["admin","creator","viewer"].includes(user.role));
   const centralScope=inventoryScope&&user?.role==="admin"&&currentProjectId===0;
@@ -864,6 +866,8 @@ export default function Home() {
   const [projectRemovalBoards,setProjectRemovalBoards]=useState<Billboard[]|null>(null);
   const [inventoryEvidence,setInventoryEvidence]=useState<Record<number,any>>({});
   const [inventoryGeo,setInventoryGeo]=useState<Record<string,string>>(emptyGeoFilters);
+  const [dictionaries,setDictionaries]=useState(DEFAULT_DICTIONARIES);
+  useEffect(()=>{if(!user)return;let alive=true;fetch("/api/app?action=inventory-dictionaries").then(async r=>r.ok?r.json():null).then(d=>{if(alive&&d)setDictionaries(d.dictionaries);}).catch(()=>{});return()=>{alive=false;};},[user?.id]);
   const [inventoryVendor,setInventoryVendor]=useState("");
   const [inventoryPriority,setInventoryPriority]=useState("");
   const [inventoryGeoLoading,setInventoryGeoLoading]=useState(false);
@@ -3199,7 +3203,7 @@ export default function Home() {
               initials={user.name.split(" ").map((part) => part[0]).join("").slice(0, 2)}
               label={user.name}
               isAdmin={user.role === "admin"}
-              onSettings={() => { setActiveTab("users"); loadUsers(); }}
+              onSettings={() => setActiveTab("settings")}
               onProfile={() => { setAccount(null); void loadAccountOverview(); setProfileOpen(true); }}
               onChangePassword={() => setPasswordOpen(true)}
               onLogout={logout}
@@ -3243,19 +3247,21 @@ export default function Home() {
         )}
         {canPlan&&<button aria-current={activeTab==='reports'?'page':undefined} className={activeTab==='reports'?'tab-btn tab-btn--active':'tab-btn'} onClick={()=>{if(!currentProjectId&&projects[0])setCurrentProjectId(projects[0].id);setActiveTab('reports');}}><FileDown size={16}/> Reports</button>}
         {user?.role === "admin" && <button aria-current={activeTab === "users" ? "page" : undefined} className={activeTab === "users" ? "tab-btn tab-btn--active" : "tab-btn"} onClick={() => { setActiveTab("users"); loadUsers(); }}><UserCog size={16} /> User Management</button>}
+        {user?.role === "admin" && <button aria-current={activeTab === "settings" ? "page" : undefined} className={activeTab === "settings" ? "tab-btn tab-btn--active" : "tab-btn"} onClick={()=>setActiveTab("settings")}><SlidersHorizontal size={16}/> Settings</button>}
       </WorkspaceDock>
+      {activeTab === "settings" && user?.role === "admin" && <Settings onChanged={data=>setDictionaries(data.dictionaries)}/> }
 
       {activeTab==='reports'&&canPlan&&<ReportBuilder key={currentProjectId} projectId={currentProjectId} readOnly={!canPlan}/>}
 
       {activeTab==='operations'&&canView&&<Operations key={`${currentProjectId}:${operationsSection}`} initialSection={operationsSection} projectId={currentProjectId} boards={billboards} role={user?.role||''}/>}
-      {importReview&&<ImportReview items={importReview} existing={billboards} onCancel={()=>setImportReview(null)} onImport={finishReviewedImport}/>}
+      {importReview&&<ImportReview dictionaries={dictionaries} items={importReview} existing={billboards} onCancel={()=>setImportReview(null)} onImport={finishReviewedImport}/>}
       <div className={`workspace planning-workspace${inventoryScope ? " inventory-workspace" : ""}${centralScope?" central-workspace":""}${planningScope ? " planner-desk" : ""}${planOpen && planningScope ? " planning-workspace--review" : ""}${activeTab !== "planner" ? " workspace--hidden" : ""}`} aria-hidden={activeTab !== "planner"}
         data-inventory-view={inventoryScope?inventoryView:undefined}
         style={inventoryScope?{"--inventory-map-share":`${inventoryMapShare}fr`,"--inventory-table-share":`${100-inventoryMapShare}fr`} as React.CSSProperties:undefined}>
         {centralScope&&<CentralProjects boards={centralFilterBoards} flightFilter={mapFlightFilter} projects={projects} value={centralProject} loading={loading}
           onChange={(value:string)=>{setCentralProject(value);setAllProjectsProjectFilter("All projects");setSelected(null);setInventoryFocusedId(null);setShowSelectedOnly(false);}}
           onOpen={(id:number)=>{setSelected(null);setCurrentProjectId(id);}}/>}
-        {inventoryScope&&<InventoryControls central={centralScope} boards={centralScope?centralAllBoards:billboards} rows={filtered} evidence={inventoryEvidence} geo={inventoryGeo} onGeo={setInventoryGeo}
+        {inventoryScope&&<InventoryControls dictionaries={dictionaries} central={centralScope} boards={centralScope?centralAllBoards:billboards} rows={filtered} evidence={inventoryEvidence} geo={inventoryGeo} onGeo={setInventoryGeo}
           geoLoading={inventoryGeoLoading} geoError={inventoryGeoError} loading={loading} error={projectLoadError}
           type={boardTypeFilter} onType={setBoardTypeFilter} status={availability} onStatus={setAvailability}
           flight={mapFlightFilter} onFlight={setMapFlightFilter} vendor={inventoryVendor} onVendor={setInventoryVendor}
@@ -3357,8 +3363,7 @@ export default function Home() {
                       onChange={(event) => setAvailability(event.target.value)}
                     >
                       <option>All status</option>
-                      <option value="selected">Selected</option>
-                      <option value="not-selected">Not selected</option>
+                      {dictionaries.status.map(([value,label])=><option key={value} value={value}>{label}</option>)}
                     </SearchSelect>
                   </label>
                   <label>
@@ -3368,10 +3373,7 @@ export default function Home() {
                       onChange={(event) => setBoardTypeFilter(event.target.value)}
                     >
                       <option value="All types">All types</option>
-                      <option value="lamp-post">Lamp post</option>
-                      <option value="large-format">Large format</option>
-                      <option value="digital-screen">Digital screen</option>
-                      <option value="fabricated-banner">Fabricated banner</option>
+                      {dictionaries.mediaType.map(([value,label])=><option key={value} value={value}>{label}</option>)}
                     </SearchSelect>
                   </label>
                   <label>
@@ -3597,7 +3599,7 @@ export default function Home() {
                   <button key={key} aria-pressed={inventoryDetailCategory===key} onClick={()=>{setInventoryDetailCategory(key);inventoryDetailRef.current?.querySelector(".inventory-detail-content")?.scrollTo({top:0});}}>{title}</button>)}
               </nav>}
               <div className={inventoryScope?"inventory-detail-content":"detail-content-legacy"}>
-              <AssetOverview board={selected} type={mediaTypeLabel(selected.mediaType)} flight={markerState(selected)}
+              <AssetOverview dictionaries={dictionaries} board={selected} type={mediaTypeLabel(selected.mediaType)} flight={markerState(selected)}
                 selection={statusLabel(selected.status)} onEdit={inventoryScope&&canManage?()=>{setBulkEditBoards([selected]);setSelected(null);}:undefined}/>
               {centralScope&&<CentralMemberships board={selected} onOpen={(id:number)=>{setSelected(null);setCurrentProjectId(id);}}/>}
               {canPlan && !centralScope && (
@@ -4028,23 +4030,19 @@ export default function Home() {
                   <label><span>Area / district</span><input name="district" value={assetDraft.district ?? ""} onChange={(event) => setAssetDraft((current) => ({ ...current, district: event.target.value }))} /></label>
                   <label><span>Vendor</span><input name="owner" value={assetDraft.owner ?? ""} onChange={(event) => setAssetDraft((current) => ({ ...current, owner: event.target.value }))} /></label>
                   <label><span>Registration number (provided by KM)</span><input maxLength={300} value={assetDraft.registrationNumber??""} onChange={e=>setAssetDraft(d=>({...d,registrationNumber:e.target.value}))}/></label>
-                  <label><span>Priority</span><SearchSelect value={assetDraft.priority??""} onChange={e=>setAssetDraft(d=>({...d,priority:e.target.value}))}><option value="">Not assigned</option>{PRIORITIES.map(([value,label]:any)=><option key={value} value={value}>{label}</option>)}</SearchSelect></label>
+                  <label><span>Priority</span><SearchSelect value={assetDraft.priority??""} onChange={e=>setAssetDraft(d=>({...d,priority:e.target.value}))}><option value="">Not assigned</option>{dictionaries.priority.map(([value,label]:any)=><option key={value} value={value}>{label}</option>)}</SearchSelect></label>
                   <label><span>Media group</span><input maxLength={300} value={assetDraft.mediaGroup??""} onChange={e=>setAssetDraft(d=>({...d,mediaGroup:e.target.value}))}/></label>
                   <label><span>Installations</span><input type="number" min="0" max="100000" step="1" placeholder="Not recorded" value={assetDraft.installations??""} onChange={e=>setAssetDraft(d=>({...d,installations:e.target.value===""?null:Number(e.target.value)}))}/></label>
                   <label><span>From</span><input name="from" value={assetDraft.from ?? ""} onChange={(event) => setAssetDraft((current) => ({ ...current, from: event.target.value }))} /></label>
                   <label><span>To</span><input name="to" value={assetDraft.to ?? ""} onChange={(event) => setAssetDraft((current) => ({ ...current, to: event.target.value }))} /></label>
                   <label><span>Media type</span>
                     <SearchSelect value={assetDraft.mediaType ?? "lamp-post"} onChange={(event) => setAssetDraft((current) => ({ ...current, mediaType: event.target.value as Billboard["mediaType"] }))}>
-                      <option value="lamp-post">Lamp post</option>
-                      <option value="large-format">Large format</option>
-                      <option value="digital-screen">Digital screen</option>
-                      <option value="fabricated-banner">Fabricated banner</option>
+                      {dictionaries.mediaType.map(([value,label])=><option key={value} value={value}>{label}</option>)}
                     </SearchSelect>
                   </label>
                   <label><span>Status</span>
                     <SearchSelect value={assetDraft.status ?? "not-selected"} onChange={(event) => setAssetDraft((current) => ({ ...current, status: event.target.value }))}>
-                      <option value="selected">Selected</option>
-                      <option value="not-selected">Not selected</option>
+                      {dictionaries.status.map(([value,label])=><option key={value} value={value}>{label}</option>)}
                     </SearchSelect>
                   </label>
                   <label><span>Faces</span><input type="number" min="1" value={assetDraft.faces ?? 1} onChange={(event) => setAssetDraft((current) => ({ ...current, faces: Number(event.target.value) }))} /></label>
@@ -4143,7 +4141,7 @@ export default function Home() {
           onPointerDown={event=>{event.currentTarget.setPointerCapture(event.pointerId);}}
           onPointerMove={event=>{if(!event.currentTarget.hasPointerCapture(event.pointerId))return;const parent=event.currentTarget.parentElement!;const box=parent.getBoundingClientRect();const controls=parent.querySelector(".inventory-controls")?.getBoundingClientRect().height??0;setInventoryMapShare(Math.max(25,Math.min(65,100*(event.clientY-box.top-controls)/(box.height-controls-10))));}}
           onPointerUp={event=>event.currentTarget.releasePointerCapture(event.pointerId)}><span/></div>}
-        {inventoryScope&&<InventoryTable central={centralScope} boards={centralScope?centralAllBoards:billboards} rows={filtered} evidence={inventoryEvidence} loading={loading}
+        {inventoryScope&&<InventoryTable dictionaries={dictionaries} central={centralScope} boards={centralScope?centralAllBoards:billboards} rows={filtered} evidence={inventoryEvidence} loading={loading}
           onVerifyGps={!centralScope&&user?.role==='admin'?()=>{void ensureUsersLoaded();setSelected(null);setPoleBoards(billboards.filter(b=>projectShortlist.includes(b.id)&&estimatedPole(b)));}:undefined}
           onRemove={user?.role==="admin"?openProjectRemoval:undefined}
           selected={projectShortlist} onSelection={setProjectShortlist} onOpen={focusItem}
@@ -4329,7 +4327,7 @@ export default function Home() {
           setProjectLoadRevision(value=>value+1);setPlanningRevision(value=>value+1);
           setImportMessage(`${result.assigned} billboard${result.assigned===1?"":"s"} added to ${result.project.name}. ${result.alreadyAssigned?`${result.alreadyAssigned} already linked. `:""}Current project memberships preserved.`);
         }}/>}
-      {inventoryScope&&canManage&&bulkEditBoards&&<InventoryBulkEdit boards={bulkEditBoards} projectId={currentProjectId}
+      {inventoryScope&&canManage&&bulkEditBoards&&<InventoryBulkEdit dictionaries={dictionaries} boards={bulkEditBoards} projectId={currentProjectId}
         projectName={projects.find(p=>p.id===currentProjectId)?.name??'Current project'}
         hiddenCount={bulkEditBoards.filter(item=>!filtered.some(row=>row.id===item.id)).length}
         onClose={()=>setBulkEditBoards(null)}

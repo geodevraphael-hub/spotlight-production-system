@@ -2,7 +2,7 @@
 import SearchSelect from './SearchSelect';
 import {useEffect,useRef,useState} from 'react';
 import {X,ArrowLeft,Check} from 'lucide-react';
-import {BULK_FIELDS,normalizeBulkChanges} from './inventory-bulk.mjs';
+import {BULK_FIELDS,bulkFields,normalizeBulkChanges} from './inventory-bulk.mjs';
 const groups=[...new Set(BULK_FIELDS.map(field=>field.group))];
 function display(value:any,key:string){
  if(value===null||value===undefined||value==='')return 'Empty';
@@ -14,7 +14,8 @@ function differences(change:any){
  const before=change.before||{},after=change.after||{};
  return Object.keys(after).filter(key=>before[key]!==after[key]).map(key=>({key:`csv:${key}`,label:`CSV · ${key}`,before:before[key],after:after[key]}));
 }
-export default function InventoryBulkEdit({boards,projectId,projectName,hiddenCount,onClose,onSaved}:any){
+export default function InventoryBulkEdit({dictionaries,boards,projectId,projectName,hiddenCount,onClose,onSaved}:any){
+ const fields=bulkFields(dictionaries);
  const [enabled,setEnabled]=useState<Record<string,boolean>>({});
  const [values,setValues]=useState<Record<string,string>>({});
  const [review,setReview]=useState<any>(null),[busy,setBusy]=useState(false),[error,setError]=useState(''),[confirmed,setConfirmed]=useState(false);
@@ -37,7 +38,7 @@ export default function InventoryBulkEdit({boards,projectId,projectName,hiddenCo
   if(busyRef.current)return;
   setError('');
   try{
-   const changes=normalizeBulkChanges(Object.fromEntries(Object.keys(enabled).filter(key=>enabled[key]).map(key=>[key,values[key]??''])));
+   const changes=normalizeBulkChanges(Object.fromEntries(Object.keys(enabled).filter(key=>enabled[key]).map(key=>[key,values[key]??''])),dictionaries);
    busyRef.current=true;setBusy(true);
    const response=await fetch('/api/app?action=inventory-bulk-preview',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({projectId,ids,changes})});
    const data=await response.json();
@@ -82,7 +83,7 @@ export default function InventoryBulkEdit({boards,projectId,projectName,hiddenCo
      <p className="bulk-guidance">Enable only the fields you want to replace. All other values stay unchanged. Blank text clears an enabled field; numbers require a value.</p>
      <details className="bulk-targets"><summary>View {boards.length} selected billboards</summary><ul>{boards.map((b:any)=><li key={b.inventoryDbId??b.id}>{b.street}</li>)}</ul></details>
      {groups.map(group=><fieldset key={group} className="bulk-field-group" disabled={busy}><legend>{group}</legend>
-      {BULK_FIELDS.filter(f=>f.group===group&&f.key!=='transportPrice').map(field=>{
+      {fields.filter(f=>f.group===group&&f.key!=='transportPrice').map(field=>{
        const mixed=new Set(boards.map((b:any)=>String(b[field.key]??''))).size>1;
        return <div key={field.key} className={`bulk-field${enabled[field.key]?' is-enabled':''}`}>
         <label className="bulk-enable"><input type="checkbox" checked={!!enabled[field.key]} onChange={e=>toggle(field,e.target.checked)}/>{field.label}</label>

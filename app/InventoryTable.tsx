@@ -1,17 +1,18 @@
 "use client";
+import {DEFAULT_DICTIONARIES,dictionaryLabel} from './inventory-dictionaries.mjs';
 import SearchSelect from './SearchSelect';
 import {useEffect,useMemo,useState,useRef} from 'react';
 import {Download,RefreshCw,Plus,FileUp,ArrowUpDown,X,Map,Table2,PanelsTopLeft,SlidersHorizontal} from 'lucide-react';
 import {GEO_LEVELS,geographyOptions,changeGeography,inventoryGeography,inventoryCsv} from './inventory-workflow.mjs';
 import {markerState} from './map-symbols.mjs';
 const estimatedPole=(b:any)=>b?.mediaType==='lamp-post'&&b.positionSource==='estimated-road-stretch'&&b.positionVerified!==true;
-import {PRIORITIES,assetPriority,registrationNumber} from './asset-register.mjs';
+import {assetPriority,registrationNumber} from './asset-register.mjs';
 const label=(s:string)=>String(s??'').replaceAll('-',' ').replace(/^./,c=>c.toUpperCase());
 function exportRows(items:any[],evidence:any){
  const url=URL.createObjectURL(new Blob([inventoryCsv(items,evidence,(b:any)=>b.centralStates?.join(' / ')||markerState(b))],{type:'text/csv;charset=utf-8'}));
  const link=document.createElement('a');link.href=url;link.download='spotlight-inventory.csv';link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
 }
-export function InventoryControls({boards,rows,evidence,geo,onGeo,geoLoading,geoError,loading,error,
+export function InventoryControls({dictionaries=DEFAULT_DICTIONARIES,boards,rows,evidence,geo,onGeo,geoLoading,geoError,loading,error,
  type,onType,status,onStatus,flight,onFlight,vendor,onVendor,priority='',onPriority,onRefresh,onReset,
  onAdd,onRoad,onImport,onTemplate,canManage,isAdmin,projectFilter,onProject,projectNames,view,onView,message,central=false}:any){
  const [expanded,setExpanded]=useState(false);
@@ -35,7 +36,7 @@ export function InventoryControls({boards,rows,evidence,geo,onGeo,geoLoading,geo
   </header>
   <div className="inventory-quick-filters">
    <label className="inventory-vendor">Vendor<SearchSelect aria-label="Inventory vendor filter" value={vendor} onChange={e=>onVendor(e.target.value)}><option value="">All vendors</option>{vendors.map(v=><option key={v} value={v}>{v}</option>)}</SearchSelect></label>
-   {central?<><label>Board type<SearchSelect aria-label="Central board type" value={type} onChange={e=>onType(e.target.value)}><option>All types</option>{['large-format','digital-screen','lamp-post','fabricated-banner'].map(v=><option key={v} value={v}>{label(v)}</option>)}</SearchSelect></label>
+   {central?<><label>Board type<SearchSelect aria-label="Central board type" value={type} onChange={e=>onType(e.target.value)}><option>All types</option>{dictionaries.mediaType.map(([value,title]:any)=><option key={value} value={value}>{title}</option>)}</SearchSelect></label>
     <label>Flight status<SearchSelect aria-label="Central flight status" value={flight} onChange={e=>onFlight(e.target.value)}><option>All flight status</option>{['flighted','unflighted','expired','deflighted'].map(v=><option key={v} value={v}>{label(v)}</option>)}</SearchSelect></label>
     {areaSelect('region','Region')}</>:GEO_LEVELS.filter(([key])=>key!=='council').map(([key,title])=>areaSelect(key,title))}
    <button aria-expanded={expanded} aria-controls="inventory-more-filters" onClick={()=>setExpanded(!expanded)}><SlidersHorizontal size={15}/>Filters{active>0?` (${active})`:''}</button>
@@ -46,8 +47,8 @@ export function InventoryControls({boards,rows,evidence,geo,onGeo,geoLoading,geo
    <div className="inventory-filters">
     {projectNames&&<label>Project<SearchSelect aria-label="Inventory project filter" value={projectFilter} onChange={e=>onProject(e.target.value)}><option>All projects</option>{projectNames.map((p:string)=><option key={p}>{p}</option>)}</SearchSelect></label>}
     <label>Board type<SearchSelect value={type} onChange={e=>onType(e.target.value)}><option value="All types">All types</option>{['large-format','digital-screen','lamp-post','fabricated-banner'].map(v=><option key={v} value={v}>{label(v)}</option>)}</SearchSelect></label>
-    <label>Priority<SearchSelect value={priority} onChange={e=>onPriority(e.target.value)}><option value="">All priorities</option>{PRIORITIES.map(([v,title]:any)=><option key={v} value={v}>{title}</option>)}<option value="__missing__">Not assigned</option></SearchSelect></label>
-    <label>Inventory status<SearchSelect value={status} onChange={e=>onStatus(e.target.value)}><option>All status</option><option value="selected">Selected</option><option value="not-selected">Not selected</option></SearchSelect></label>
+    <label>Priority<SearchSelect value={priority} onChange={e=>onPriority(e.target.value)}><option value="">All priorities</option>{dictionaries.priority.map(([v,title]:any)=><option key={v} value={v}>{title}</option>)}<option value="__missing__">Not assigned</option></SearchSelect></label>
+    <label>Inventory status<SearchSelect value={status} onChange={e=>onStatus(e.target.value)}><option>All status</option>{dictionaries.status.map(([value,title]:any)=><option key={value} value={value}>{title}</option>)}</SearchSelect></label>
     <label>Flight status<SearchSelect value={flight} onChange={e=>onFlight(e.target.value)}><option>All flight status</option>{['flighted','unflighted','expired','deflighted'].map(v=><option key={v} value={v}>{label(v)}</option>)}</SearchSelect></label>
     {areaSelect('council','Council')}
     {central&&GEO_LEVELS.filter(([key])=>!['region','council'].includes(key)).map(([key,title])=>areaSelect(key,title))}
@@ -59,7 +60,7 @@ export function InventoryControls({boards,rows,evidence,geo,onGeo,geoLoading,geo
   {message&&<p className="inventory-feedback" role="status">{message}</p>}
  </section>;
 }
-export default function InventoryTable({boards,rows,evidence,selected,onSelection,onOpen,onLocate,onReset,onAssign,onRemove,onBulkEdit,onVerifyGps,canManage,canAssign=canManage,loading,projectName,focusedId,focusRevision,central=false}:any){
+export default function InventoryTable({dictionaries=DEFAULT_DICTIONARIES,boards,rows,evidence,selected,onSelection,onOpen,onLocate,onReset,onAssign,onRemove,onBulkEdit,onVerifyGps,canManage,canAssign=canManage,loading,projectName,focusedId,focusRevision,central=false}:any){
  const [page,setPage]=useState(1),[size,setSize]=useState(25),[sort,setSort]=useState('street'),[direction,setDirection]=useState(1);
  const scrollRef=useRef<HTMLDivElement>(null);
  const signature=JSON.stringify([rows.map((b:any)=>b.id),sort,direction,size]);
@@ -109,13 +110,13 @@ export default function InventoryTable({boards,rows,evidence,selected,onSelectio
        onClick={event=>{if(!(event.target as HTMLElement).closest('button,input,a,select'))onLocate(b);}}>
       <td><input type="checkbox" checked={selectedSet.has(b.id)} aria-label={`Select ${b.street}`} onChange={e=>toggle([b.id],e.target.checked)}/></td>
       <td><button className="inventory-name" onClick={()=>onLocate(b)} title="Locate on map">{b.street}</button>{registrationNumber(b)&&<small>Registration: {registrationNumber(b)}</small>}{b.positionSource==='estimated-road-stretch'&&<small>Estimated location · field verification required</small>}<div className="inventory-row-meta"><small>{b.projectName||projectName}</small><button onClick={()=>onOpen(b)} aria-label={`View ${b.street} details`}>Details</button></div></td>
-      <td>{label(b.mediaType)}</td><td>{b.owner||'Not recorded'}</td>
+      <td>{dictionaryLabel(dictionaries,"mediaType",b.mediaType)}</td><td>{b.owner||'Not recorded'}</td>
       <td>{g.region?.name??'Unavailable'}<small>{g.district?.name??'Unavailable'}</small></td>
       <td>{g.council?.name??'Unavailable'}<small>{g.local?.name??'Unavailable'}</small></td>
       <td>{g.village?.name??'Unavailable'}{g.village?.population!=null&&<small>{Number(g.village.population).toLocaleString()} residents · estimate</small>}</td>
       <td>{b.faces??'—'}</td><td>{b.width>0&&b.height>0?`${b.width} × ${b.height} m`:'Not recorded'}</td>
-      <td>{assetPriority(b)||'Not assigned'}</td><td>{b.bookingStatus?label(b.bookingStatus):'Not checked'}{b.reservedFaces>0&&<small>{b.reservedFaces} face(s) reserved</small>}</td>
-      <td>{label(b.status??'not-selected')}</td><td>{(central?b.centralStates??[markerState(b)]:[markerState(b)]).map((state:string)=><span key={state} className={`inventory-flight inventory-flight--${state}`}>{label(state)}</span>)}{central&&b.centralStates?.length>1&&<small>Varies by project</small>}</td>
+      <td>{dictionaryLabel(dictionaries,'priority',assetPriority(b))||'Not assigned'}</td><td>{b.bookingStatus?label(b.bookingStatus):'Not checked'}{b.reservedFaces>0&&<small>{b.reservedFaces} face(s) reserved</small>}</td>
+      <td>{dictionaryLabel(dictionaries,'status',b.status??'not-selected')}</td><td>{(central?b.centralStates??[markerState(b)]:[markerState(b)]).map((state:string)=><span key={state} className={`inventory-flight inventory-flight--${state}`}>{label(state)}</span>)}{central&&b.centralStates?.length>1&&<small>Varies by project</small>}</td>
       <td>{b.photoUrl||b.photoOriginalUrl?'Attached':'Missing'}</td>
      </tr>;
     })}

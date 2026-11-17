@@ -431,7 +431,8 @@ test('new field assignments, corrections, bookings and costs have before/after a
 
 test('authenticated main API writes record the editor for inventory, flight and field validation',async()=>{
   const handler=routeSource.slice(routeSource.indexOf('export async function POST(request: Request)'),routeSource.indexOf('export async function DELETE(request: Request)'));
-  const prefix=`import {auditedDatabase} from ${JSON.stringify(auditUrl)};
+  const prefix=`import {readDictionaries,mutateDictionary} from ${JSON.stringify(new URL('../app/dictionary-store.mjs',import.meta.url).href)};
+    import {auditedDatabase} from ${JSON.stringify(auditUrl)};
     import {validateRegisterFields} from ${JSON.stringify(new URL('../app/asset-register.mjs',import.meta.url).href)};
     import {validCoordinates} from ${JSON.stringify(rulesUrl)};
     const env=globalThis.__testEnv; const setup=async()=>{}; const currentUser=async()=>globalThis.__testUser;

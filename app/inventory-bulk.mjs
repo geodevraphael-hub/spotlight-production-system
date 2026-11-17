@@ -1,3 +1,4 @@
+import {readDictionaries} from './dictionary-store.mjs';
 // Shared field definitions keep the editor, validation and review consistent.
 import {PRIORITIES} from './asset-register.mjs';
 export const BULK_FIELDS = [
@@ -25,11 +26,12 @@ export const BULK_FIELDS = [
 const fail=(message,status=400)=>{throw Object.assign(new Error(message),{status});};
 const own=(object,key)=>Object.prototype.hasOwnProperty.call(object,key);
 const keyOf=value=>String(value).toLowerCase().replace(/[^a-z0-9]/g,'');
-export function normalizeBulkChanges(input){
+export function bulkFields(dictionaries){return BULK_FIELDS.map(field=>dictionaries?.[field.key]?{...field,options:[...(field.key==='priority'?[['','Not assigned']]:[]),...dictionaries[field.key]]}:field);}
+export function normalizeBulkChanges(input,dictionaries){
   if(!input||typeof input!=='object'||Array.isArray(input)||!Object.keys(input).length)fail('Choose at least one field to update.');
   const result={};
   for(const [key,raw] of Object.entries(input)){
-    const field=BULK_FIELDS.find(f=>f.key===key);
+    const field=bulkFields(dictionaries).find(f=>f.key===key);
     if(!field)fail('This field cannot be bulk edited. Use the dedicated workflow for flighting, GPS, photos or project assignments.');
     if(typeof raw!=='string'&&typeof raw!=='number')fail(`Enter a valid ${field.label.toLowerCase()}.`);
     if(field.number){
@@ -44,10 +46,10 @@ export function normalizeBulkChanges(input){
   }
   return result;
 }
-export function applyBulkChanges(item,changes){
+export function applyBulkChanges(item,changes,dictionaries){
   const result={...item,...changes}, attrs={...(item.sourceAttributes||{})};
   for(const [key,value] of Object.entries(changes)){
-    const field=BULK_FIELDS.find(f=>f.key===key);
+    const field=bulkFields(dictionaries).find(f=>f.key===key);
     // Synchronize matching uploaded columns so later attribute saves cannot undo this edit.
     let matched=false;
     for(const name of Object.keys(attrs))if(field.aliases.some(alias=>keyOf(alias)===keyOf(name))){
@@ -78,7 +80,8 @@ export async function bulkInventoryEdit(db,user,body,commit=false){
   const projectId=body.projectId,ids=body.ids;
   if(!Number.isSafeInteger(projectId)||projectId<=0)fail('Choose a project before bulk editing.');
   if(!Array.isArray(ids)||ids.length<1||ids.length>500||ids.some(id=>!Number.isSafeInteger(id)||id<=0)||new Set(ids).size!==ids.length)fail('Select between 1 and 500 unique billboards.');
-  const changes=normalizeBulkChanges(body.changes);
+  const {dictionaries}=await readDictionaries(db);
+  const changes=normalizeBulkChanges(body.changes,dictionaries);
   const rows=[];
   for(const id of ids){
     const row=await db.prepare(`SELECT i.id,i.data,
@@ -88,7 +91,7 @@ export async function bulkInventoryEdit(db,user,body,commit=false){
     if(!row)fail('Some selected billboards are missing or no longer editable in this project. Refresh inventory.',403);
     row.version=await version(row.data);
     if(commit&&body.versions?.[id]!==row.version)fail('A selected billboard changed after your review. Review the latest values before saving.',409);
-    const before=JSON.parse(row.data),after=applyBulkChanges(before,changes);
+    const before=JSON.parse(row.data),after=applyBulkChanges(before,changes,dictionaries);
     const differences=Object.entries(after).filter(([key,value])=>JSON.stringify(before[key])!==JSON.stringify(value));
     rows.push({...row,before,after,differences});
   }

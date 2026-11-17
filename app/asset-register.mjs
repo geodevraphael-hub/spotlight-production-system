@@ -6,7 +6,7 @@ export function sourceField(item,names){
 }
 export function assetPriority(item){
  const text=String(item.priority??sourceField(item,['Priority','Priority level'])??'').trim().toUpperCase();
- return /^(?:PRIORITY\s+)?([ABC])(?:\s*[-—:].*)?$/.exec(text)?.[1]||'';
+ return /^(?:PRIORITY\s+)?([ABC])(?:\s*[-—:].*)?$/.exec(text)?.[1]||(item.priority!=null?text:'');
 }
 export function installationCount(item){
  const value=item.installations??sourceField(item,['INSTALLATION','INSTALLATIONS','Number of installations']);
@@ -21,11 +21,11 @@ export function registrationNumber(item){
 export function mediaGroup(item){
  return String(item.mediaGroup??sourceField(item,['MEDIA GROUP'])??'').trim();
 }
-export function validateRegisterFields(item){
+export function validateRegisterFields(item,priorities=PRIORITIES.map(([code])=>code)){
  const out={...item};
  for(const name of ['bookingStatus','reservedFaces','bookingDate','bookingActiveFlight'])delete out[name];
  if(Object.hasOwn(item,'priority')){
-  if(String(item.priority??'').trim()&&!assetPriority(item))throw new Error('Priority must be A, B or C.');
+  if(String(item.priority??'').trim()&&!priorities.includes(assetPriority(item)))throw new Error('Choose a configured priority (default: A, B or C).');
   out.priority=assetPriority(item);
  }
  if(Object.hasOwn(item,'installations')){

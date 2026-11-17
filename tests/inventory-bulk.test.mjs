@@ -1,3 +1,4 @@
+import {readDictionaries} from '../app/dictionary-store.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {DatabaseSync} from 'node:sqlite';
@@ -64,8 +65,9 @@ test('missing confirmation or versions never writes and stale preview is rejecte
  await assert.rejects(bulkInventoryEdit(db,creator,{...request,confirmed:true,versions},true),{status:409});assert.equal(read(1).owner,'Old');
 });
 test('race during transaction guard rolls back all records and audit entries',async()=>{
- const {raw,sql,read}=setup();
- const guarded=auditedDatabase({...raw,async batch(writes){sql.prepare("UPDATE inventory SET data=json_set(data,'$.faces',2) WHERE id=2").run();return raw.batch(writes);}},creator);
+ const {raw,sql,read}=setup();let armed=false;
+ const guarded=auditedDatabase({...raw,async batch(writes){if(armed)sql.prepare("UPDATE inventory SET data=json_set(data,'$.faces',2) WHERE id=2").run();return raw.batch(writes);}},creator);
+ await readDictionaries(guarded);armed=true;
  await assert.rejects(commit(guarded,creator),{status:409});assert.equal(read(1).owner,'Old');assert.equal(read(2).owner,'Old');assert.equal(sql.prepare('SELECT COUNT(*) n FROM audit').get().n,0);
 });
 test('database write error rolls back earlier updates and their activity entries',async()=>{

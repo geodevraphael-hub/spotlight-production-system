@@ -1,3 +1,4 @@
+import {readDictionaries,mutateDictionary} from '../../dictionary-store.mjs';
 import { env } from "cloudflare:workers";
 import {sharedReport} from '../../report-store.mjs';
 import {assignPoleGps,submitPoleGps} from '../../pole-verification.mjs';
@@ -1066,6 +1067,7 @@ export async function GET(request: Request) {
   const user = await currentUser(request);
   if (!user) return json({ error: "Unauthorized" }, 401);
   if (action === "me") return json({ user });
+  if(action === "inventory-dictionaries") return json(await readDictionaries(env.DB));
   if (action === "planning-evidence") {
     try {
       const data=await readLocationEvidence(env.DB,user,Number(url.searchParams.get("radius")),Boolean(runtimeSecret("LOCATIONIQ_KEY")),url.searchParams.has("id")?Number(url.searchParams.get("id")):null);
@@ -1421,6 +1423,10 @@ export async function POST(request: Request) {
   const user = await currentUser(request);
   if (!user) return json({ error: "Unauthorized" }, 401);
   const db = auditedDatabase(env.DB,user);
+  if(action === "inventory-dictionaries"){
+    try{return json(await mutateDictionary(env.DB,user,body));}
+    catch(error:any){return json({error:error.message},error.status||400);}
+  }
   if (action === "change-password") {
     const currentPassword = String(body.currentPassword ?? "");
     const newPassword = String(body.newPassword ?? "");
@@ -1503,10 +1509,11 @@ export async function POST(request: Request) {
     const items = Array.isArray(body.items) ? body.items : [];
     const projectId = Number(body.projectId) || 1;
     if (!['admin','creator','planner'].includes(user.role) || (user.role !== 'admin' && !await db.prepare('SELECT 1 FROM project_users WHERE project_id=? AND user_id=?').bind(projectId,user.id).first())) return json({error:'Forbidden'},403);
+    const {dictionaries}=await readDictionaries(env.DB);
     let valid;
     try {
       valid = items.filter((item) => validCoordinates(item.lat,item.lng))
-        .map((item) => ({ ...validateRegisterFields(item), projectId,lastEditedBy:user.id }));
+        .map((item) => ({ ...validateRegisterFields(item,dictionaries.priority.map(([code]:any)=>code)), projectId,lastEditedBy:user.id }));
     } catch(error) { return json({error:error instanceof Error?error.message:'Invalid asset registration fields'},400); }
     if (body.importMode) {
       if (valid.length!==items.length) return json({error:'Some rows have invalid GPS. Correct them in the review before importing.'},400);
@@ -1516,7 +1523,7 @@ export async function POST(request: Request) {
         const fingerprint=inventoryFingerprint(item);
         if(fingerprints.has(fingerprint)) return json({error:`Row ${index+2} duplicates an existing or imported billboard. Review the name, GPS and board type.`},409);
         if(!String(item.street||'').trim())return json({error:`Row ${index+2} needs a name`},400);
-        if(!['lamp-post','large-format','digital-screen','fabricated-banner'].includes(item.mediaType))return json({error:`Row ${index+2} needs a supported board type`},400);
+        if(!dictionaries.mediaType.some(([code]:any)=>code===item.mediaType))return json({error:`Row ${index+2} needs a supported board type`},400);
         fingerprints.add(fingerprint);
       }
       const importedAt=Date.now();

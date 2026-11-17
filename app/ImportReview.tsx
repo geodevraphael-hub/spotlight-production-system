@@ -1,9 +1,10 @@
 "use client";
+import {DEFAULT_DICTIONARIES} from './inventory-dictionaries.mjs';
 import SearchSelect from './SearchSelect';
 import {useMemo,useState} from 'react';
 import {validCoordinates,inventoryFingerprint} from './operations-rules.mjs';
 import {validateRegisterFields} from './asset-register.mjs';
-export default function ImportReview({items,existing,onCancel,onImport}:{items:any[];existing:any[];onCancel:()=>void;onImport:(items:any[])=>Promise<void>}) {
+export default function ImportReview({dictionaries=DEFAULT_DICTIONARIES,items,existing,onCancel,onImport}:{dictionaries?:typeof DEFAULT_DICTIONARIES;items:any[];existing:any[];onCancel:()=>void;onImport:(items:any[])=>Promise<void>}) {
  const [rows,setRows]=useState(items.map(item=>({...item,include:true})));
  const [busy,setBusy]=useState(false),[error,setError]=useState('');
  const problems=useMemo(()=>{
@@ -13,7 +14,7 @@ export default function ImportReview({items,existing,onCancel,onImport}:{items:a
    if(!validCoordinates(row.lat,row.lng))return 'Invalid or missing GPS';
    if(!String(row.street||'').trim())return 'Name required';
    if(!['lamp-post','large-format','digital-screen','fabricated-banner'].includes(row.mediaType))return 'Choose board type';
-   try{validateRegisterFields(row);}catch(e:any){return e.message;}
+   try{validateRegisterFields(row,dictionaries.priority.map(([code]:any)=>code));}catch(e:any){return e.message;}
    const key=inventoryFingerprint(row);if(seen.has(key))return 'Duplicate location/name/type';
    seen.add(key);return '';
   });
