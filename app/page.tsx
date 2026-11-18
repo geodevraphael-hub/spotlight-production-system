@@ -23,7 +23,7 @@ import { InventorySummary, PlanSelectionButton, PlanningMapLegend } from './Plan
 import InventoryTable,{InventoryControls} from './InventoryTable';
 import {CentralProjects,CentralMemberships,CentralMapContext} from './CentralMap';
 import {centralProjectView} from './central-map.mjs';
-import {insideTanzaniaBounds} from './tanzania-map.mjs';
+import {insideTanzaniaBounds,addTanzaniaMapGuard} from './tanzania-map.mjs';
 import CentralAssignment from './CentralAssignment';
 import ProjectRemoval from './ProjectRemoval';
 import './central-map.css';
