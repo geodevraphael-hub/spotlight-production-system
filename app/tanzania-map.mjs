@@ -13,7 +13,11 @@ export async function addTanzaniaMapGuard(L, map, color = '#eef2f0') {
   boundaryRequest ||= fetch('/tanzania-boundary.json',{cache:'force-cache'}).then(response=>{
     if(!response.ok)throw new Error(`Tanzania map boundary unavailable (${response.status})`);
     return response.json();
-  }).then(data=>data.rings);
+  }).then(data=>data.rings).catch(error=>{
+    // Do not permanently cache a transient network failure; a remount can retry.
+    boundaryRequest = undefined;
+    throw error;
+  });
   const rings=await boundaryRequest;
   const paneName = 'tanzania-mask';
   let pane = map.getPane(paneName);
@@ -29,7 +33,9 @@ export async function addTanzaniaMapGuard(L, map, color = '#eef2f0') {
     fillOpacity: 1,
     fillRule: 'evenodd',
     interactive: false,
-    smoothFactor: 0,
+    // Let Leaflet simplify sub-pixel bends at the current zoom. The display-only
+    // boundary is already generalized; retaining every source vertex is costly.
+    smoothFactor: 1,
     noClip: true,
   }).addTo(map);
 

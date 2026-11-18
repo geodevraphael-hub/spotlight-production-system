@@ -2030,6 +2030,40 @@ button {
   background: #e7ebe5;
 }
 
+.map-load-state {
+  position: absolute;
+  z-index: 900;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  color: #31443b;
+  background: rgba(238, 242, 240, .94);
+  font-size: 14px;
+}
+
+.map-load-state strong { font-size: 16px; }
+.map-load-state button {
+  min-height: 38px;
+  padding: 0 16px;
+  border: 1px solid #0b8967;
+  background: #0b8967;
+  color: white;
+  font: inherit;
+  cursor: pointer;
+}
+.map-load-spinner {
+  width: 22px;
+  height: 22px;
+  border: 2px solid #bfd4ca;
+  border-top-color: #078762;
+  border-radius: 50%;
+  animation: map-load-spin .8s linear infinite;
+}
+@keyframes map-load-spin { to { transform: rotate(360deg); } }
+
 .workspace--hidden {
   position: absolute;
   inset: 113px 0 0;
