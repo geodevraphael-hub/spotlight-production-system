@@ -1245,6 +1245,22 @@ export default function Home() {
         : filtered,
     [filtered, shortlist, showSelectedOnly],
   );
+  const visibleAssetsById = useMemo(() => new Map(visibleAssets.map((item) => [item.id, item])), [visibleAssets]);
+  const markerInteractionsRef = useRef<any>(null);
+  markerInteractionsRef.current = {
+    visibleAssetsById,
+    toggleShortlist,
+    setImportMessage,
+    setInventoryView,
+    inventoryScope,
+    inventoryView,
+    planningScope,
+    shortlist,
+    setInventoryFocusedId,
+    setInventoryFocusRevision,
+    setSelected,
+    updateAssetPosition,
+  };
 
   function fitMapToBillboardExtent(assets = visibleAssets, force = false) {
     if (!mapRef.current || !mapReady || !assets.length) return;
@@ -1803,13 +1819,24 @@ export default function Home() {
           }),
         }) as LeafletMarker;
         marker.on("click", (event: any) => {
+          const current = markerInteractionsRef.current;
+          const asset = current.visibleAssetsById.get(item.id) ?? item;
           if ((event.originalEvent as MouseEvent)?.shiftKey) {
-            toggleShortlist(item.id);
-            setImportMessage(`${item.street} added to plan`);
-            window.setTimeout(() => setImportMessage(""), 1600);
+            const wasSelected = current.shortlist.includes(item.id);
+            current.toggleShortlist(item.id);
+            current.setImportMessage(`${asset.street} ${wasSelected ? "removed from" : "added to"} ${current.inventoryScope ? "selection" : "plan"}`);
+            if (current.inventoryScope && current.inventoryView === "map") current.setInventoryView("split");
+            window.setTimeout(() => current.setImportMessage(""), 1600);
             return;
           }
-          setSelected(item);
+          if (current.inventoryScope) {
+            current.setSelected(null);
+            current.setInventoryFocusedId(item.id);
+            current.setInventoryFocusRevision((revision: number) => revision + 1);
+            if (current.inventoryView === "map") current.setInventoryView("split");
+          } else {
+            current.setSelected(asset);
+          }
         });
         marker.on("popupopen", () => {
           const element = marker?.getPopup()?.getElement();
@@ -1825,7 +1852,12 @@ export default function Home() {
       }
       const active = selected?.id === item.id || (inventoryScope && inventoryFocusedId===item.id);
       const { hitWidth, hitHeight } = markerSize(item);
-      marker.setLatLng([item.lat, item.lng]);
+      const markerAny = marker as any;
+      const positionKey = `${item.lat},${item.lng}`;
+      if (markerAny._spotlightPosition !== positionKey) {
+        marker.setLatLng([item.lat, item.lng]);
+        markerAny._spotlightPosition = positionKey;
+      }
       const symbolHtml=markerHtml(item,active,(planningScope||inventoryScope) && shortlist.includes(item.id));
       // Keep the DOM node and animation stable when unrelated filters/state render.
       if ((marker as any)._spotlightSymbol !== symbolHtml) marker.setIcon(
@@ -1837,40 +1869,39 @@ export default function Home() {
         }),
       );
       (marker as any)._spotlightSymbol=symbolHtml;
-      marker.off("click");
-      marker.on("click", (event: any) => {
-        if ((event.originalEvent as MouseEvent)?.shiftKey) {
-          toggleShortlist(item.id);
-          setImportMessage(`${item.street} ${shortlist.includes(item.id) ? "removed from" : "added to"} ${inventoryScope?'selection':'plan'}`);
-          if(inventoryScope&&inventoryView==='map')setInventoryView('split');
-          window.setTimeout(() => setImportMessage(""), 1600);
-          return;
-        }
-        if(inventoryScope){
-          setSelected(null);setInventoryFocusedId(item.id);setInventoryFocusRevision(v=>v+1);
-          if(inventoryView==='map')setInventoryView('split');
-        }else setSelected(item);
-      });
       // Do not tear down and recreate popup elements on unrelated map renders.
       if (!planningScope && !inventoryScope && !marker.getPopup()) {
         marker.bindPopup(popupHtml(item), { closeButton: false, minWidth: 210, maxWidth: 250 });
       }
       const draggable = editingPosition && active;
-      const markerAny = marker as any;
       if (markerAny.dragging) {
-        if (draggable) markerAny.dragging.enable();
-        else markerAny.dragging.disable();
-      }
-      marker.off("dragend");
-      if (draggable) {
-        marker.on("dragend", (event) => {
-          const { lat, lng } = (event.target as LeafletMarker).getLatLng();
-          updateAssetPosition(item, lat, lng);
-        });
+        if (markerAny._spotlightDraggable !== draggable) {
+          if (draggable) markerAny.dragging.enable();
+          else markerAny.dragging.disable();
+          markerAny._spotlightDraggable = draggable;
+          marker.off("dragend");
+          if (draggable) {
+            marker.on("dragend", (event) => {
+              const current = markerInteractionsRef.current;
+              const asset = current.visibleAssetsById.get(item.id) ?? item;
+              const { lat, lng } = (event.target as LeafletMarker).getLatLng();
+              current.updateAssetPosition(asset, lat, lng);
+            });
+          }
+        }
       }
       if (!mapRef.current!.hasLayer(marker)) marker.addTo(mapRef.current!);
-      marker.setZIndexOffset(active ? 2000 : planningScope && shortlist.includes(item.id) ? 1000 : 0);
-      marker.getElement()?.setAttribute("aria-label", `${item.street}, ${mediaTypeLabel(item.mediaType)}, ${item.faces} faces, ${markerState(item)}${active?", selected":""}${planningScope && shortlist.includes(item.id) ? ", in this plan" : ""}`);
+      const zIndex = active ? 2000 : planningScope && shortlist.includes(item.id) ? 1000 : 0;
+      if (markerAny._spotlightZIndex !== zIndex) {
+        marker.setZIndexOffset(zIndex);
+        markerAny._spotlightZIndex = zIndex;
+      }
+      const ariaLabel = `${item.street}, ${mediaTypeLabel(item.mediaType)}, ${item.faces} faces, ${markerState(item)}${active?", selected":""}${planningScope && shortlist.includes(item.id) ? ", in this plan" : ""}`;
+      const element = marker.getElement();
+      if (element && markerAny._spotlightAriaLabel !== ariaLabel) {
+        element.setAttribute("aria-label", ariaLabel);
+        markerAny._spotlightAriaLabel = ariaLabel;
+      }
     });
   }, [visibleAssets, selected?.id, mapReady, mapViewportRevision, editingPosition, shortlist, planningScope,inventoryScope,inventoryFocusedId,inventoryView]);
 
