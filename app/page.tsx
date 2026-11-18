@@ -10,6 +10,7 @@ import Operations from './Operations';
 import Dashboard from './Dashboard';
 import RoadStretch from './RoadStretch';
 import PoleAssignment from './PoleAssignment';
+import SharedLamppostPhoto from './SharedLamppostPhoto';
 import ImportReview from './ImportReview';
 import WorkspaceDock from './WorkspaceDock';
 import ReportBuilder from './ReportBuilder';
@@ -765,6 +766,7 @@ export default function Home() {
   const [projectBillboards, setBillboards] = useState<Billboard[]>([]);
   const [roadOpen,setRoadOpen]=useState(false);
   const [poleBoards,setPoleBoards]=useState<Billboard[]|null>(null);
+  const [sharedPhotoBoards,setSharedPhotoBoards]=useState<Billboard[]|null>(null);
   const [planningInventory, setPlanningInventory] = useState<Billboard[]>([]);
   const [planningLoading, setPlanningLoading] = useState(true);
   const [planningLoadError, setPlanningLoadError] = useState("");
@@ -4256,6 +4258,7 @@ export default function Home() {
           onPointerMove={event=>{if(!event.currentTarget.hasPointerCapture(event.pointerId))return;const parent=event.currentTarget.parentElement!;const box=parent.getBoundingClientRect();const controls=parent.querySelector(".inventory-controls")?.getBoundingClientRect().height??0;setInventoryMapShare(Math.max(25,Math.min(65,100*(event.clientY-box.top-controls)/(box.height-controls-10))));}}
           onPointerUp={event=>event.currentTarget.releasePointerCapture(event.pointerId)}><span/></div>}
         {inventoryScope&&<InventoryTable dictionaries={dictionaries} central={centralScope} boards={centralScope?centralAllBoards:billboards} rows={filtered} evidence={inventoryEvidence} loading={loading}
+          onSharedPhoto={!centralScope&&canEditInventoryAttributes?(items:Billboard[])=>setSharedPhotoBoards(items):undefined}
           onVerifyGps={!centralScope&&user?.role==='admin'?()=>{void ensureUsersLoaded();setSelected(null);setPoleBoards(billboards.filter(b=>projectShortlist.includes(b.id)&&estimatedPole(b)));}:undefined}
           onRemove={user?.role==="admin"?openProjectRemoval:undefined}
           selected={projectShortlist} onSelection={setProjectShortlist} onOpen={focusItem}
@@ -4398,6 +4401,7 @@ export default function Home() {
 
       {roadOpen&&inventoryScope&&canManage&&<RoadStretch key={currentProjectId} projectId={currentProjectId} projectName={projects.find(p=>p.id===currentProjectId)?.name}
         center={projectBillboards[0]} onClose={()=>setRoadOpen(false)} onSaved={(result:any)=>{setRoadOpen(false);setProjectLoadRevision(v=>v+1);setPlanningRevision(v=>v+1);setImportMessage(`${result.count} estimated lamp-post locations added for ${result.name}. Field GPS verification is required.`);}}/>}
+      {sharedPhotoBoards&&inventoryScope&&canEditInventoryAttributes&&<SharedLamppostPhoto boards={sharedPhotoBoards} projectId={currentProjectId} onClose={()=>setSharedPhotoBoards(null)} onSaved={(result:any)=>{const changedIds=new Set(sharedPhotoBoards.filter(item=>result.assetIds?.includes(item.inventoryDbId)).map(item=>item.id));setSharedPhotoBoards(null);setProjectShortlist(current=>current.filter(id=>!changedIds.has(id)));setProjectLoadRevision(value=>value+1);setImportMessage(`One shared photo attached to ${result.updated} lamp posts on ${result.road}.`);window.setTimeout(()=>setImportMessage(''),3500);}}/>}
       {poleBoards&&user?.role==='admin'&&<PoleAssignment key={currentProjectId} boards={poleBoards} projectId={currentProjectId} projectName={projects.find(p=>p.id===currentProjectId)?.name} users={fieldUsers} onClose={()=>setPoleBoards(null)} onSaved={(result:any)=>{setPoleBoards(null);setProjectShortlist([]);setProjectLoadRevision(v=>v+1);setImportMessage(`${result.assigned} poles assigned for GPS verification. ${result.alreadyAssigned} already assigned to this field user.`);}}/>}
       {inventoryScope&&user?.role==="admin"&&projectRemovalBoards&&<ProjectRemoval boards={projectRemovalBoards} projects={projects}
         initialProjectId={centralScope?Number(centralProject)||0:currentProjectId} lockedProject={!centralScope}

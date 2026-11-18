@@ -7,6 +7,7 @@ import {GEO_LEVELS,geographyOptions,changeGeography,inventoryGeography,inventory
 import {markerState} from './map-symbols.mjs';
 const estimatedPole=(b:any)=>b?.mediaType==='lamp-post'&&b.positionSource==='estimated-road-stretch'&&b.positionVerified!==true;
 import {assetPriority,registrationNumber} from './asset-register.mjs';
+import {groupLamppostsByRoad} from './shared-lampposts.mjs';
 const label=(s:string)=>String(s??'').replaceAll('-',' ').replace(/^./,c=>c.toUpperCase());
 function exportRows(items:any[],evidence:any){
  const url=URL.createObjectURL(new Blob([inventoryCsv(items,evidence,(b:any)=>b.centralStates?.join(' / ')||markerState(b))],{type:'text/csv;charset=utf-8'}));
@@ -61,7 +62,7 @@ export function InventoryControls({enrichmentPending=0,excludeFabricated=false,o
   {message&&<p className="inventory-feedback" role="status">{message}</p>}
  </section>;
 }
-export default function InventoryTable({dictionaries=DEFAULT_DICTIONARIES,boards,rows,evidence,selected,onSelection,onOpen,onLocate,onReset,onAssign,onRemove,onBulkEdit,onVerifyGps,canManage,canAssign=canManage,loading,projectName,focusedId,focusRevision,central=false}:any){
+export default function InventoryTable({dictionaries=DEFAULT_DICTIONARIES,boards,rows,evidence,selected,onSelection,onOpen,onLocate,onReset,onAssign,onRemove,onBulkEdit,onVerifyGps,onSharedPhoto,canManage,canAssign=canManage,loading,projectName,focusedId,focusRevision,central=false}:any){
  const [page,setPage]=useState(1),[size,setSize]=useState(25),[sort,setSort]=useState('street'),[direction,setDirection]=useState(1);
  const scrollRef=useRef<HTMLDivElement>(null);
  const signature=JSON.stringify([rows.map((b:any)=>b.id),sort,direction,size]);
@@ -94,7 +95,7 @@ export default function InventoryTable({dictionaries=DEFAULT_DICTIONARIES,boards
   <div className="inventory-selection"><span>{selectedRows.length} selected{selectedRows.some((b:any)=>!rows.some((r:any)=>r.id===b.id))?' (includes hidden results)':''}</span>
    {onVerifyGps&&selectedRows.some(estimatedPole)&&<button disabled={loading||selectedRows.filter(estimatedPole).length>200} onClick={onVerifyGps}>Assign GPS verification ({selectedRows.filter(estimatedPole).length} poles)</button>}
    <button disabled={!rows.length||loading} onClick={()=>toggle(rows.map((b:any)=>b.id),true)}>Select all {rows.length} filtered</button>
-   {selectedRows.length>0&&<><button onClick={()=>onSelection([])}>Clear selection</button>{canManage&&<button disabled={loading||selectedRows.length>500} title={selectedRows.length>500?'Edit up to 500 billboards at once':undefined} onClick={onBulkEdit}>Edit selected</button>}<button onClick={()=>exportRows(selectedRows,evidence)}>Export selected</button>{canAssign&&<button disabled={loading||(central&&selectedRows.length>500)} onClick={onAssign}>Assign to project</button>}{onRemove&&<button disabled={loading||selectedRows.length>500} onClick={onRemove}>Remove from project</button>}</>}
+   {selectedRows.length>0&&<><button onClick={()=>onSelection([])}>Clear selection</button>{canManage&&<button disabled={loading||selectedRows.length>500} title={selectedRows.length>500?'Edit up to 500 billboards at once':undefined} onClick={onBulkEdit}>Edit selected</button>}{canManage&&onSharedPhoto&&selectedRows.filter((b:any)=>b.mediaType==='lamp-post').length>=2&&<button disabled={loading} title={`${groupLamppostsByRoad(selectedRows).length} matched road group(s); choose one road and its poles`} onClick={()=>onSharedPhoto(selectedRows.filter((b:any)=>b.mediaType==='lamp-post'))}>Assign one photo to lamp posts ({selectedRows.filter((b:any)=>b.mediaType==='lamp-post').length})</button>}<button onClick={()=>exportRows(selectedRows,evidence)}>Export selected</button>{canAssign&&<button disabled={loading||(central&&selectedRows.length>500)} onClick={onAssign}>Assign to project</button>}{onRemove&&<button disabled={loading||selectedRows.length>500} onClick={onRemove}>Remove from project</button>}</>}
    <small className="inventory-table-help">Click a row to locate · {central?'Details to inspect':'Details to edit'}</small>
   </div>
   <div ref={scrollRef} className="inventory-table-scroll" tabIndex={0} aria-label="Scrollable billboard inventory">

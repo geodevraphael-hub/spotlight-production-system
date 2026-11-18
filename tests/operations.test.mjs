@@ -11,6 +11,20 @@ import {auditedDatabase,installActivityAudit} from '../app/activity-audit.mjs';
 import {historyWorkbook} from '../app/history-report.mjs';
 import {assignCentralInventory} from '../app/central-assignment.mjs';
 import {removeProjectInventory} from '../app/project-removal.mjs';
+import {groupLamppostsByRoad,validateSharedLampposts} from '../app/shared-lampposts.mjs';
+
+test('shared lamp-post photos group same road in either direction and reject mixed roads or asset types',()=>{
+  const first={mediaType:'lamp-post',from:'Airport',to:'Kariakoo',street:'Pole 01'};
+  const reverse={mediaType:'lamp-post',from:' Kariakoo ',to:'Airport',street:'Pole 02'};
+  const other={mediaType:'lamp-post',from:'Airport',to:'Mwanakwerekwe',street:'Pole 03'};
+  const namedRoadA={mediaType:'lamp-post',from:'Airport',to:'Kariakoo',roadName:'Nyerere Road'};
+  const namedRoadB={mediaType:'lamp-post',from:'Airport',to:'Mwanakwerekwe',roadName:' Nyerere Road '};
+  assert.equal(groupLamppostsByRoad([first,reverse,other]).length,2);
+  assert.equal(validateSharedLampposts([first,reverse]).label,'Airport ↔ Kariakoo');
+  assert.equal(groupLamppostsByRoad([namedRoadA,namedRoadB]).length,1);
+  assert.throws(()=>validateSharedLampposts([first,other]),/same recorded road/);
+  assert.throws(()=>validateSharedLampposts([first,{...reverse,mediaType:'large-format'}]),/Only lamp posts/);
+});
 
 
 test('history comparison shows only changed fields with readable nested labels',()=>{

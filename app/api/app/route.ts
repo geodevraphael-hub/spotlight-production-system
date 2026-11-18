@@ -19,6 +19,7 @@ import { assetBookings } from '../../asset-booking.mjs';
 import { centralInventory } from '../../central-map.mjs';
 import { assignCentralInventory } from '../../central-assignment.mjs';
 import { removeProjectInventory, inventoryMembershipBackfill } from '../../project-removal.mjs';
+import { validateSharedLampposts } from '../../shared-lampposts.mjs';
 
 type User = { id: number; name: string; email: string; role: string };
 
@@ -393,6 +394,7 @@ const setup = initializeOnce(async () => {
     db.prepare("CREATE TABLE IF NOT EXISTS sessions (token TEXT PRIMARY KEY, user_id INTEGER NOT NULL, expires_at INTEGER NOT NULL)"),
     db.prepare("CREATE TABLE IF NOT EXISTS inventory (id INTEGER PRIMARY KEY AUTOINCREMENT, source_id INTEGER, data TEXT NOT NULL, latitude REAL NOT NULL, longitude REAL NOT NULL, created_at INTEGER NOT NULL)"),
     db.prepare("CREATE TABLE IF NOT EXISTS inventory_projects (inventory_id INTEGER NOT NULL, project_id INTEGER NOT NULL, assigned_by INTEGER, assigned_at INTEGER NOT NULL, PRIMARY KEY(inventory_id,project_id))"),
+    db.prepare("CREATE TABLE IF NOT EXISTS shared_lamppost_photos (id INTEGER PRIMARY KEY AUTOINCREMENT,project_id INTEGER NOT NULL,photo_data TEXT NOT NULL,asset_ids TEXT NOT NULL,request_id TEXT NOT NULL UNIQUE,created_by INTEGER NOT NULL,created_at INTEGER NOT NULL)"),
     db.prepare("CREATE TABLE IF NOT EXISTS project_removal_requests (request_id TEXT PRIMARY KEY, user_id INTEGER NOT NULL, payload TEXT NOT NULL, result TEXT NOT NULL, created_at INTEGER NOT NULL)"),
     db.prepare("CREATE TABLE IF NOT EXISTS central_assignment_requests (request_id TEXT PRIMARY KEY,user_id INTEGER NOT NULL,payload TEXT NOT NULL,result TEXT NOT NULL,created_at INTEGER NOT NULL)"),
     db.prepare("CREATE TABLE IF NOT EXISTS plans (user_id INTEGER PRIMARY KEY, data TEXT NOT NULL, note TEXT NOT NULL DEFAULT '', updated_at INTEGER NOT NULL)"),
@@ -1044,6 +1046,32 @@ export async function GET(request: Request) {
     const reminders = action === 'auto-flight-reminders' ? await runFlightExpiryReminderCheck(projectId, null) : null;
     return json({reminders,delivery:await processNotifications()});
   }
+  if (action === "shared-lamppost-photo") {
+    const id = Number(url.searchParams.get("id"));
+    const assetId = Number(url.searchParams.get("assetId"));
+    if (!Number.isSafeInteger(id) || id <= 0 || !Number.isSafeInteger(assetId) || assetId <= 0) return new Response("Image not found", { status: 404 });
+    const photo = await env.DB.prepare("SELECT project_id,photo_data,asset_ids FROM shared_lamppost_photos WHERE id=?").bind(id).first<{project_id:number;photo_data:string;asset_ids:string}>();
+    if (!photo) return new Response("Image not found", { status: 404 });
+    let photoAssetIds:number[]=[];try{photoAssetIds=JSON.parse(photo.asset_ids);}catch{}
+    if(!photoAssetIds.includes(assetId))return new Response("Image not found", { status: 404, headers: { "Cache-Control": "no-store" } });
+    const viewer = await currentUser(request);
+    let allowed = viewer?.role === "admin";
+    if (viewer && !allowed) allowed = Boolean(await env.DB.prepare(`SELECT 1 FROM inventory i WHERE i.id=? AND (EXISTS(SELECT 1 FROM inventory_projects ip JOIN project_users pu ON pu.project_id=ip.project_id WHERE ip.inventory_id=i.id AND pu.user_id=?) OR EXISTS(SELECT 1 FROM project_users pu WHERE pu.project_id=COALESCE(json_extract(i.data,'$.projectId'),1) AND pu.user_id=?))`).bind(assetId,viewer.id,viewer.id).first());
+    if (!allowed) {
+      const token = String(url.searchParams.get("token") || "");
+      const code = String(url.searchParams.get("code") || "").trim().toUpperCase();
+      const project = await env.DB.prepare("SELECT id,share_code,share_protected FROM projects WHERE share_token=?").bind(token).first<{id:number;share_code:string;share_protected:number}>();
+      const containsAsset=project?Boolean(await env.DB.prepare(`SELECT 1 FROM inventory i WHERE i.id=? AND (EXISTS(SELECT 1 FROM inventory_projects ip WHERE ip.inventory_id=i.id AND ip.project_id=?) OR COALESCE(json_extract(i.data,'$.projectId'),1)=?)`).bind(assetId,project.id,project.id).first()):false;
+      allowed = Boolean(project && containsAsset && (project.share_protected === 0 || (code && code === project.share_code.toUpperCase())));
+    }
+    if (!allowed) return new Response("Image not found", { status: 404, headers: { "Cache-Control": "no-store" } });
+    const match = /^data:image\/(jpeg|png|webp);base64,([a-z0-9+/=\s]+)$/i.exec(photo.photo_data || "");
+    if (!match) return new Response("Image unavailable", { status: 422, headers: { "Cache-Control": "no-store" } });
+    let bytes: Uint8Array;
+    try { bytes = Uint8Array.from(atob(match[2]), character => character.charCodeAt(0)); }
+    catch { return new Response("Image unavailable", { status: 422, headers: { "Cache-Control": "no-store" } }); }
+    return new Response(bytes as BodyInit, { headers: { "Content-Type": `image/${match[1]}`, "Cache-Control": "private, max-age=3600", "Vary": "Cookie, Authorization", "X-Content-Type-Options": "nosniff" } });
+  }
   if (action === "shared-project") {
     const token = String(url.searchParams.get("token") ?? "");
     const code = String(url.searchParams.get("code") ?? "").trim().toUpperCase();
@@ -1072,6 +1100,14 @@ export async function GET(request: Request) {
       },
       inventory: rows.results.map((row) => {
         const item = JSON.parse(row.data);
+        for (const field of ["photoUrl", "photoOriginalUrl"]) {
+          if (typeof item[field] === "string" && item[field].includes("action=shared-lamppost-photo")) {
+            const imageUrl = new URL(item[field], request.url);
+            imageUrl.searchParams.set("token", project.share_token);
+            if (project.share_protected !== 0) imageUrl.searchParams.set("code", code);
+            item[field] = `${imageUrl.pathname}${imageUrl.search}`;
+          }
+        }
         return { ...item, inventoryDbId: row.inventory_id, projectId: project.id };
       }),
     });
@@ -1441,6 +1477,50 @@ export async function POST(request: Request) {
   const user = await currentUser(request);
   if (!user) return json({ error: "Unauthorized" }, 401);
   const db = auditedDatabase(env.DB,user);
+  if (action === "shared-lamppost-photo") {
+    if (!['admin','creator'].includes(user.role)) return json({error:'Forbidden'},403);
+    const projectId=Number(body.projectId),requestId=String(body.requestId||'');
+    const ids=Array.isArray(body.assetIds)?[...new Set(body.assetIds.map(Number))]:[];
+    const photo=String(body.photo||'');
+    if(!Number.isSafeInteger(projectId)||projectId<=0||!/^[-a-zA-Z0-9]{16,80}$/.test(requestId))return json({error:'Refresh the form and try again.'},400);
+    if(user.role!=='admin'&&!await env.DB.prepare('SELECT 1 FROM project_users WHERE project_id=? AND user_id=?').bind(projectId,user.id).first())return json({error:'You do not have access to this project.'},403);
+    if(ids.length<2||ids.length>200||ids.some(id=>!Number.isSafeInteger(id)||id<=0))return json({error:'Select between 2 and 200 lamp posts.'},400);
+    if(photo.length>4_000_000||!/^data:image\/(jpeg|png|webp);base64,[a-z0-9+/=\s]+$/i.test(photo))return json({error:'Upload a JPG, PNG or WebP image that is small enough to share.'},400);
+    try{atob(photo.slice(photo.indexOf(',')+1));}catch{return json({error:'The uploaded photo could not be read. Choose it again.'},400);}
+    const placeholders=ids.map(()=>'?').join(',');
+    const rows=await env.DB.prepare(`SELECT i.id,i.data FROM inventory i WHERE i.id IN (${placeholders}) AND (EXISTS(SELECT 1 FROM inventory_projects ip WHERE ip.inventory_id=i.id AND ip.project_id=?) OR COALESCE(json_extract(i.data,'$.projectId'),1)=?)`).bind(...ids,projectId,projectId).all<{id:number;data:string}>() as {results:Array<{id:number;data:string}>};
+    if(rows.results.length!==ids.length)return json({error:'Some selected poles are no longer in this project. Refresh inventory and try again.'},409);
+    const assets:Array<Record<string,any>>=rows.results.map((row:{id:number;data:string})=>({...JSON.parse(row.data),inventoryDbId:row.id}));
+    let road:{key:string;label:string};
+    try{road=validateSharedLampposts(assets);}catch(error:any){return json({error:error.message},error.status||400);}
+    const existing=await env.DB.prepare('SELECT id,project_id,photo_data,asset_ids FROM shared_lamppost_photos WHERE request_id=?').bind(requestId).first<{id:number;project_id:number;photo_data:string;asset_ids:string}>();
+    let photoId=0;
+    if(existing){
+      let priorIds:number[]=[];try{priorIds=JSON.parse(existing.asset_ids);}catch{}
+      if(existing.project_id!==projectId||existing.photo_data!==photo||JSON.stringify([...priorIds].sort((a,b)=>a-b))!==JSON.stringify([...ids].sort((a,b)=>a-b)))return json({error:'This upload request was already used for a different selection. Close and start again.'},409);
+      photoId=existing.id;
+    }else{
+      try{
+        const inserted=await env.DB.prepare('INSERT INTO shared_lamppost_photos(project_id,photo_data,asset_ids,request_id,created_by,created_at) VALUES(?,?,?,?,?,?)').bind(projectId,photo,JSON.stringify(ids),requestId,user.id,Date.now()).run();
+        photoId=Number(inserted.meta.last_row_id);
+      }catch{
+        const raced=await env.DB.prepare('SELECT id,project_id,photo_data,asset_ids FROM shared_lamppost_photos WHERE request_id=?').bind(requestId).first<{id:number;project_id:number;photo_data:string;asset_ids:string}>();
+        if(!raced)return json({error:'Photo could not be stored. Please retry.'},500);
+        let racedIds:number[]=[];try{racedIds=JSON.parse(raced.asset_ids);}catch{}
+        if(raced.project_id!==projectId||raced.photo_data!==photo||JSON.stringify([...racedIds].sort((a,b)=>a-b))!==JSON.stringify([...ids].sort((a,b)=>a-b)))return json({error:'This upload request was already used for a different selection. Close and start again.'},409);
+        photoId=raced.id;
+      }
+    }
+    const updatedAt=Date.now();
+    const writes=assets.map(asset=>{
+      const photoUrl=`/api/app?action=shared-lamppost-photo&id=${photoId}&assetId=${asset.inventoryDbId}`;
+      const next:Record<string,any>={...asset,photoUrl,photoSharedRoad:road.label,photoSharedAt:updatedAt,lastEditedBy:user.id,lastEditedAt:updatedAt};
+      delete next.photoOriginalUrl;
+      return db.prepare('UPDATE inventory SET data=? WHERE id=?').bind(JSON.stringify(next),asset.inventoryDbId);
+    });
+    await db.batch(writes);
+    return json({ok:true,updated:assets.length,assetIds:ids,road:road.label});
+  }
   if(action === "inventory-dictionaries"){
     try{return json(await mutateDictionary(env.DB,user,body));}
     catch(error:any){return json({error:error.message},error.status||400);}
