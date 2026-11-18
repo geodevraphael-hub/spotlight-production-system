@@ -7,6 +7,7 @@ import SearchSelect from './SearchSelect';
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import Operations from './Operations';
+import InventorySummaryReport from './InventorySummary';
 import Dashboard from './Dashboard';
 import RoadStretch from './RoadStretch';
 import PoleAssignment from './PoleAssignment';
@@ -864,7 +865,7 @@ export default function Home() {
   const [assetDraft, setAssetDraft] = useState<Partial<Billboard>>({});
   const [positionHint, setPositionHint] = useState<string | null>(null);
   const [addressQuery, setAddressQuery] = useState("");
-  const [activeTab, setActiveTab] = useState<"planner" | "dashboard" | "library" | "flighting" | "tracker" | "costs" | "field" | "operations" | "reports" | "settings">("planner");
+  const [activeTab, setActiveTab] = useState<"planner" | "dashboard" | "inventory-summary" | "library" | "flighting" | "tracker" | "costs" | "field" | "operations" | "reports" | "settings">("planner");
   const planningScope = activeTab === "planner" && mapPurpose === "planning" && Boolean(user && ["admin", "creator", "planner"].includes(user.role));
   const inventoryScope = activeTab === "planner" && mapPurpose === "inventory" && Boolean(user && ["admin","creator","viewer"].includes(user.role));
   const centralScope=inventoryScope&&user?.role==="admin"&&currentProjectId===0;
@@ -878,6 +879,9 @@ export default function Home() {
   useEffect(()=>{if(!user)return;let alive=true;fetch("/api/app?action=inventory-dictionaries").then(async r=>r.ok?r.json():null).then(d=>{if(alive&&d)setDictionaries(d.dictionaries);}).catch(()=>{});return()=>{alive=false;};},[user?.id]);
   const [excludeFabricated,setExcludeFabricated]=useState(false);
   const [projectToDelete,setProjectToDelete]=useState<{id:number;name:string}|null>(null);
+  const [summaryAssetIds,setSummaryAssetIds]=useState<number[]|null>(null);
+  const [summaryFilterLabel,setSummaryFilterLabel]=useState("");
+  const summaryAssetSet=useMemo(()=>summaryAssetIds===null?null:new Set(summaryAssetIds),[summaryAssetIds]);
   const [inventoryVendor,setInventoryVendor]=useState("");
   const [inventoryPriority,setInventoryPriority]=useState("");
   const [enrichmentPending,setEnrichmentPending]=useState(0);
@@ -1038,6 +1042,7 @@ export default function Home() {
   }, [planningScope]);
 
   useEffect(()=>{
+    setSummaryAssetIds(null);setSummaryFilterLabel("");
     setInventoryGeo(emptyGeoFilters());setInventoryVendor("");setInventoryPriority("");
     setInventoryFocusedId(null);
     setBulkEditBoards(null);
@@ -1046,6 +1051,7 @@ export default function Home() {
       const filters=dashboardInventoryFilters.current;
       if(filters){
         setQuery(filters.query||"");setBoardTypeFilter(filters.type&&filters.type!=='other'?filters.type:"All types");
+        if(Array.isArray(filters.ids)){setSummaryAssetIds(filters.ids);setSummaryFilterLabel(filters.label||"Summary selection");}
         setMapFlightFilter(filters.flight||"All flight status");dashboardInventoryFilters.current=null;
       }
     }
@@ -1078,7 +1084,7 @@ export default function Home() {
   },[mapReady]);
 
   useEffect(() => {
-    if (!user || !projectsLoaded || currentProjectId === null || currentProjectId === undefined) return;
+    if (!user || activeTab==="inventory-summary" || !projectsLoaded || currentProjectId === null || currentProjectId === undefined) return;
     let cancelled = false;
     const controller = new AbortController();
     setProjectLoadError('');
@@ -1143,7 +1149,7 @@ export default function Home() {
       }
     }).catch(()=>{if(!cancelled)setProjectLoadError('Unable to load the map. Check your connection and try again.');}).finally(()=>{if(!cancelled)setLoading(false);});
     return () => { cancelled = true; controller.abort(); };
-  }, [user?.id,user?.role, currentProjectId, projectLoadRevision, projectsLoaded, projects]);
+  }, [user?.id,user?.role, currentProjectId, projectLoadRevision, projectsLoaded, projects,activeTab==="inventory-summary"]);
 
   const locationCoordinateKey=useMemo(()=>billboards.map(board=>`${board.inventoryDbId}:${board.lat}:${board.lng}`).join("|"),[billboards]);
   const needsLocationUpdates=inventoryScope&&billboards.some(board=>{
@@ -1236,10 +1242,10 @@ export default function Home() {
       const matchesLocation=!inventoryScope||matchesGeography(item,inventoryEvidence,inventoryGeo);
       const matchesVendor=!inventoryScope||!inventoryVendor||item.owner===inventoryVendor;
       const matchesPriority=!inventoryScope||!inventoryPriority||(inventoryPriority==='__missing__'?!assetPriority(item):assetPriority(item)===inventoryPriority);
-      return (!inventoryScope||!excludeFabricated||item.mediaType!=='fabricated-banner') && matchesSearch && matchesProject && matchesDistrict && matchesAvailability && matchesBoardType && matchesFaces && matchesFlightStatus && matchesLocation && matchesVendor && matchesPriority;
+      return (activeTab!=='planner'||!summaryAssetSet||summaryAssetSet.has(item.inventoryDbId??item.id)) && (!inventoryScope||!excludeFabricated||item.mediaType!=='fabricated-banner') && matchesSearch && matchesProject && matchesDistrict && matchesAvailability && matchesBoardType && matchesFaces && matchesFlightStatus && matchesLocation && matchesVendor && matchesPriority;
     });
     return {filtered:filterBoards(billboards),centralFilterBoards:centralScope?filterBoards(centralAllBoards):[]};
-  }, [excludeFabricated,centralAllBoards,billboards, query, user?.role, currentProjectId, planningScope,centralScope, allProjectsProjectFilter, district, availability, boardTypeFilter, facesFilter, mapFlightFilter,inventoryScope,inventoryEvidence,inventoryGeo,inventoryVendor,inventoryPriority]);
+  }, [activeTab,summaryAssetSet,excludeFabricated,centralAllBoards,billboards, query, user?.role, currentProjectId, planningScope,centralScope, allProjectsProjectFilter, district, availability, boardTypeFilter, facesFilter, mapFlightFilter,inventoryScope,inventoryEvidence,inventoryGeo,inventoryVendor,inventoryPriority]);
 
   const visibleAssets = useMemo(
     () =>
@@ -3133,6 +3139,7 @@ export default function Home() {
   }
 
   function resetFilters() {
+    setSummaryAssetIds(null);setSummaryFilterLabel("");
     setExcludeFabricated(false);
     setCentralProject("all");
     setInventoryGeo(emptyGeoFilters());setInventoryVendor("");setInventoryPriority("");setShowSelectedOnly(false);
@@ -3157,6 +3164,7 @@ export default function Home() {
   }
 
   const activeFilters = [
+    ...(summaryAssetIds!==null?[{label:`Summary: ${summaryFilterLabel}`,clear:()=>{setSummaryAssetIds(null);setSummaryFilterLabel("");}}]:[]),
     ...(query ? [{ label: `Search: ${query}`, clear: () => setQuery("") }] : []),
     ...(district !== "All areas" ? [{ label: district, clear: () => setDistrict("All areas") }] : []),
     ...(availability !== "All status" ? [{ label: statusLabel(availability), clear: () => setAvailability("All status") }] : []),
@@ -3325,6 +3333,7 @@ export default function Home() {
           onClick={() => {if(isAllProjectsMap&&projects[0])setCurrentProjectId(projects[0].id); setMapPurpose("inventory"); setPlanOpen(false); setSelected(null); setActiveTab("planner"); }}>
           <ClipboardList size={16} /> Inventory
         </button>}
+        {canView&&<button aria-current={activeTab==='inventory-summary'?'page':undefined} className={activeTab==='inventory-summary'?'tab-btn tab-btn--active':'tab-btn'} onClick={()=>{if(!currentProjectId&&projects[0])setCurrentProjectId(projects[0].id);setActiveTab('inventory-summary');}}><BarChart3 size={16}/>Inventory Summary</button>}
         {canSeeDashboard && <button aria-current={activeTab === "dashboard" ? "page" : undefined} className={activeTab === "dashboard" ? "tab-btn tab-btn--active" : "tab-btn"} onClick={() => {if(!currentProjectId&&projects[0])setCurrentProjectId(projects[0].id);setActiveTab("dashboard");}}><BarChart3 size={16} /> Dashboard</button>}
         {canView&&<button className={activeTab==='operations'?'tab-btn tab-btn--active':'tab-btn'} onClick={()=>setActiveTab('operations')} aria-current={activeTab==='operations'?'page':undefined}><ClipboardList size={16}/> Operations</button>}
         <button
@@ -3387,7 +3396,7 @@ export default function Home() {
         {centralScope&&<CentralProjects boards={centralFilterBoards} flightFilter={mapFlightFilter} projects={projects} value={centralProject} loading={loading}
           onChange={(value:string)=>{setCentralProject(value);setAllProjectsProjectFilter("All projects");setSelected(null);setInventoryFocusedId(null);setShowSelectedOnly(false);}}
           onOpen={(id:number)=>{setSelected(null);setCurrentProjectId(id);}}/>}
-        {inventoryScope&&<InventoryControls enrichmentPending={enrichmentPending} excludeFabricated={excludeFabricated} onExcludeFabricated={()=>setExcludeFabricated(value=>!value)} dictionaries={dictionaries} central={centralScope} boards={centralScope?centralAllBoards:billboards} rows={filtered} evidence={inventoryEvidence} geo={inventoryGeo} onGeo={setInventoryGeo}
+        {inventoryScope&&<InventoryControls summaryFilter={summaryFilterLabel} onClearSummary={()=>{setSummaryAssetIds(null);setSummaryFilterLabel("");}} enrichmentPending={enrichmentPending} excludeFabricated={excludeFabricated} onExcludeFabricated={()=>setExcludeFabricated(value=>!value)} dictionaries={dictionaries} central={centralScope} boards={centralScope?centralAllBoards:billboards} rows={filtered} evidence={inventoryEvidence} geo={inventoryGeo} onGeo={setInventoryGeo}
           geoLoading={inventoryGeoLoading} geoError={inventoryGeoError} loading={loading} error={projectLoadError}
           type={boardTypeFilter} onType={setBoardTypeFilter} status={availability} onStatus={setAvailability}
           flight={mapFlightFilter} onFlight={setMapFlightFilter} vendor={inventoryVendor} onVendor={setInventoryVendor}
@@ -4860,6 +4869,10 @@ export default function Home() {
         </div>
       )}
 
+      {activeTab==='inventory-summary'&&canView&&<InventorySummaryReport projectId={currentProjectId} projects={projects} onProject={setCurrentProjectId} onOpenInventory={(ids:number[],label:string)=>{
+        resetFilters();dashboardInventoryFilters.current={ids,label};setSummaryAssetIds(ids);setSummaryFilterLabel(label);
+        setMapPurpose(user?.role==='planner'?'planning':'inventory');setPlanOpen(false);setInventoryView('split');setSelected(null);setActiveTab('planner');
+      }}/>}
       {activeTab === "dashboard" && canSeeDashboard && <Dashboard projectId={currentProjectId} projects={projects} onProject={setCurrentProjectId}
         onNavigate={(destination:string,filters:any={})=>{
           // Viewers can only reach the read-only inventory; other dashboard tiles are inert for them.

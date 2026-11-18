@@ -1,3 +1,4 @@
+import {projectInventorySummary} from '../../inventory-summary.mjs';
 import { env } from 'cloudflare:workers';
 import { currentUser } from '../app/route';
 import { auditedDatabase } from '../../activity-audit.mjs';
@@ -35,6 +36,10 @@ export async function GET(request: Request) {
   }
   // The project dashboard is read-only overview data: any user with access to the
   // project (including viewers) may read it.
+  if(section==='inventory-summary'){
+    if(!['admin','creator','planner','viewer'].includes(user.role)||!(await access(user,projectId)))return reply({error:'Select an accessible project'},403);
+    try{return Response.json(await projectInventorySummary(env.DB,projectId),{headers:{...cors,'Cache-Control':'no-store'}});}catch{return reply({error:'Inventory summary could not be loaded. Please retry.'},500);}
+  }
   if(section==='dashboard'){
     if(!(await access(user,projectId))) return reply({error:'Select an accessible project'},403);
     try{return new Response(JSON.stringify(await projectDashboard(env.DB,projectId)),{headers:{...cors,'Content-Type':'application/json','Cache-Control':'no-store'}});}

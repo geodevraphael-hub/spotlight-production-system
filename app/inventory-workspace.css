@@ -232,3 +232,5 @@ body:has(.inventory-workspace) {overflow:hidden;}
 .shared-lamppost-photo>footer {align-items:center;}
 .shared-lamppost-photo>footer>label {max-width:58%;align-items:flex-start;line-height:1.4;}
 @media(max-width:760px){.shared-lamppost-body{grid-template-columns:minmax(0,1fr);}.shared-lamppost-photo-pane{border-left:0;border-top:1px solid #dce5df;}.shared-lamppost-photo>footer>label{max-width:100%;}}
+
+.inventory-summary-filter{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:8px 0 0;padding:7px 10px;background:#eaf5ee;border:1px solid #d2e6d8;font-size:12px;color:#27613f;}.inventory-workspace .inventory-summary-filter button{min-height:24px;padding:2px 7px;font-size:11px;}

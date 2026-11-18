@@ -13,13 +13,13 @@ function exportRows(items:any[],evidence:any){
  const url=URL.createObjectURL(new Blob([inventoryCsv(items,evidence,(b:any)=>b.centralStates?.join(' / ')||markerState(b))],{type:'text/csv;charset=utf-8'}));
  const link=document.createElement('a');link.href=url;link.download='spotlight-inventory.csv';link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
 }
-export function InventoryControls({enrichmentPending=0,excludeFabricated=false,onExcludeFabricated,dictionaries=DEFAULT_DICTIONARIES,boards,rows,evidence,geo,onGeo,geoLoading,geoError,loading,error,
+export function InventoryControls({summaryFilter="",onClearSummary,enrichmentPending=0,excludeFabricated=false,onExcludeFabricated,dictionaries=DEFAULT_DICTIONARIES,boards,rows,evidence,geo,onGeo,geoLoading,geoError,loading,error,
  type,onType,status,onStatus,flight,onFlight,vendor,onVendor,priority='',onPriority,onRefresh,onReset,
  onAdd,onRoad,onImport,onTemplate,canManage,isAdmin,projectFilter,onProject,projectNames,view,onView,message,central=false}:any){
  const [expanded,setExpanded]=useState(false);
  const vendors=[...new Set(boards.map((b:any)=>b.owner).filter(Boolean))].sort() as string[];
  const ready=boards.filter((b:any)=>inventoryGeography(b,evidence).ready).length;
- const active=Number(excludeFabricated)+Object.values(geo).filter(Boolean).length+Number(type!=='All types')+Number(Boolean(vendor))+Number(Boolean(priority))+Number(status!=='All status')+Number(flight!=='All flight status')+Number(projectFilter!=='All projects');
+ const active=Number(Boolean(summaryFilter))+Number(excludeFabricated)+Object.values(geo).filter(Boolean).length+Number(type!=='All types')+Number(Boolean(vendor))+Number(Boolean(priority))+Number(status!=='All status')+Number(flight!=='All flight status')+Number(projectFilter!=='All projects');
  function areaSelect(key:string,title:string){return <label key={key}>{title}<SearchSelect aria-label={`Inventory ${title}`} disabled={geoLoading} value={geo[key]} onChange={e=>onGeo(changeGeography(geo,key,e.target.value))}><option value="">All {title.toLowerCase()}</option><option value="__missing__">Not available / stale</option>{geographyOptions(boards,evidence,geo,key).map((o:any)=><option key={o.value} value={o.value}>{o.label}</option>)}</SearchSelect></label>;}
  return <section className="inventory-controls" aria-label="Inventory controls">
   <header className="inventory-register-head">
@@ -36,6 +36,7 @@ export function InventoryControls({enrichmentPending=0,excludeFabricated=false,o
     {canManage&&isAdmin&&<label className="inventory-file-button"><FileUp size={15}/>Import<input aria-label="Import CSV or KML" type="file" accept=".csv,.kml" onChange={e=>{const file=e.target.files?.[0];if(file)onImport(file);e.target.value='';}}/></label>}
    </div>
   </header>
+  {summaryFilter&&<div className="inventory-summary-filter" role="status"><span>Inventory Summary · {summaryFilter}</span><button onClick={onClearSummary} aria-label="Clear Inventory Summary filter"><X size={13}/>Clear summary filter</button></div>}
   <div className="inventory-quick-filters">
    <label className="inventory-vendor">Vendor<SearchSelect aria-label="Inventory vendor filter" value={vendor} onChange={e=>onVendor(e.target.value)}><option value="">All vendors</option>{vendors.map(v=><option key={v} value={v}>{v}</option>)}</SearchSelect></label>
    {central?<><label>Board type<SearchSelect aria-label="Central board type" value={type} onChange={e=>onType(e.target.value)}><option>All types</option>{dictionaries.mediaType.map(([value,title]:any)=><option key={value} value={value}>{title}</option>)}</SearchSelect></label>

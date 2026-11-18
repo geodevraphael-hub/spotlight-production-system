@@ -93,7 +93,7 @@ const storeUrl=compile(storeSource.replace("'./performance-indexes.mjs'",JSON.st
 const store=await import(storeUrl);
 await store.setupOperations();
 await store.setupOperations();
-const apiSource=(await readFile(new URL('../app/api/operations/route.ts',import.meta.url),'utf8')).replace("import { env } from 'cloudflare:workers';",'const env=globalThis.__testEnv;').replace("import { currentUser } from '../app/route';",'const currentUser=async()=>globalThis.__testUser;').replace("'../../operations-store'",JSON.stringify(storeUrl)).replace("'../../operations-rules.mjs'",JSON.stringify(rulesUrl));
+const apiSource=(await readFile(new URL('../app/api/operations/route.ts',import.meta.url),'utf8')).replace("import { env } from 'cloudflare:workers';",'const env=globalThis.__testEnv;').replace("import { currentUser } from '../app/route';",'const currentUser=async()=>globalThis.__testUser;').replace("'../../inventory-summary.mjs'",JSON.stringify(new URL('../app/inventory-summary.mjs',import.meta.url).href)).replace("'../../operations-store'",JSON.stringify(storeUrl)).replace("'../../operations-rules.mjs'",JSON.stringify(rulesUrl));
 const api=await import(compile(apiSource.replace("'../../activity-audit.mjs'",JSON.stringify(auditUrl)).replace("'../../history-report.mjs'",JSON.stringify(new URL('../app/history-report.mjs',import.meta.url).href)).replace("'../../dashboard-data.mjs'",JSON.stringify(new URL('../app/dashboard-data.mjs',import.meta.url).href))));
 database.exec(`INSERT INTO projects(id,name,project_type,share_token,created_by,created_at) VALUES(1,'First','OOH','first',1,1),(2,'Second','OOH','second',2,1);INSERT INTO users(id,name,email,password_hash,role,created_at) VALUES(1,'Admin','admin@test','test','admin',1),(2,'Creator','creator@test','test','creator',1),(3,'Field','field@test','test','field_user',1);INSERT INTO project_users VALUES(1,1),(2,2);INSERT INTO inventory(id,source_id,data,latitude,longitude,created_at) VALUES(1,100,'{"id":100,"street":"Airport","faces":2,"projectId":1,"lat":-6.16,"lng":39.2}',-6.16,39.2,1);INSERT INTO inventory_projects VALUES(1,1,1,1),(1,2,1,1);`);
 const post=body=>api.POST(new Request('http://local/api/operations',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}));
@@ -477,4 +477,19 @@ test('authenticated main API writes record the editor for inventory, flight and 
   assert.ok(entries.every(row=>row.actor_id!==999));
   assert.equal(database.prepare('SELECT count(*) n FROM activity_write_context').get().n,0);
   globalThis.__testUser={id:1,role:'admin',name:'Admin'};
+});
+
+
+test('Inventory Summary is project-scoped, read-only and available to authorized viewers',async()=>{
+ const previous=globalThis.__testUser;
+ const count=database.prepare('SELECT count(*) count FROM inventory').get().count;
+ const activity=database.prepare('SELECT count(*) count FROM asset_activity').get().count;
+ const get=projectId=>api.GET(new Request('http://local/api/operations?section=inventory-summary&projectId='+projectId));
+ try{
+  globalThis.__testUser={id:1,role:'admin'};const response=await get(2);assert.equal(response.status,200);assert.equal(response.headers.get('cache-control'),'no-store');const summary=await response.json();assert.equal(summary.projectId,2);assert.ok(Array.isArray(summary.assets));
+  globalThis.__testUser={id:2,role:'viewer'};assert.equal((await get(2)).status,200);assert.equal((await get(80)).status,403);
+  globalThis.__testUser={id:2,role:'field_user'};assert.equal((await get(2)).status,403);
+  globalThis.__testUser=null;assert.equal((await get(2)).status,401);
+  assert.equal(database.prepare('SELECT count(*) count FROM inventory').get().count,count);assert.equal(database.prepare('SELECT count(*) count FROM asset_activity').get().count,activity);
+ }finally{globalThis.__testUser=previous;}
 });
