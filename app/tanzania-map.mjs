@@ -28,10 +28,8 @@ export async function addTanzaniaMapGuard(L, map, color = '#eef2f0') {
   const holes = rings.map(ring => ring.map(([lng,lat]) => [lat,lng]));
   const mask = L.polygon([worldRing, ...holes], {
     pane: paneName,
-    // A single SVG path handles the reverse polygon reliably; Canvas was
-    // failing during initialization on some production browsers with this
-    // world-sized outer ring and prevented the basemap from ever appearing.
-    renderer: L.svg({ pane: paneName, padding: 0 }),
+    // Use Leaflet's native renderer and viewport clipping. A custom renderer
+    // with a world-sized exterior can fail to initialize on some clients.
     stroke: false,
     fill: true,
     fillColor: color,
@@ -41,7 +39,6 @@ export async function addTanzaniaMapGuard(L, map, color = '#eef2f0') {
     // Let Leaflet simplify sub-pixel bends at the current zoom. The display-only
     // boundary is already generalized; retaining every source vertex is costly.
     smoothFactor: 1,
-    noClip: true,
   }).addTo(map);
 
   const bounds = L.latLngBounds(extent);

@@ -809,7 +809,7 @@ export default function Home() {
   const [users, setUsers] = useState<Array<{ id: number; name: string; email: string; role: string; createdAt?: number; projectIds?: number[] }>>([]);
   const [baseMap, setBaseMap] = useState("street");
   const [mapReady, setMapReady] = useState(false);
-  const [mapError, setMapError] = useState(false);
+  const [mapError, setMapError] = useState("");
   const [mapViewportRevision, setMapViewportRevision] = useState(0);
   const [planNote, setPlanNote] = useState("");
   const [decisionOpen,setDecisionOpen]=useState(false);
@@ -1404,7 +1404,7 @@ export default function Home() {
   useEffect(() => {
     if ((!user && !sharedProject) || !mapNode.current || mapRef.current) return;
     let cancelled = false;
-    setMapError(false);
+    setMapError("");
     import("leaflet").then(async (L) => {
       if (cancelled || !mapNode.current || mapRef.current) return;
       leafletRef.current = L;
@@ -1439,7 +1439,7 @@ export default function Home() {
         console.error("Tanzania-only map initialization failed", error);
         if (!cancelled) {
           setMapReady(false);
-          setMapError(true);
+          setMapError(error instanceof Error ? error.message.slice(0, 180) : String(error).slice(0, 180));
         }
         return;
       }
@@ -1452,7 +1452,7 @@ export default function Home() {
       console.error("Leaflet map startup failed", error);
       if (!cancelled) {
         setMapReady(false);
-        setMapError(true);
+        setMapError(error instanceof Error ? error.message.slice(0, 180) : String(error).slice(0, 180));
       }
     });
     return () => {
@@ -3636,7 +3636,7 @@ export default function Home() {
         <section className="map-area">
           <div ref={mapNode} className="map" />
           {!mapReady&&<div className="map-load-state" role="status">
-            {mapError?<><strong>Map could not be loaded</strong><span>Check your connection and reload the map.</span><button onClick={()=>window.location.reload()}>Retry map</button></>:<><span className="map-load-spinner" aria-hidden="true"/><span>Loading map…</span></>}
+            {mapError?<><strong>Map could not be loaded</strong><span>{mapError}</span><button onClick={()=>window.location.reload()}>Retry map</button></>:<><span className="map-load-spinner" aria-hidden="true"/><span>Loading map…</span></>}
           </div>}
           {centralScope&&!loading&&!visibleAssets.length&&<div className="central-map-empty" role="status"><strong>{showSelectedOnly?"No selected billboards in these results":"No billboards match this view"}</strong><span>Choose another project or clear the filters.</span><button onClick={resetFilters}>Show all billboards</button></div>}
           <div className="map-search-toolbar" aria-label="Map tools">
