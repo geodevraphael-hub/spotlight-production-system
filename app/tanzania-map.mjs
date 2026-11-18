@@ -10,7 +10,9 @@ export function insideTanzaniaBounds(latitude,longitude) {
 }
 
 export async function addTanzaniaMapGuard(L, map, color = '#eef2f0') {
-  boundaryRequest ||= fetch('/tanzania-boundary.json',{cache:'force-cache'}).then(response=>{
+  // Version the URL so a browser's previous force-cached boundary cannot hide
+  // the map after the generalized display geometry ships.
+  boundaryRequest ||= fetch('/tanzania-boundary.json?v=2',{cache:'force-cache'}).then(response=>{
     if(!response.ok)throw new Error(`Tanzania map boundary unavailable (${response.status})`);
     return response.json();
   }).then(data=>data.rings).catch(error=>{
