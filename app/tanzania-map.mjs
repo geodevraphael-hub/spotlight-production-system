@@ -28,7 +28,10 @@ export async function addTanzaniaMapGuard(L, map, color = '#eef2f0') {
   const holes = rings.map(ring => ring.map(([lng,lat]) => [lat,lng]));
   const mask = L.polygon([worldRing, ...holes], {
     pane: paneName,
-    renderer: L.canvas({ pane: paneName, padding: 0 }),
+    // A single SVG path handles the reverse polygon reliably; Canvas was
+    // failing during initialization on some production browsers with this
+    // world-sized outer ring and prevented the basemap from ever appearing.
+    renderer: L.svg({ pane: paneName, padding: 0 }),
     stroke: false,
     fill: true,
     fillColor: color,
