@@ -805,6 +805,7 @@ export default function Home() {
   const [users, setUsers] = useState<Array<{ id: number; name: string; email: string; role: string; createdAt?: number; projectIds?: number[] }>>([]);
   const [baseMap, setBaseMap] = useState("street");
   const [mapReady, setMapReady] = useState(false);
+  const [mapViewportRevision, setMapViewportRevision] = useState(0);
   const [planNote, setPlanNote] = useState("");
   const [decisionOpen,setDecisionOpen]=useState(false);
   const [decision,setDecision]=useState<DecisionSettings>(defaultDecision);
@@ -1388,6 +1389,9 @@ export default function Home() {
         markerZoomAnimation: true,
         zoomAnimationThreshold: 8,
       }).setView([-6.1455, 39.2269], 14);
+      // Reconcile marker DOM once after a pan/zoom settles, never during the
+      // intermediate animation frames.
+      map.on("moveend", () => setMapViewportRevision((revision) => revision + 1));
       const updateSymbolDetail=()=>map.getContainer().classList.toggle("map-symbol-overview",map.getZoom()<12);
       map.on("zoomend",updateSymbolDetail);
       updateSymbolDetail();
@@ -1774,14 +1778,19 @@ export default function Home() {
       markersRef.current.clear();
       return;
     }
-    const assetsById = new Map(visibleAssets.map((item) => [item.id, item]));
+    // Thousands of off-screen DOM markers make Leaflet pan/zoom and React
+    // selection updates expensive. Keep a generous viewport buffer so nearby
+    // markers are ready before they enter the screen; inventory remains whole.
+    const viewport = mapRef.current.getBounds().pad(0.55);
+    const renderedAssets = visibleAssets.filter((item) => viewport.contains([item.lat, item.lng]));
+    const assetsById = new Map(renderedAssets.map((item) => [item.id, item]));
     markersRef.current.forEach((marker, id) => {
       if (!assetsById.has(id)) {
         marker.remove();
         markersRef.current.delete(id);
       }
     });
-    visibleAssets.forEach((item) => {
+    renderedAssets.forEach((item) => {
       let marker = markersRef.current.get(item.id);
       if (!marker) {
         const { hitWidth, hitHeight } = markerSize(item);
@@ -1842,8 +1851,10 @@ export default function Home() {
           if(inventoryView==='map')setInventoryView('split');
         }else setSelected(item);
       });
-      marker.unbindPopup();
-      if (!planningScope&&!inventoryScope) marker.bindPopup(popupHtml(item), { closeButton: false, minWidth: 210, maxWidth: 250 });
+      // Do not tear down and recreate popup elements on unrelated map renders.
+      if (!planningScope && !inventoryScope && !marker.getPopup()) {
+        marker.bindPopup(popupHtml(item), { closeButton: false, minWidth: 210, maxWidth: 250 });
+      }
       const draggable = editingPosition && active;
       const markerAny = marker as any;
       if (markerAny.dragging) {
@@ -1861,7 +1872,7 @@ export default function Home() {
       marker.setZIndexOffset(active ? 2000 : planningScope && shortlist.includes(item.id) ? 1000 : 0);
       marker.getElement()?.setAttribute("aria-label", `${item.street}, ${mediaTypeLabel(item.mediaType)}, ${item.faces} faces, ${markerState(item)}${active?", selected":""}${planningScope && shortlist.includes(item.id) ? ", in this plan" : ""}`);
     });
-  }, [visibleAssets, selected?.id, mapReady, editingPosition, shortlist, planningScope,inventoryScope,inventoryFocusedId,inventoryView]);
+  }, [visibleAssets, selected?.id, mapReady, mapViewportRevision, editingPosition, shortlist, planningScope,inventoryScope,inventoryFocusedId,inventoryView]);
 
   useEffect(() => {
     if (!boxSelectMode || !mapRef.current || !mapReady) return;
