@@ -13,7 +13,7 @@ export function inventoryGeography(board,evidence,now=Date.now()){
   return {region:result.region,district:result.district,council:result.council,local:result.local,village:result.village,ready:Boolean(valid),partial:entry?.coverageStatus==='administrative-only',fetchedAt:entry?.fetchedAt??null};
 }
 // Region identity is shared across verified evidence and reverse-geocoded addresses.
-function regionOption(area){
+export function regionOption(area){
   const name=String(area?.name??'').normalize('NFKC').trim().replace(/\s+/g,' ').replace(/\s+region$/i,'').trim().toLowerCase();
   return {value:`region:${name}`,label:name.replace(/\b\p{L}/gu,c=>c.toUpperCase()).replace(/\bEs\b/g,'es')};
 }
