@@ -3,6 +3,7 @@ import {useEffect,useRef,useState} from 'react';
 import {createPortal} from 'react-dom';
 import {X,Undo2,MapPin,Check} from 'lucide-react';
 import {roadPreview} from './campaign-road.mjs';
+import {insideTanzaniaBounds,addTanzaniaMapGuard} from './tanzania-map.mjs';
 import './campaign-tools.css';
 export default function RoadStretch({projectId,projectName,center,onClose,onSaved}:any){
  const dialog=useRef<HTMLDialogElement>(null),node=useRef<HTMLDivElement>(null),map=useRef<any>(null),layers=useRef<any>(null),leaflet=useRef<any>(null);
@@ -12,8 +13,8 @@ export default function RoadStretch({projectId,projectName,center,onClose,onSave
  let preview:any=null,previewError='';try{if(anchors.length>=2)preview=roadPreview(anchors,count);}catch(e:any){previewError=e.message;}
  useEffect(()=>{const previous=document.activeElement as HTMLElement;dialog.current?.showModal();closeButton.current?.focus();return()=>{dialog.current?.close();previous?.focus();};},[]);
  useEffect(()=>{let disposed=false;const element=node.current;
-  import('leaflet').then(L=>{if(disposed||!element)return;leaflet.current=L;const m=L.map(element,{zoomControl:true,doubleClickZoom:false}).setView(center&&Number.isFinite(center.lat)?[center.lat,center.lng]:[-6.16,39.2],14);map.current=m;
-   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OpenStreetMap contributors',maxZoom:19}).addTo(m);layers.current=L.layerGroup().addTo(m);
+  import('leaflet').then(async L=>{if(disposed||!element)return;leaflet.current=L;const m=L.map(element,{zoomControl:true,doubleClickZoom:false}).setView(center&&insideTanzaniaBounds(center.lat,center.lng)?[center.lat,center.lng]:[-6.16,39.2],14);map.current=m;
+   const tiles=L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OpenStreetMap contributors',maxZoom:19}).addTo(m);tiles.setOpacity(0);try{await addTanzaniaMapGuard(L,m);}catch{setError('Tanzania boundary could not load. The map is hidden until it is available.');return;}if(disposed)return;tiles.setOpacity(1);layers.current=L.layerGroup().addTo(m);
    m.on('click',(e:any)=>{if(locked.current)return;setAnchors(a=>a.length<50?[...a,{lat:Number(e.latlng.lat.toFixed(7)),lng:Number(e.latlng.lng.toFixed(7))}]:a);});
    m.invalidateSize();setReady(true);
   }).catch(()=>setError('Map could not load. Reopen the mapper or enter coordinates manually.'));
@@ -24,7 +25,7 @@ export default function RoadStretch({projectId,projectName,center,onClose,onSave
   preview?.points.forEach((p:any,i:number)=>L.circleMarker([p.lat,p.lng],{radius:5,color:'#a77b35',fillColor:'#fff',fillOpacity:1,weight:2,dashArray:'3 2'}).bindTooltip(`Estimated pole ${i+1} · ${p.chainage} m`).addTo(group));
   anchors.forEach((p,i)=>L.circleMarker([p.lat,p.lng],{radius:7,color:'#087f63',fillColor:'#087f63',fillOpacity:1}).bindTooltip(`Road point ${i+1}`).addTo(group));
  },[anchors,count,ready]);
- function addCoordinate(){const a=Number(lat),b=Number(lng);if(!lat.trim()||!lng.trim()||!Number.isFinite(a)||!Number.isFinite(b)||Math.abs(a)>85||Math.abs(b)>180){setError('Enter valid latitude and longitude.');return;}setError('');setAnchors(v=>[...v,{lat:a,lng:b}]);setLat('');setLng('');map.current?.panTo([a,b]);}
+ function addCoordinate(){const a=Number(lat),b=Number(lng);if(!lat.trim()||!lng.trim()||!insideTanzaniaBounds(a,b)){setError('Enter GPS coordinates inside Tanzania.');return;}setError('');setAnchors(v=>[...v,{lat:a,lng:b}]);setLat('');setLng('');map.current?.panTo([a,b]);}
  async function save(){if(!preview||!confirmed||busy)return;locked.current=true;setBusy(true);setError('');try{const r=await fetch('/api/campaigns',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'save-road',requestId,projectId,name,vendor,area,anchors,count,faces,width:Number(width),height:Number(height),confirmed})});const d=await r.json();if(!r.ok)throw Error(d.error);onSaved(d);}catch(e:any){setError(e.message);}finally{locked.current=false;setBusy(false);}}
  return createPortal(<dialog ref={dialog} className="road-dialog" aria-labelledby="road-title" onCancel={e=>{e.preventDefault();if(!busy)onClose();}}>
   <header><div><h2 id="road-title">Map a lamp-post road stretch</h2><p>{projectName} · One inventory record per pole</p></div><button ref={closeButton} disabled={busy} aria-label="Close road mapper" onClick={onClose}><X size={22}/></button></header>

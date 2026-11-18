@@ -1,5 +1,8 @@
+import { insideTanzania } from './tanzania-boundary.mjs';
+export { inventoryFingerprint } from './inventory-fingerprint.mjs';
+
 export function validCoordinates(latitude, longitude) {
-  return latitude !== '' && longitude !== '' && latitude != null && longitude != null && Number.isFinite(Number(latitude)) && Number.isFinite(Number(longitude)) && Math.abs(Number(latitude)) <= 90 && Math.abs(Number(longitude)) <= 180;
+  return latitude !== '' && longitude !== '' && latitude != null && longitude != null && insideTanzania(Number(latitude), Number(longitude));
 }
 
 export function dayKey(value = Date.now()) {
@@ -19,8 +22,4 @@ export function money(value) {
 export function nextDeliveryStatus(current, incoming) {
   if (current === 'read' || (current === 'delivered' && incoming !== 'read')) return current;
   return incoming;
-}
-
-export function inventoryFingerprint(item) {
-  return [String(item.street || '').trim().toLowerCase(), Number(item.lat).toFixed(5), Number(item.lng).toFixed(5), item.mediaType || 'lamp-post'].join('|');
 }

@@ -1,3 +1,5 @@
+import { validCoordinates } from './operations-rules.mjs';
+
 const fail=(message,status=400)=>{throw Object.assign(new Error(message),{status});};
 export const estimatedPole=b=>b?.mediaType==='lamp-post'&&b.positionSource==='estimated-road-stretch'&&b.positionVerified!==true;
 const member="(COALESCE(json_extract(i.data,'$.projectId'),1)=? OR EXISTS(SELECT 1 FROM inventory_projects WHERE inventory_id=i.id AND project_id=?))";
@@ -17,6 +19,7 @@ export async function assignPoleGps(db,user,body){
   const row=await db.prepare(`SELECT i.id,i.data FROM inventory i WHERE i.id=? AND ${member}`).bind(id,projectId,projectId).first();
   if(!row||!estimatedPole(JSON.parse(row.data)))fail('A selected pole is no longer estimated or is not in this project. Refresh inventory.',409);
   const asset=JSON.parse(row.data);
+  if(!validCoordinates(asset.lat,asset.lng))fail('This pole is outside Tanzania or has no valid GPS and cannot be assigned.');
   const active=await db.prepare("SELECT assigned_to FROM validation_assignments WHERE asset_id=? AND status='assigned' AND json_extract(report,'$.purpose')='pole-gps'").bind(asset.id).all();
   if(active.results.some(a=>a.assigned_to!==userId))fail(`${asset.street} is already assigned to another field user.`,409);
   if(active.results.length){result.alreadyAssigned++;continue;}
@@ -33,7 +36,7 @@ export async function assignPoleGps(db,user,body){
 }
 export function verifiedCoordinates(body,assignedAt,now=Date.now()){
  const {latitude,longitude,accuracy,capturedAt,submittedAt}=body;
- if(body.confirmGps!==true||![latitude,longitude,accuracy,capturedAt,submittedAt].every(n=>typeof n==='number'&&Number.isFinite(n))||Math.abs(latitude)>90||Math.abs(longitude)>180||accuracy<=0||accuracy>10)fail('Capture GPS with accuracy of 10 m or better and confirm you are beside this pole.');
+ if(body.confirmGps!==true||![latitude,longitude,accuracy,capturedAt,submittedAt].every(n=>typeof n==='number'&&Number.isFinite(n))||!validCoordinates(latitude,longitude)||accuracy<=0||accuracy>10)fail('Capture a GPS fix inside Tanzania with accuracy of 10 m or better and confirm you are beside this pole.');
  // Fresh when submitted on the device; offline uploads may arrive later.
  if(capturedAt<assignedAt||submittedAt<capturedAt||submittedAt-capturedAt>120000||submittedAt>now+300000)fail('GPS fix is stale. Capture a new location beside the pole.');
  return {latitude,longitude,accuracy,capturedAt};

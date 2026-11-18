@@ -1109,7 +1109,7 @@ export async function GET(request: Request) {
           }
         }
         return { ...item, inventoryDbId: row.inventory_id, projectId: project.id };
-      }),
+      }).filter((item) => validCoordinates(item.lat,item.lng)),
     });
   }
   const user = await currentUser(request);
@@ -1153,7 +1153,7 @@ export async function GET(request: Request) {
         ? await env.DB.prepare("SELECT * FROM flight_schedules WHERE project_id IN (SELECT project_id FROM project_users WHERE user_id=?)").bind(user.id).all()
         : await env.DB.prepare("SELECT * FROM flight_schedules").all();
       return json({
-        inventory: await (async()=>{const bookings=await assetBookings(env.DB);return centralInventory(rows.results as any[],schedules.results as any[]).map(item=>({...item,...bookings.get(item.inventoryDbId)}));})(),
+        inventory: await (async()=>{const bookings=await assetBookings(env.DB);return centralInventory(rows.results as any[],schedules.results as any[]).filter(item=>validCoordinates(item.lat,item.lng)).map(item=>({...item,...bookings.get(item.inventoryDbId)}));})(),
       });
     }
     const allowed = user.role === "admin" || Boolean(await env.DB.prepare("SELECT 1 FROM project_users WHERE project_id=? AND user_id=?").bind(projectId, user.id).first());
@@ -1182,7 +1182,7 @@ export async function GET(request: Request) {
           flightStart: schedule.start_at ?? item.flightStart ?? "",
           flightDurationDays: schedule.duration_days ?? item.flightDurationDays ?? "",
         };
-      }),
+      }).filter((item: any) => validCoordinates(item.lat,item.lng)),
     });
   }
   if (action === "projects") {
@@ -1291,7 +1291,7 @@ export async function GET(request: Request) {
     const where = conditions.length ? ` WHERE ${conditions.join(" AND ")}` : "";
     const q = `SELECT fc.*,u.name AS collector,m.name AS mission_name,m.project_id AS mission_project_id FROM field_collections fc JOIN users u ON u.id=fc.user_id LEFT JOIN missions m ON m.id=fc.mission_id${where} ORDER BY fc.created_at DESC`;
     const rows = await env.DB.prepare(q).bind(...args).all();
-    return json({ collections: (rows.results as any[]).map((r) => ({ ...r, data: JSON.parse(r.data) })) });
+    return json({ collections: (rows.results as any[]).filter((r) => validCoordinates(r.latitude,r.longitude)).map((r) => ({ ...r, data: JSON.parse(r.data) })) });
   }
   if (action === "collection-photos") {
     const collectionId = Number(url.searchParams.get("collectionId")) || 0;
@@ -1312,7 +1312,7 @@ export async function GET(request: Request) {
           AND (i.id IS NULL OR ip.project_id IS NOT NULL OR COALESCE(json_extract(i.data,'$.projectId'),1)=va.project_id)
         ORDER BY CASE va.status WHEN 'assigned' THEN 0 WHEN 'in_progress' THEN 1 WHEN 'issue' THEN 2 WHEN 'ok' THEN 3 ELSE 4 END, va.updated_at DESC
       `).bind(user.id).all<any>();
-      return json({ assignments: (rows.results as any[]).map(({asset_data,report,...row}) => ({ ...row, report: JSON.parse(report || "{}"), asset: asset_data ? JSON.parse(asset_data) : null })) });
+      return json({ assignments: (rows.results as any[]).filter(row=>{try{const asset=JSON.parse(row.asset_data||'null');return asset&&validCoordinates(asset.lat,asset.lng);}catch{return false;}}).map(({asset_data,report,...row}) => ({ ...row, report: JSON.parse(report || "{}"), asset: asset_data ? JSON.parse(asset_data) : null })) });
     }
     if (user.role !== "admin" && user.role !== "creator") return json({ error: "Forbidden" }, 403);
     if (!projectId) return json({ assignments: [] });
@@ -1328,7 +1328,7 @@ export async function GET(request: Request) {
         AND (i.id IS NULL OR ip.project_id IS NOT NULL OR COALESCE(json_extract(i.data,'$.projectId'),1)=va.project_id)
       ORDER BY va.updated_at DESC
     `).bind(projectId).all<any>();
-    return json({ assignments: (rows.results as any[]).map(({asset_data,report,...row}) => ({ ...row, report: JSON.parse(report || "{}"), asset: asset_data ? JSON.parse(asset_data) : null })) });
+    return json({ assignments: (rows.results as any[]).filter(row=>{try{const asset=JSON.parse(row.asset_data||'null');return asset&&validCoordinates(asset.lat,asset.lng);}catch{return false;}}).map(({asset_data,report,...row}) => ({ ...row, report: JSON.parse(report || "{}"), asset: asset_data ? JSON.parse(asset_data) : null })) });
   }
   if (action === "photo") {
     const photoId = Number(url.searchParams.get("id")) || 0;
@@ -1413,8 +1413,10 @@ export async function GET(request: Request) {
     `).bind(projectId, projectId).all<{ inventory_id: number; data: string }>();
     const schedules = await env.DB.prepare("SELECT * FROM flight_schedules WHERE project_id=? ORDER BY updated_at DESC").bind(projectId).all<any>();
     const contacts = await env.DB.prepare("SELECT * FROM project_contacts WHERE project_id IN (0, ?) ORDER BY is_default DESC, name").bind(projectId).all<any>();
-    const items = inventory.results.map((row) => ({ ...JSON.parse(row.data), inventoryDbId: row.inventory_id, projectId }));
-    const scheduleMap = new Map((schedules.results as any[]).map((row) => [Number(row.asset_id), row]));
+    const items = inventory.results.map((row) => ({ ...JSON.parse(row.data), inventoryDbId: row.inventory_id, projectId })).filter((item) => validCoordinates(item.lat,item.lng));
+    const allowedAssetIds=new Set(items.map(item=>Number(item.id)));
+    const validSchedules=(schedules.results as any[]).filter(row=>allowedAssetIds.has(Number(row.asset_id)));
+    const scheduleMap = new Map(validSchedules.map((row) => [Number(row.asset_id), row]));
     const { execution, cost, execFormulas, costFormulas } = trackerRows(items, scheduleMap);
     const flightRows = [[
       "SN", "Billboard", "Location", "Vendor", "Stage", "Flight Status", "Start Date", "End Date", "Duration Days", "Remaining Days", "Reminder Days", "Note",
@@ -1437,8 +1439,8 @@ export async function GET(request: Request) {
       ["Digital Screen", items.filter((item) => item.mediaType === "digital-screen").length],
       ["Lamp Post", items.filter((item) => item.mediaType === "lamp-post").length],
       ["Fabricated Banner", items.filter((item) => item.mediaType === "fabricated-banner").length],
-      ["Flighted", schedules.results.filter((row: any) => row.flight_status === "flighted").length],
-      ["Due / Expired", schedules.results.filter((row: any) => row.flight_status === "flighted" && row.end_at && Number(row.end_at) <= Date.now()).length],
+      ["Flighted", validSchedules.filter((row: any) => row.flight_status === "flighted").length],
+      ["Due / Expired", validSchedules.filter((row: any) => row.flight_status === "flighted" && row.end_at && Number(row.end_at) <= Date.now()).length],
       ["Report sections", type === "comprehensive" ? "Summary, Execution Tracker, Cost Tracker, Flighting Schedule, Contacts" : type === "design" ? "Summary, Execution Tracker" : "Summary, Cost Tracker"],
       ["Status dropdowns", "Artwork delivery: RECEIVED, PENDING, NOT RECEIVED, CXD; Approval: APPROVED, RETURNED, CXD; Printing: COMPLETE, IN PROGRESS, PENDING, CXD, NOT STARTED, N/A"],
     ];
@@ -1613,8 +1615,8 @@ export async function POST(request: Request) {
       valid = items.filter((item) => validCoordinates(item.lat,item.lng))
         .map((item) => ({ ...validateRegisterFields(item,dictionaries.priority.map(([code]:any)=>code)), projectId,lastEditedBy:user.id,lastEditedAt:Date.now() }));
     } catch(error) { return json({error:error instanceof Error?error.message:'Invalid asset registration fields'},400); }
+    if(valid.length!==items.length) return json({error:'Every asset must have valid GPS inside Tanzania. No records were saved.'},400);
     if (body.importMode) {
-      if (valid.length!==items.length) return json({error:'Some rows have invalid GPS. Correct them in the review before importing.'},400);
       const stored = await db.prepare('SELECT i.data FROM inventory i JOIN inventory_projects ip ON ip.inventory_id=i.id WHERE ip.project_id=?').bind(projectId).all<{data:string}>();
       const fingerprints = new Set(stored.results.map((row:{data:string})=>inventoryFingerprint(JSON.parse(row.data))));
       for (const [index,item] of valid.entries()) {
@@ -1740,6 +1742,7 @@ export async function POST(request: Request) {
       const pole=await db.prepare("SELECT data FROM inventory i WHERE json_extract(data,'$.id')=? AND (COALESCE(json_extract(data,'$.projectId'),1)=? OR EXISTS(SELECT 1 FROM inventory_projects WHERE inventory_id=i.id AND project_id=?))").bind(assetId,projectId,projectId).first<{data:string}>();
       if(!pole)return json({error:'Billboard is not in this project'},400);
       const position=JSON.parse(pole.data);
+      if(!validCoordinates(position.lat,position.lng))return json({error:'Billboard GPS must be inside Tanzania before it can be assigned.'},400);
       if(position.positionSource==='estimated-road-stretch')return json({error:'Use Assign GPS verification for estimated poles.'},400);
       for (const assignedTo of validUserIds) {
         statements.push(
@@ -1777,6 +1780,7 @@ export async function POST(request: Request) {
       accuracy: Number(body.accuracy) || null,
       submittedAt: now,
     };
+    if ((body.latitude !== undefined && body.latitude !== null || body.longitude !== undefined && body.longitude !== null) && !validCoordinates(body.latitude,body.longitude)) return json({error:'Validation GPS must be inside Tanzania.'},400);
     if (!/^data:image\/(jpeg|png|webp);base64,/.test(report.photo)) return json({error:'A validation photo is required'},400);
     if (verdict === 'issue' && !report.issueType.trim()) return json({error:'Select an issue type'},400);
     const validationWrites = [db.prepare("UPDATE validation_assignments SET status=?,report=?,completed_at=?,updated_at=? WHERE id=?")
@@ -2233,7 +2237,7 @@ export async function POST(request: Request) {
     const latitude = Number(body.latitude);
     const longitude = Number(body.longitude);
     if (!missionId || !validCoordinates(body.latitude,body.longitude)) {
-      return json({ error: "Mission and valid GPS coordinates are required" }, 400);
+      return json({ error: "Mission and GPS coordinates inside Tanzania are required" }, 400);
     }
     const mission = await db.prepare("SELECT project_id,assigned_users,assigned_groups,status FROM missions WHERE id=?").bind(missionId).first<any>();
     if (!mission || mission.status !== "active") return json({ error: "Mission is unavailable" }, 404);

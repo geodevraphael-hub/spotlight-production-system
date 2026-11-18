@@ -12,6 +12,7 @@ import {historyWorkbook} from '../app/history-report.mjs';
 import {assignCentralInventory} from '../app/central-assignment.mjs';
 import {removeProjectInventory} from '../app/project-removal.mjs';
 import {groupLamppostsByRoad,validateSharedLampposts} from '../app/shared-lampposts.mjs';
+import {roadPreview} from '../app/campaign-road.mjs';
 
 test('shared lamp-post photos group same road in either direction and reject mixed roads or asset types',()=>{
   const first={mediaType:'lamp-post',from:'Airport',to:'Kariakoo',street:'Pole 01'};
@@ -94,12 +95,12 @@ await store.setupOperations();
 await store.setupOperations();
 const apiSource=(await readFile(new URL('../app/api/operations/route.ts',import.meta.url),'utf8')).replace("import { env } from 'cloudflare:workers';",'const env=globalThis.__testEnv;').replace("import { currentUser } from '../app/route';",'const currentUser=async()=>globalThis.__testUser;').replace("'../../operations-store'",JSON.stringify(storeUrl)).replace("'../../operations-rules.mjs'",JSON.stringify(rulesUrl));
 const api=await import(compile(apiSource.replace("'../../activity-audit.mjs'",JSON.stringify(auditUrl)).replace("'../../history-report.mjs'",JSON.stringify(new URL('../app/history-report.mjs',import.meta.url).href)).replace("'../../dashboard-data.mjs'",JSON.stringify(new URL('../app/dashboard-data.mjs',import.meta.url).href))));
-database.exec(`INSERT INTO projects(id,name,project_type,share_token,created_by,created_at) VALUES(1,'First','OOH','first',1,1),(2,'Second','OOH','second',2,1);INSERT INTO users(id,name,email,password_hash,role,created_at) VALUES(1,'Admin','admin@test','test','admin',1),(2,'Creator','creator@test','test','creator',1),(3,'Field','field@test','test','field_user',1);INSERT INTO project_users VALUES(1,1),(2,2);INSERT INTO inventory(id,source_id,data,latitude,longitude,created_at) VALUES(1,100,'{"id":100,"street":"Airport","faces":2,"projectId":1}',-6,39,1);INSERT INTO inventory_projects VALUES(1,1,1,1),(1,2,1,1);`);
+database.exec(`INSERT INTO projects(id,name,project_type,share_token,created_by,created_at) VALUES(1,'First','OOH','first',1,1),(2,'Second','OOH','second',2,1);INSERT INTO users(id,name,email,password_hash,role,created_at) VALUES(1,'Admin','admin@test','test','admin',1),(2,'Creator','creator@test','test','creator',1),(3,'Field','field@test','test','field_user',1);INSERT INTO project_users VALUES(1,1),(2,2);INSERT INTO inventory(id,source_id,data,latitude,longitude,created_at) VALUES(1,100,'{"id":100,"street":"Airport","faces":2,"projectId":1,"lat":-6.16,"lng":39.2}',-6.16,39.2,1);INSERT INTO inventory_projects VALUES(1,1,1,1),(1,2,1,1);`);
 const post=body=>api.POST(new Request('http://local/api/operations',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}));
 
 test('project membership audit preserves actor, billboard, project and timestamp after unlinking and renaming',async()=>{
  database.exec(`INSERT INTO projects(id,name,project_type,share_token,created_by,created_at) VALUES(80,'Audit target','OOH','audit-target',1,1);
- INSERT INTO inventory(id,source_id,data,latitude,longitude,created_at) VALUES(80,8080,'{"id":8080,"street":"Coastal junction","projectId":1}',-6,39,1);
+ INSERT INTO inventory(id,source_id,data,latitude,longitude,created_at) VALUES(80,8080,'{"id":8080,"street":"Coastal junction","projectId":1,"lat":-6.16,"lng":39.2}',-6.16,39.2,1);
  INSERT INTO inventory_projects VALUES(80,1,1,1);`);
  const user={id:1,role:'admin'},db=auditedDatabase(wrapper,user);
  const assignment={ids:[80],targetProjectId:80,confirmed:true,requestId:crypto.randomUUID()};
@@ -191,11 +192,13 @@ test('Excel history escapes text, keeps values as text and never invents legacy 
 });
 
 test('GPS ranges, zero coordinates, timezone day, money and delivery ordering',()=>{
-  assert.equal(validCoordinates(0,39),true);assert.equal(validCoordinates('',39),false);assert.equal(validCoordinates(91,39),false);assert.equal(validCoordinates(-6,181),false);
+  assert.equal(validCoordinates(-6.16,39.2),true);assert.equal(validCoordinates(-6.1659,39.2026),true);assert.equal(validCoordinates(-1.3,36.8),false);assert.equal(validCoordinates(0,39),false);assert.equal(validCoordinates('',39),false);assert.equal(validCoordinates(91,39),false);assert.equal(validCoordinates(-6,181),false);
   assert.equal(dayKey(Date.parse('2026-10-14T22:00:00Z')),'2026-10-15');assert.equal(money('12.34'),1234);assert.throws(()=>money(-1));
   assert.equal(nextDeliveryStatus('delivered','accepted'),'delivered');assert.equal(nextDeliveryStatus('read','failed'),'read');
   assert.equal(bookingOverlap('2026-10-01','2026-10-15','2026-10-15','2026-10-20'),true);
   assert.equal(inventoryFingerprint({street:' AIRPORT ',lat:-6,lng:39}),inventoryFingerprint({street:'airport',lat:'-6.00000',lng:39}));
+  assert.equal(validCoordinates(-1.3,36.8),false);
+  assert.equal(roadPreview([{lat:-6.16,lng:39.2},{lat:-6.161,lng:39.201}],2).points.length,2);
 });
 test('project authorization and viewer restrictions',async()=>{
   globalThis.__testUser={id:2,role:'creator'};
@@ -458,7 +461,9 @@ test('authenticated main API writes record the editor for inventory, flight and 
   const main=await import(compile(prefix+handler));
   const request=(action,body)=>main.POST(new Request('http://local/api/app?action='+action,{method:'POST',body:JSON.stringify(body)}));
   globalThis.__testUser={id:1,role:'admin',name:'Admin'};
-  assert.equal((await request('inventory',{projectId:1,items:[{id:700,street:'Audit fixture',lat:-6,lng:39,faces:1,lastEditedBy:999}]})).status,200);
+  assert.equal((await request('inventory',{projectId:1,items:[{id:700,street:'Audit fixture',lat:-6.16,lng:39.2,faces:1,lastEditedBy:999}]})).status,200);
+  assert.equal((await request('inventory',{projectId:1,items:[{id:701,street:'Outside Tanzania',lat:-1.3,lng:36.8,faces:1}]})).status,400);
+  assert.equal(database.prepare("SELECT count(*) n FROM inventory WHERE source_id=701").get().n,0);
   assert.equal((await request('flight-schedule',{projectId:1,assetId:700,stage:'design',flightStatus:'unflighted',durationDays:10,reminderDays:3,note:'Draft'})).status,200);
   assert.equal((await request('flight-schedule',{projectId:1,assetId:700,stage:'printing',flightStatus:'unflighted',durationDays:15,reminderDays:2,note:'Printing started'})).status,200);
   assert.equal((await request('assign-validations',{projectId:1,assetId:700,userId:3})).status,200);

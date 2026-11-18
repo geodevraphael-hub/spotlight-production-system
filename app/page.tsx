@@ -22,6 +22,7 @@ import { InventorySummary, PlanSelectionButton, PlanningMapLegend } from './Plan
 import InventoryTable,{InventoryControls} from './InventoryTable';
 import {CentralProjects,CentralMemberships,CentralMapContext} from './CentralMap';
 import {centralProjectView} from './central-map.mjs';
+import {insideTanzaniaBounds} from './tanzania-map.mjs';
 import CentralAssignment from './CentralAssignment';
 import ProjectRemoval from './ProjectRemoval';
 import './central-map.css';
@@ -1396,7 +1397,7 @@ export default function Home() {
   useEffect(() => {
     if ((!user && !sharedProject) || !mapNode.current || mapRef.current) return;
     let cancelled = false;
-    import("leaflet").then((L) => {
+    import("leaflet").then(async (L) => {
       if (cancelled || !mapNode.current || mapRef.current) return;
       leafletRef.current = L;
       const map = L.map(mapNode.current, {
@@ -1407,6 +1408,7 @@ export default function Home() {
         markerZoomAnimation: true,
         zoomAnimationThreshold: 8,
       }).setView([-6.1455, 39.2269], 14);
+      mapRef.current = map;
       // Reconcile marker DOM once after a pan/zoom settles, never during the
       // intermediate animation frames.
       map.on("moveend", () => setMapViewportRevision((revision) => revision + 1));
@@ -1417,12 +1419,22 @@ export default function Home() {
         maxZoom: 19,
         attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap contributors</a>',
       }).addTo(map);
+      tileRef.current.setOpacity(0);
       labelsRef.current = L.tileLayer(
         "https://services.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}",
         { maxZoom: 19, opacity: 0 },
       ).addTo(map);
+      labelsRef.current.setOpacity(0);
+      try {
+        await addTanzaniaMapGuard(L, map);
+      } catch {
+        if (!cancelled) setMapReady(false);
+        return;
+      }
+      if (cancelled) return;
+      tileRef.current.setOpacity(1);
+      labelsRef.current.setOpacity(baseMap === "satellite" ? 1 : 0);
       L.control.zoom({ position: "bottomright" }).addTo(map);
-      mapRef.current = map;
       setMapReady(true);
     });
     return () => {
@@ -1774,10 +1786,9 @@ export default function Home() {
       !Number.isFinite(newAsset.lng) ||
       String(draft.lat ?? "").trim() === "" ||
       String(draft.lng ?? "").trim() === "" ||
-      Math.abs(newAsset.lat) > 90 ||
-      Math.abs(newAsset.lng) > 180
+      !insideTanzaniaBounds(newAsset.lat,newAsset.lng)
     ) {
-      setImportMessage("Please provide valid latitude and longitude");
+      setImportMessage("Please provide latitude and longitude inside Tanzania.");
       return;
     }
     if (!await persistAsset(newAsset)) return;

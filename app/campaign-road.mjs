@@ -1,3 +1,4 @@
+import { insideTanzaniaBounds } from './tanzania-map.mjs';
 const DAY=86400000;
 export function calendarDate(value){
  const text=String(value??'');
@@ -23,7 +24,7 @@ function interpolate(a,b,f){
 }
 /** Equal chainage along a surveyed/marked polyline, never road snapping or verified pole GPS. */
 export function roadPreview(anchors,count){
- if(!Array.isArray(anchors)||anchors.length<2||anchors.length>50||anchors.some(p=>!p||!Number.isFinite(p.lat)||!Number.isFinite(p.lng)||Math.abs(p.lat)>85||Math.abs(p.lng)>180))throw new Error('Mark 2–50 valid road coordinates (latitude −85 to 85, longitude −180 to 180).');
+ if(!Array.isArray(anchors)||anchors.length<2||anchors.length>50||anchors.some(p=>!p||!insideTanzaniaBounds(p.lat,p.lng)))throw new Error('Mark 2–50 valid road coordinates inside Tanzania.');
  if(!Number.isInteger(count)||count<2||count>200)throw new Error('Enter a known pole count between 2 and 200, including the first and last poles.');
  const segments=anchors.slice(1).map((p,i)=>distance(anchors[i],p));
  const length=segments.reduce((a,b)=>a+b,0);
@@ -31,5 +32,6 @@ export function roadPreview(anchors,count){
  if(length/(count-1)<1)throw new Error('Pole spacing must be at least 1 m. Check the count or road points.');
  let segment=0,start=0;
  const points=Array.from({length:count},(_,i)=>{const chainage=length*i/(count-1);while(segment<segments.length-1&&chainage>start+segments[segment])start+=segments[segment++];return {...interpolate(anchors[segment],anchors[segment+1],Math.max(0,Math.min(1,(chainage-start)/segments[segment]))),chainage:Number(chainage.toFixed(1))};});
+ if(points.some(p=>!insideTanzaniaBounds(p.lat,p.lng)))throw new Error('The generated pole line leaves Tanzania. Adjust the road points to follow an in-country road stretch.');
  return {points,length,spacing:length/(count-1)};
 }

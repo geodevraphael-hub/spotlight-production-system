@@ -3,9 +3,10 @@ import {setupLocationQueue} from './location-queue.mjs';
 import { knownNumber } from './planning-decision.mjs';
 import { mayPlan, planningCoordinates } from './planning-store.mjs';
 import { demographicAreas } from './planning-demographics.mjs';
+import { validCoordinates } from './operations-rules.mjs';
 
 const PROVIDER='https://locationiq.co.tz';
-const validPoint=board=>board.lat!==''&&board.lng!==''&&board.lat!=null&&board.lng!=null&&Number.isFinite(Number(board.lat))&&Number.isFinite(Number(board.lng))&&Math.abs(Number(board.lat))<=90&&Math.abs(Number(board.lng))<=180;
+const validPoint=board=>validCoordinates(board.lat,board.lng);
 export function normalizeLocation(reverse,catchment,board,radius,now=Date.now()) {
   // This contract is from Location IQ Tanzania's published catchment example,
   // not the unrelated locationiq.com geocoder. Preserve unknowns and source notes.

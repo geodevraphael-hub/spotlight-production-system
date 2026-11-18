@@ -76,6 +76,7 @@ async function version(data){
 const membership=`(EXISTS(SELECT 1 FROM inventory_projects ip WHERE ip.inventory_id=i.id AND ip.project_id=?) OR COALESCE(json_extract(i.data,'$.projectId'),1)=?)`;
 const permission=`(?='admin' OR EXISTS(SELECT 1 FROM project_users pu WHERE pu.project_id=? AND pu.user_id=?))`;
 export async function bulkInventoryEdit(db,user,body,commit=false){
+  const {validCoordinates}=await import('./operations-rules.mjs');
   if(!['admin','creator'].includes(user?.role))fail('Only administrators and creators can bulk edit inventory.',403);
   const projectId=body.projectId,ids=body.ids;
   const central=projectId===0;
@@ -91,9 +92,11 @@ export async function bulkInventoryEdit(db,user,body,commit=false){
       FROM inventory i WHERE i.id=? AND (?=1 OR ${membership}) AND ${permission}`)
       .bind(id,central?1:0,projectId,projectId,user.role,projectId,user.id).first();
     if(!row)fail('Some selected billboards are missing or no longer editable in this project. Refresh inventory.',403);
+    const before=JSON.parse(row.data);
+    if(!validCoordinates(before.lat,before.lng))fail('A selected asset has no valid GPS inside Tanzania and cannot be edited here.');
     row.version=await version(row.data);
     if(commit&&body.versions?.[id]!==row.version)fail('A selected billboard changed after your review. Review the latest values before saving.',409);
-    const before=JSON.parse(row.data),after=applyBulkChanges(before,changes,dictionaries);
+    const after=applyBulkChanges(before,changes,dictionaries);
     const differences=Object.entries(after).filter(([key,value])=>JSON.stringify(before[key])!==JSON.stringify(value));
     rows.push({...row,before,after,differences});
   }

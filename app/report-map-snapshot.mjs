@@ -1,4 +1,5 @@
 import {reportGps} from './report-model.mjs';
+import {addTanzaniaMapGuard,maskCanvasOutsideTanzania} from './tanzania-map.mjs';
 
 const wait=ms=>new Promise(resolve=>setTimeout(resolve,ms));
 
@@ -16,7 +17,7 @@ async function settleTiles(layer,container){
  });
 }
 
-function snapshot(L,map,container,b){
+function snapshot(L,map,container,b,rings){
  const bounds=container.getBoundingClientRect(),scale=1.5,canvas=document.createElement('canvas');
  canvas.width=Math.round(bounds.width*scale);canvas.height=Math.round(bounds.height*scale);
  const ctx=canvas.getContext('2d');if(!ctx)throw new Error('Could not create a billboard map image.');
@@ -24,6 +25,7 @@ function snapshot(L,map,container,b){
  const tiles=[...container.querySelectorAll('img.leaflet-tile')].filter(tile=>{const r=tile.getBoundingClientRect();return r.right>bounds.left&&r.left<bounds.right&&r.bottom>bounds.top&&r.top<bounds.bottom;});
  if(!tiles.length||tiles.some(tile=>!tile.complete||!tile.naturalWidth))throw new Error(`Map tiles are incomplete for ${b.name}. Retry the report export.`);
  tiles.forEach(tile=>{const r=tile.getBoundingClientRect();ctx.drawImage(tile,r.left-bounds.left,r.top-bounds.top,r.width,r.height);});
+ maskCanvasOutsideTanzania(ctx,map,rings,bounds.width,bounds.height);
  const point=map.latLngToContainerPoint([Number(b.lat),Number(b.lng)]);
  ctx.beginPath();ctx.arc(point.x,point.y,10,0,Math.PI*2);ctx.fillStyle='#00866A';ctx.fill();ctx.lineWidth=3;ctx.strokeStyle='#fff';ctx.stroke();
  ctx.beginPath();ctx.arc(point.x,point.y,15,0,Math.PI*2);ctx.lineWidth=1.5;ctx.strokeStyle='#00866A';ctx.stroke();
@@ -36,15 +38,16 @@ function snapshot(L,map,container,b){
 export async function captureReportMaps(assets,onProgress=()=>{}){
  const points=assets.filter(reportGps),images={};if(!points.length)return images;
  const host=document.createElement('div');host.setAttribute('aria-hidden','true');host.style.cssText='position:fixed;left:-10000px;top:0;width:440px;height:190px;overflow:hidden;pointer-events:none;';document.body.appendChild(host);
- let map;
+ let map,rings;
  try{
   const imported=await import('leaflet'),L=imported.default||imported;
   map=L.map(host,{zoomControl:false,attributionControl:false,fadeAnimation:false,zoomAnimation:false,markerZoomAnimation:false});
+  const guard=await addTanzaniaMapGuard(L,map);rings=guard.rings;
   const tiles=L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{crossOrigin:'anonymous',maxZoom:19,updateWhenIdle:true});tiles.addTo(map);
   for(let i=0;i<points.length;i++){
    const b=points[i];onProgress(`Capturing individual map ${i+1} / ${points.length}: ${b.name}`);
    const ready=settleTiles(tiles,host);map.setView([Number(b.lat),Number(b.lng)],16,{animate:false});map.invalidateSize({pan:false,animate:false});
-   await ready;await wait(120);images[b.inventoryDbId]=snapshot(L,map,host,b);
+   await ready;await wait(120);images[b.inventoryDbId]=snapshot(L,map,host,b,rings);
   }
   return images;
  }finally{map?.remove();host.remove();}

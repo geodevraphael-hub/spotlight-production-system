@@ -1,4 +1,5 @@
 import { decisionSettings } from './planning-decision.mjs';
+import { validCoordinates } from './operations-rules.mjs';
 const plannerRoles = new Set(['admin', 'creator', 'planner']);
 export const mayPlan = user => plannerRoles.has(user?.role);
 const access = `(?='admin' OR EXISTS (SELECT 1 FROM project_users pu WHERE pu.project_id=p.id AND pu.user_id=?))`;
@@ -9,7 +10,7 @@ export async function planningCoordinates(db,user,detailId=null){
  const args=detailId===null?[user.role,user.id]:[detailId,user.role,user.id];
  return (await db.prepare(`SELECT i.id,json_extract(i.data,'$.lat') lat,json_extract(i.data,'$.lng') lng FROM inventory i
   WHERE ${detailId===null?'':'i.id=? AND '}EXISTS(SELECT 1 FROM projects p WHERE
-   (EXISTS(SELECT 1 FROM inventory_projects ip WHERE ip.inventory_id=i.id AND ip.project_id=p.id) OR p.id=COALESCE(json_extract(i.data,'$.projectId'),1)) AND ${access})`).bind(...args).all()).results;
+   (EXISTS(SELECT 1 FROM inventory_projects ip WHERE ip.inventory_id=i.id AND ip.project_id=p.id) OR p.id=COALESCE(json_extract(i.data,'$.projectId'),1)) AND ${access})`).bind(...args).all()).results.filter(row=>validCoordinates(row.lat,row.lng));
 }
 
 export async function planningWorkspace(db, user) {
@@ -21,8 +22,10 @@ export async function planningWorkspace(db, user) {
     WHERE ${access} ORDER BY i.id,p.name`).bind(user.role,user.id).all();
   const inventory = new Map();
   for (const row of rows.results) {
+    const candidate = JSON.parse(row.data);
+    if (!validCoordinates(candidate.lat,candidate.lng)) continue;
     if (!inventory.has(row.inventory_id)) {
-      const item = JSON.parse(row.data);
+      const item = candidate;
       inventory.set(row.inventory_id, {...item, id:row.inventory_id, inventoryDbId:row.inventory_id,
         originalAssetId:Number(item.id), projectId:row.project_id, projectNames:[], projectIds:[]});
     }

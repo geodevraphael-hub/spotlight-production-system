@@ -2,7 +2,7 @@ export const REPORT_PALETTES={navy:{name:'Navy & emerald',ink:'#10263D',accent:'
 export const REPORT_TYPES=['Large format','Digital screens','Lampposts','Fabricated banners','Other'];
 const clean=v=>String(v??'').trim();
 export function reportType(value){const s=clean(value).toLowerCase().replace(/[^a-z]/g,'');return /lamp|lightpost/.test(s)?'Lampposts':/digital|screen|led/.test(s)?'Digital screens':/fabricat|banner/.test(s)?'Fabricated banners':/large|billboard/.test(s)?'Large format':'Other';}
-export function reportGps(b){return b.lat!==null&&b.lng!==null&&b.lat!==''&&b.lng!==''&&Number.isFinite(Number(b.lat))&&Number.isFinite(Number(b.lng))&&Math.abs(Number(b.lat))<=90&&Math.abs(Number(b.lng))<=180&&!(Number(b.lat)===0&&Number(b.lng)===0);}
+export function reportGps(b){const lat=Number(b.lat),lng=Number(b.lng);return Number.isFinite(lat)&&Number.isFinite(lng)&&lat>=-12.35&&lat<=-0.65&&lng>=29.2&&lng<=40.85&&!(lat===0&&lng===0);}
 export function attr(b,...keys){const entries=Object.entries(b.sourceAttributes||{});for(const key of keys){const match=entries.find(([k])=>k.toLowerCase().replace(/[^a-z0-9]/g,'')===key.toLowerCase().replace(/[^a-z0-9]/g,''));if(clean(match?.[1]))return clean(match[1]);}return '';}
 export function reportAsset(b,schedule,booking={},projectId,now=Date.now()){
  const own=Number(b.projectId||1)===projectId,geo=b.locationAddress;

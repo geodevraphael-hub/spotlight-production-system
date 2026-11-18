@@ -1,7 +1,7 @@
 import { env } from 'cloudflare:workers';
 import { currentUser } from '../app/route';
 import { auditedDatabase } from '../../activity-audit.mjs';
-import { money } from '../../operations-rules.mjs';
+import { money,validCoordinates } from '../../operations-rules.mjs';
 import { historyFilter, historySource, historyWorkbook } from '../../history-report.mjs';
 import { projectDashboard } from '../../dashboard-data.mjs';
 
@@ -9,7 +9,10 @@ async function access(user: any, projectId: number) {
   return projectId > 0 && Boolean(await env.DB.prepare(`SELECT id FROM projects WHERE id=? AND (?='admin' OR created_by=? OR EXISTS(SELECT 1 FROM project_users WHERE project_id=projects.id AND user_id=?))`).bind(projectId,user.role,user.id,user.id).first());
 }
 async function asset(projectId: number, inventoryId: number) {
-  return env.DB.prepare(`SELECT i.id,i.data FROM inventory i JOIN inventory_projects ip ON ip.inventory_id=i.id WHERE ip.project_id=? AND i.id=?`).bind(projectId,inventoryId).first<any>();
+  const row=await env.DB.prepare(`SELECT i.id,i.data FROM inventory i JOIN inventory_projects ip ON ip.inventory_id=i.id WHERE ip.project_id=? AND i.id=?`).bind(projectId,inventoryId).first<any>();
+  if(!row)return null;
+  const item=JSON.parse(row.data);
+  return validCoordinates(item.lat,item.lng)?row:null;
 }
 const cors={'Access-Control-Allow-Origin':'http://localhost','Access-Control-Allow-Credentials':'true','Access-Control-Allow-Headers':'Content-Type, Authorization','Access-Control-Allow-Methods':'GET, POST, OPTIONS','Vary':'Origin'};
 const reply = (data: unknown, status = 200) => Response.json(data,{status,headers:cors});

@@ -1,6 +1,7 @@
 import {historySource} from './history-report.mjs';
 import {installationCount} from './asset-register.mjs';
 import {assetBookings} from './asset-booking.mjs';
+import {validCoordinates} from './operations-rules.mjs';
 const DAY=86400000;
 export const eatDay=ms=>new Date(ms+10800000).toISOString().slice(0,10);
 const dayNumber=ms=>Date.parse(eatDay(ms))/DAY;
@@ -44,7 +45,7 @@ export function dashboardInventory(inventory,schedules,projectId,now=Date.now())
 }
 export async function projectDashboard(db,projectId,now=Date.now()){
  const [inventory,schedules,validations,collections,messages,activity,trend,bookings]=await Promise.all([
-  db.prepare(`SELECT i.id inventoryDbId,json_extract(i.data,'$.id') id,json_extract(i.data,'$.street') street,
+  db.prepare(`SELECT i.id inventoryDbId,json_extract(i.data,'$.id') id,json_extract(i.data,'$.lat') lat,json_extract(i.data,'$.lng') lng,json_extract(i.data,'$.street') street,
    json_extract(i.data,'$.projectId') projectId,json_extract(i.data,'$.district') district,
    json_extract(i.data,'$.mediaType') mediaType,json_extract(i.data,'$.faces') faces,
    json_extract(i.data,'$.installations') installations,
@@ -66,7 +67,7 @@ export async function projectDashboard(db,projectId,now=Date.now()){
   assetBookings(db,now),
  ]);
  const trendMap=new Map(trend.results.map(r=>[r.day,r.value]));
- return {...dashboardInventory(inventory.results.map(b=>({...b,sourceAttributes:JSON.parse(b.sourceAttributes||'{}'),...bookings.get(b.inventoryDbId)})),schedules.results,projectId,now),projectId,generatedAt:now,
+ return {...dashboardInventory(inventory.results.filter(b=>validCoordinates(b.lat,b.lng)).map(b=>({...b,sourceAttributes:JSON.parse(b.sourceAttributes||'{}'),...bookings.get(b.inventoryDbId)})),schedules.results,projectId,now),projectId,generatedAt:now,
   validations:validations.results,collections:collections.results,messages:messages.results,activity:activity.results,
   trend:Array.from({length:14},(_,i)=>{const day=eatDay(now-(13-i)*DAY);return {day,value:trendMap.get(day)||0};})};
 }

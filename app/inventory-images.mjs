@@ -1,3 +1,5 @@
+import {validCoordinates} from './operations-rules.mjs';
+
 const photoFields=['photoUrl','photoOriginalUrl'];
 const raster=['jpeg','png','webp','gif','avif'];
 export function restoreInventoryImages(item,stored,inventoryId){
@@ -24,10 +26,10 @@ export async function inventoryImage(db,user,params){
  const id=Number(params.get('id')),uid=Number(params.get('uid')),kind=params.get('kind')||'photoUrl';
  const fail=(message,status)=>new Response(message,{status,headers:{'Cache-Control':'no-store'}});
  if(!Number.isSafeInteger(id)||id<=0||uid!==user.id||!photoFields.includes(kind))return fail('Image not found',404);
- const row=await db.prepare(`SELECT json_extract(i.data,?) photo FROM inventory i WHERE i.id=? AND
+ const row=await db.prepare(`SELECT json_extract(i.data,?) photo,i.data FROM inventory i WHERE i.id=? AND
   (?='admin' OR EXISTS(SELECT 1 FROM project_users pu WHERE pu.user_id=? AND
    (pu.project_id=COALESCE(json_extract(i.data,'$.projectId'),1) OR EXISTS(SELECT 1 FROM inventory_projects ip WHERE ip.inventory_id=i.id AND ip.project_id=pu.project_id))))`).bind(`$.${kind}`,id,user.role,user.id).first();
- if(!row)return fail('Image not found',404);
+ if(!row||!validCoordinates(JSON.parse(row.data).lat,JSON.parse(row.data).lng))return fail('Image not found',404);
  const match=/^data:(image\/(?:jpeg|png|webp|gif|avif));base64,([a-z0-9+/=\s]+)$/i.exec(row.photo||'');
  if(!match)return fail('Image not found',404);
  let bytes;try{bytes=Uint8Array.from(atob(match[2]),c=>c.charCodeAt(0));}catch{return fail('Image unavailable',422);}

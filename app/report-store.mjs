@@ -1,6 +1,7 @@
 import {campaignAccess,setupCampaignTools} from './campaign-store.mjs';
 import {assetBookings} from './asset-booking.mjs';
 import {reportAsset,reportSettings} from './report-model.mjs';
+import {validCoordinates} from './operations-rules.mjs';
 const fail=(message,status=400)=>{throw Object.assign(new Error(message),{status});};
 export async function setupReports(db){await setupCampaignTools(db);await db.batch([
  db.prepare('CREATE TABLE IF NOT EXISTS report_settings(project_id INTEGER NOT NULL,scope TEXT NOT NULL,settings TEXT NOT NULL,version INTEGER NOT NULL,updated_by INTEGER NOT NULL,updated_at INTEGER NOT NULL,PRIMARY KEY(project_id,scope))'),
@@ -11,7 +12,7 @@ async function scopeData(db,projectId,scope=''){
  const campaign=scope?await db.prepare('SELECT * FROM project_campaigns WHERE project_id=? AND id=?').bind(projectId,scope).first():null;if(scope&&!campaign)fail('Campaign no longer exists.',404);
  const ids=campaign?new Set(JSON.parse(campaign.asset_ids)):null;
  const records=await db.prepare("SELECT id,data FROM inventory i WHERE COALESCE(json_extract(data,'$.projectId'),1)=? OR EXISTS(SELECT 1 FROM inventory_projects WHERE inventory_id=i.id AND project_id=?) ORDER BY i.id").bind(projectId,projectId).all();
- return {project,campaign,assets:records.results.filter(r=>!ids||ids.has(r.id)).map(r=>({...JSON.parse(r.data),inventoryDbId:r.id}))};
+ return {project,campaign,assets:records.results.filter(r=>!ids||ids.has(r.id)).map(r=>({...JSON.parse(r.data),inventoryDbId:r.id})).filter(asset=>validCoordinates(asset.lat,asset.lng))};
 }
 export async function reportWorkspace(db,user,projectId,scope=''){
  await campaignAccess(db,user,projectId);const {project,campaign,assets}=await scopeData(db,projectId,scope);
