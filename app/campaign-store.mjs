@@ -66,7 +66,7 @@ export async function saveRoad(db,user,body){
  if(!name||name.length>160||vendor.length>160||area.length>160)fail('Enter a road name; names must be up to 160 characters.');
  if(body.confirmed!==true)fail('Confirm the estimated pole positions before saving.');
  const preview=roadPreview(body.anchors,body.count),faces=Number(body.faces),width=Number(body.width),height=Number(body.height);
- if(body.anchors.some(point=>!validCoordinates(point.lat,point.lng))||preview.points.some(point=>!validCoordinates(point.lat,point.lng)))fail('Road anchors and every generated lamp-post location must remain inside Tanzania.');
+ if(body.anchors.some(point=>!validCoordinates(point.lat,point.lng))||preview.points.some(point=>!validCoordinates(point.lat,point.lng)))fail('Road anchors and generated lamp-post locations must have valid latitude/longitude coordinates.');
  if(!Number.isInteger(faces)||faces<1||faces>8||![width,height].every(n=>Number.isFinite(n)&&n>=0&&n<=100))fail('Enter 1–8 faces per pole and dimensions between 0 and 100 m. Use 0 if unknown.');
  const payload=JSON.stringify({projectId,name,vendor,area,anchors:body.anchors,count:body.count,faces,width,height});
  const prior=async()=>{const row=await db.prepare('SELECT * FROM road_mapping_requests WHERE id=?').bind(id).first();if(!row)return null;if(row.user_id!==user.id||row.payload!==payload)fail('This request was already used. Reopen the mapper.',409);return JSON.parse(row.result);};

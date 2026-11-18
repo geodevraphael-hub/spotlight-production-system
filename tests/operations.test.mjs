@@ -192,13 +192,13 @@ test('Excel history escapes text, keeps values as text and never invents legacy 
 });
 
 test('GPS ranges, zero coordinates, timezone day, money and delivery ordering',()=>{
-  assert.equal(validCoordinates(-6.16,39.2),true);assert.equal(validCoordinates(-6.1659,39.2026),true);assert.equal(validCoordinates(-1.3,36.8),false);assert.equal(validCoordinates(0,39),false);assert.equal(validCoordinates('',39),false);assert.equal(validCoordinates(91,39),false);assert.equal(validCoordinates(-6,181),false);
+  assert.equal(validCoordinates(-6.16,39.2),true);assert.equal(validCoordinates(-6.1659,39.2026),true);assert.equal(validCoordinates(-1.3,36.8),true);assert.equal(validCoordinates(0,39),true);assert.equal(validCoordinates(-20,-75),true);assert.equal(validCoordinates('',39),false);assert.equal(validCoordinates(91,39),false);assert.equal(validCoordinates(-6,181),false);
   assert.equal(dayKey(Date.parse('2026-10-14T22:00:00Z')),'2026-10-15');assert.equal(money('12.34'),1234);assert.throws(()=>money(-1));
   assert.equal(nextDeliveryStatus('delivered','accepted'),'delivered');assert.equal(nextDeliveryStatus('read','failed'),'read');
   assert.equal(bookingOverlap('2026-10-01','2026-10-15','2026-10-15','2026-10-20'),true);
   assert.equal(inventoryFingerprint({street:' AIRPORT ',lat:-6,lng:39}),inventoryFingerprint({street:'airport',lat:'-6.00000',lng:39}));
-  assert.equal(validCoordinates(-1.3,36.8),false);
   assert.equal(roadPreview([{lat:-6.16,lng:39.2},{lat:-6.161,lng:39.201}],2).points.length,2);
+  assert.equal(roadPreview([{lat:-1.3,lng:36.8},{lat:-1.301,lng:36.801}],2).points.length,2);
 });
 test('project authorization and viewer restrictions',async()=>{
   globalThis.__testUser={id:2,role:'creator'};
@@ -462,8 +462,8 @@ test('authenticated main API writes record the editor for inventory, flight and 
   const request=(action,body)=>main.POST(new Request('http://local/api/app?action='+action,{method:'POST',body:JSON.stringify(body)}));
   globalThis.__testUser={id:1,role:'admin',name:'Admin'};
   assert.equal((await request('inventory',{projectId:1,items:[{id:700,street:'Audit fixture',lat:-6.16,lng:39.2,faces:1,lastEditedBy:999}]})).status,200);
-  assert.equal((await request('inventory',{projectId:1,items:[{id:701,street:'Outside Tanzania',lat:-1.3,lng:36.8,faces:1}]})).status,400);
-  assert.equal(database.prepare("SELECT count(*) n FROM inventory WHERE source_id=701").get().n,0);
+  assert.equal((await request('inventory',{projectId:1,items:[{id:701,street:'Global asset',lat:-1.3,lng:36.8,faces:1}]})).status,200);
+  assert.equal(database.prepare("SELECT count(*) n FROM inventory WHERE source_id=701").get().n,1);
   assert.equal((await request('flight-schedule',{projectId:1,assetId:700,stage:'design',flightStatus:'unflighted',durationDays:10,reminderDays:3,note:'Draft'})).status,200);
   assert.equal((await request('flight-schedule',{projectId:1,assetId:700,stage:'printing',flightStatus:'unflighted',durationDays:15,reminderDays:2,note:'Printing started'})).status,200);
   assert.equal((await request('assign-validations',{projectId:1,assetId:700,userId:3})).status,200);

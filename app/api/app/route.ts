@@ -1615,7 +1615,7 @@ export async function POST(request: Request) {
       valid = items.filter((item) => validCoordinates(item.lat,item.lng))
         .map((item) => ({ ...validateRegisterFields(item,dictionaries.priority.map(([code]:any)=>code)), projectId,lastEditedBy:user.id,lastEditedAt:Date.now() }));
     } catch(error) { return json({error:error instanceof Error?error.message:'Invalid asset registration fields'},400); }
-    if(valid.length!==items.length) return json({error:'Every asset must have valid GPS inside Tanzania. No records were saved.'},400);
+    if(valid.length!==items.length) return json({error:'Every asset must have valid latitude and longitude coordinates. No records were saved.'},400);
     if (body.importMode) {
       const stored = await db.prepare('SELECT i.data FROM inventory i JOIN inventory_projects ip ON ip.inventory_id=i.id WHERE ip.project_id=?').bind(projectId).all<{data:string}>();
       const fingerprints = new Set(stored.results.map((row:{data:string})=>inventoryFingerprint(JSON.parse(row.data))));
@@ -1742,7 +1742,7 @@ export async function POST(request: Request) {
       const pole=await db.prepare("SELECT data FROM inventory i WHERE json_extract(data,'$.id')=? AND (COALESCE(json_extract(data,'$.projectId'),1)=? OR EXISTS(SELECT 1 FROM inventory_projects WHERE inventory_id=i.id AND project_id=?))").bind(assetId,projectId,projectId).first<{data:string}>();
       if(!pole)return json({error:'Billboard is not in this project'},400);
       const position=JSON.parse(pole.data);
-      if(!validCoordinates(position.lat,position.lng))return json({error:'Billboard GPS must be inside Tanzania before it can be assigned.'},400);
+      if(!validCoordinates(position.lat,position.lng))return json({error:'Billboard must have valid latitude and longitude coordinates before it can be assigned.'},400);
       if(position.positionSource==='estimated-road-stretch')return json({error:'Use Assign GPS verification for estimated poles.'},400);
       for (const assignedTo of validUserIds) {
         statements.push(
@@ -1780,7 +1780,7 @@ export async function POST(request: Request) {
       accuracy: Number(body.accuracy) || null,
       submittedAt: now,
     };
-    if ((body.latitude !== undefined && body.latitude !== null || body.longitude !== undefined && body.longitude !== null) && !validCoordinates(body.latitude,body.longitude)) return json({error:'Validation GPS must be inside Tanzania.'},400);
+    if ((body.latitude !== undefined && body.latitude !== null || body.longitude !== undefined && body.longitude !== null) && !validCoordinates(body.latitude,body.longitude)) return json({error:'Validation GPS coordinates are invalid.'},400);
     if (!/^data:image\/(jpeg|png|webp);base64,/.test(report.photo)) return json({error:'A validation photo is required'},400);
     if (verdict === 'issue' && !report.issueType.trim()) return json({error:'Select an issue type'},400);
     const validationWrites = [db.prepare("UPDATE validation_assignments SET status=?,report=?,completed_at=?,updated_at=? WHERE id=?")
@@ -2237,7 +2237,7 @@ export async function POST(request: Request) {
     const latitude = Number(body.latitude);
     const longitude = Number(body.longitude);
     if (!missionId || !validCoordinates(body.latitude,body.longitude)) {
-      return json({ error: "Mission and GPS coordinates inside Tanzania are required" }, 400);
+      return json({ error: "Mission and valid GPS coordinates are required" }, 400);
     }
     const mission = await db.prepare("SELECT project_id,assigned_users,assigned_groups,status FROM missions WHERE id=?").bind(missionId).first<any>();
     if (!mission || mission.status !== "active") return json({ error: "Mission is unavailable" }, 404);

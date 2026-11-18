@@ -23,7 +23,7 @@ import { InventorySummary, PlanSelectionButton, PlanningMapLegend } from './Plan
 import InventoryTable,{InventoryControls} from './InventoryTable';
 import {CentralProjects,CentralMemberships,CentralMapContext} from './CentralMap';
 import {centralProjectView} from './central-map.mjs';
-import {insideTanzaniaBounds,addTanzaniaMapGuard} from './tanzania-map.mjs';
+import {validGpsCoordinates} from './tanzania-map.mjs';
 import CentralAssignment from './CentralAssignment';
 import ProjectRemoval from './ProjectRemoval';
 import './central-map.css';
@@ -1427,24 +1427,12 @@ export default function Home() {
         maxZoom: 19,
         attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap contributors</a>',
       }).addTo(map);
-      tileRef.current.setOpacity(0);
       labelsRef.current = L.tileLayer(
         "https://services.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}",
         { maxZoom: 19, opacity: 0 },
       ).addTo(map);
       labelsRef.current.setOpacity(0);
-      try {
-        await addTanzaniaMapGuard(L, map);
-      } catch (error) {
-        console.error("Tanzania-only map initialization failed", error);
-        if (!cancelled) {
-          setMapReady(false);
-          setMapError(error instanceof Error ? error.message.slice(0, 180) : String(error).slice(0, 180));
-        }
-        return;
-      }
       if (cancelled) return;
-      tileRef.current.setOpacity(1);
       labelsRef.current.setOpacity(baseMap === "satellite" ? 1 : 0);
       L.control.zoom({ position: "bottomright" }).addTo(map);
       setMapReady(true);
@@ -1804,9 +1792,9 @@ export default function Home() {
       !Number.isFinite(newAsset.lng) ||
       String(draft.lat ?? "").trim() === "" ||
       String(draft.lng ?? "").trim() === "" ||
-      !insideTanzaniaBounds(newAsset.lat,newAsset.lng)
+      !validGpsCoordinates(newAsset.lat,newAsset.lng)
     ) {
-      setImportMessage("Please provide latitude and longitude inside Tanzania.");
+      setImportMessage("Please provide valid latitude and longitude values.");
       return;
     }
     if (!await persistAsset(newAsset)) return;

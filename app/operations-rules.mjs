@@ -1,8 +1,9 @@
-import { insideTanzania } from './tanzania-boundary.mjs';
 export { inventoryFingerprint } from './inventory-fingerprint.mjs';
 
 export function validCoordinates(latitude, longitude) {
-  return latitude !== '' && longitude !== '' && latitude != null && longitude != null && insideTanzania(Number(latitude), Number(longitude));
+  if(latitude===''||longitude===''||latitude==null||longitude==null)return false;
+  const lat=Number(latitude),lng=Number(longitude);
+  return Number.isFinite(lat)&&Number.isFinite(lng)&&lat>=-90&&lat<=90&&lng>=-180&&lng<=180;
 }
 
 export function dayKey(value = Date.now()) {

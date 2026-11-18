@@ -3,7 +3,7 @@ import {DEFAULT_DICTIONARIES} from './inventory-dictionaries.mjs';
 import SearchSelect from './SearchSelect';
 import {useMemo,useState} from 'react';
 import {inventoryFingerprint} from './inventory-fingerprint.mjs';
-import {insideTanzaniaBounds} from './tanzania-map.mjs';
+import {validGpsCoordinates} from './tanzania-map.mjs';
 import {validateRegisterFields} from './asset-register.mjs';
 export default function ImportReview({dictionaries=DEFAULT_DICTIONARIES,items,existing,onCancel,onImport}:{dictionaries?:typeof DEFAULT_DICTIONARIES;items:any[];existing:any[];onCancel:()=>void;onImport:(items:any[])=>Promise<void>}) {
  const [rows,setRows]=useState(items.map(item=>({...item,include:true})));
@@ -12,7 +12,7 @@ export default function ImportReview({dictionaries=DEFAULT_DICTIONARIES,items,ex
   const seen=new Set(existing.map(inventoryFingerprint));
   return rows.map(row=>{
    if(!row.include)return 'Excluded';
-   if(!insideTanzaniaBounds(row.lat,row.lng))return 'GPS is missing or outside Tanzania';
+   if(!validGpsCoordinates(row.lat,row.lng))return 'Enter valid latitude and longitude values';
    if(!String(row.street||'').trim())return 'Name required';
    if(!['lamp-post','large-format','digital-screen','fabricated-banner'].includes(row.mediaType))return 'Choose board type';
    try{validateRegisterFields(row,dictionaries.priority.map(([code]:any)=>code));}catch(e:any){return e.message;}

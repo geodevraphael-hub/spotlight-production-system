@@ -93,7 +93,7 @@ export async function bulkInventoryEdit(db,user,body,commit=false){
       .bind(id,central?1:0,projectId,projectId,user.role,projectId,user.id).first();
     if(!row)fail('Some selected billboards are missing or no longer editable in this project. Refresh inventory.',403);
     const before=JSON.parse(row.data);
-    if(!validCoordinates(before.lat,before.lng))fail('A selected asset has no valid GPS inside Tanzania and cannot be edited here.');
+    if(!validCoordinates(before.lat,before.lng))fail('A selected asset has invalid or missing GPS coordinates and cannot be edited here.');
     row.version=await version(row.data);
     if(commit&&body.versions?.[id]!==row.version)fail('A selected billboard changed after your review. Review the latest values before saving.',409);
     const after=applyBulkChanges(before,changes,dictionaries);
