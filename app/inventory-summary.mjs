@@ -5,6 +5,7 @@ import {markerState} from './map-symbols.mjs';
 import {assetBookings} from './asset-booking.mjs';
 import {readDictionaries} from './dictionary-store.mjs';
 import {DEFAULT_DICTIONARIES,dictionaryLabel} from './inventory-dictionaries.mjs';
+import {matchesSummaryFilters,summaryFilterOptions,emptySummaryFilters,selectedSummaryFilters} from './inventory-summary-filters.mjs';
 const number=value=>Math.max(0,Number(value)||0);
 const words=value=>String(value||'Not recorded').replaceAll('-',' ').replace(/^./,c=>c.toUpperCase());
 const flightLabels={flighted:'Flighted',expired:'Expired / overdue',unflighted:'Unflighted',deflighted:'Deflighted'};
@@ -15,13 +16,14 @@ export function inventorySummary(records,schedules,projectId,bookings=new Map(),
   const schedule=flights.get(Number(record.id)),own=Number(record.projectId??1)===projectId;
   const flight={flightStatus:schedule?.flight_status??(own?record.flightStatus:null)??'unflighted',flightExpiry:schedule?.end_at??(own?record.flightExpiry:null)};
   const geography=inventoryGeography(record,{},now),region=geography.region?regionOption(geography.region):null;
+  const areaKey=level=>geography[level]?JSON.stringify(['region','district','local','village'].slice(0,['region','district','local','village'].indexOf(level)+1).map(key=>key==='region'?region?.value||'':String(geography[key]?.name||'').normalize('NFKC').trim().replace(/\s+/g,' ').toLowerCase())):'__missing__';
   const priority=assetPriority(record),installations=installationCount(record),state=markerState(flight,now);
   const gps=validCoordinates(record.lat,record.lng),photo=Boolean(record.hasPhoto),registered=Boolean(registrationNumber(record));
   const locationReady=gps&&Boolean(geography.region&&geography.district);
   const gaps=[...(!gps?['gps']:[]),...(!photo?['photo']:[]),...(!priority?['priority']:[]),...(!registered?['registration']:[]),...(!(number(record.width)>0&&number(record.height)>0)?['dimensions']:[]),...(!locationReady?['location']:[])];
   return {id:Number(record.inventoryDbId),sourceId:Number(record.id),name:record.street||`Asset ${record.inventoryDbId}`,type:record.mediaType||'__missing__',typeLabel:dictionaryLabel(dictionaries,'mediaType',record.mediaType)||'Not recorded',
    vendor:String(record.owner||'').trim()||'Not recorded',priority:priority||'__missing__',priorityLabel:dictionaryLabel(dictionaries,'priority',priority)||'Not assigned',
-   status:record.status||'not-selected',statusLabel:dictionaryLabel(dictionaries,'status',record.status||'not-selected'),region:region?.value||'__missing__',regionLabel:region?.label||'Not recorded',district:geography.district?.name||record.district||'Not recorded',
+   status:record.status||'not-selected',statusLabel:dictionaryLabel(dictionaries,'status',record.status||'not-selected'),region:region?.value||'__missing__',regionLabel:region?.label||'Not recorded',district:geography.district?.name||'Not recorded',districtKey:areaKey('district'),localKey:areaKey('local'),localLabel:geography.local?.name||'Not recorded',villageKey:areaKey('village'),villageLabel:geography.village?.name||'Not recorded',
    faces:number(record.faces),installations,flight:state,flightLabel:flightLabels[state],booked:bookings.get(Number(record.inventoryDbId))?.bookingStatus==='booked',gps,photo,registered,locationReady,gaps};
  });
  function facet(key,labelKey){const groups=new Map();for(const asset of assets){const value=asset[key],group=groups.get(value)||{value,label:asset[labelKey]||words(value),count:0,faces:0,ids:[]};group.count++;group.faces+=asset.faces;group.ids.push(asset.id);groups.set(value,group);}return [...groups.values()].sort((a,b)=>b.count-a.count||a.label.localeCompare(b.label));}
@@ -30,7 +32,7 @@ export function inventorySummary(records,schedules,projectId,bookings=new Map(),
   booked:assets.filter(asset=>asset.booked).length,available:assets.filter(asset=>!asset.booked).length,photos:assets.filter(asset=>asset.photo).length,locationReady:assets.filter(asset=>asset.locationReady).length,
   facets:{types:facet('type','typeLabel'),vendors:facet('vendor','vendor'),priorities:facet('priority','priorityLabel'),regions:facet('region','regionLabel'),statuses:facet('status','statusLabel'),flights:facet('flight','flightLabel')},quality};
 }
-export async function projectInventorySummary(db,projectId,now=Date.now(),boardType=''){
+export async function projectInventorySummary(db,projectId,now=Date.now(),boardType='',filters={}){
  const member=`(EXISTS(SELECT 1 FROM inventory_projects ip WHERE ip.inventory_id=i.id AND ip.project_id=?) OR COALESCE(json_extract(i.data,'$.projectId'),1)=?)`;
  const [records,schedules,bookings,dictionaries,costs,validations]=await Promise.all([
   db.prepare(`SELECT i.id inventoryDbId,json_extract(i.data,'$.id') id,json_extract(i.data,'$.projectId') projectId,
@@ -48,11 +50,13 @@ export async function projectInventorySummary(db,projectId,now=Date.now(),boardT
   db.prepare(`SELECT v.asset_id,v.status,count(*) count FROM validation_assignments v WHERE v.project_id=? AND EXISTS(SELECT 1 FROM inventory i WHERE CAST(json_extract(i.data,'$.id') AS INTEGER)=v.asset_id AND ${member}) GROUP BY v.asset_id,v.status`).bind(projectId,projectId,projectId).all(),
  ]);
  const allRecords=records.results.map(row=>({...row,sourceAttributes:JSON.parse(row.sourceAttributes||'{}'),locationAddress:row.locationAddress?JSON.parse(row.locationAddress):null}));
- const boardTypes=[...new Map(allRecords.map(row=>[row.mediaType||'__missing__',{value:row.mediaType||'__missing__',label:dictionaryLabel(dictionaries.dictionaries,'mediaType',row.mediaType)||'Not recorded'}])).values()].sort((a,b)=>a.label.localeCompare(b.label));
- const summary=inventorySummary(allRecords.filter(row=>!boardType||(row.mediaType||'__missing__')===boardType),schedules.results,projectId,bookings,dictionaries.dictionaries,now);
+ const activeFilters={...emptySummaryFilters(),...filters,boardType};
+ const projectSummary=inventorySummary(allRecords,schedules.results,projectId,bookings,dictionaries.dictionaries,now);
+ const filterOptions=summaryFilterOptions(projectSummary.assets,activeFilters),matchingIds=new Set(projectSummary.assets.filter(asset=>matchesSummaryFilters(asset,activeFilters)).map(asset=>asset.id));
+ const summary=inventorySummary(allRecords.filter(row=>matchingIds.has(row.inventoryDbId)),schedules.results,projectId,bookings,dictionaries.dictionaries,now);
  const selectedIds=new Set(summary.assets.map(asset=>asset.id)),sourceIds=new Set(summary.assets.map(asset=>asset.sourceId));
  const scopedCosts=costs.results.filter(row=>selectedIds.has(row.inventory_id));
  const costGroups=new Map();for(const row of scopedCosts){const category=row.category==='transport'?'other':row.category,group=costGroups.get(category)||{value:category,label:category==='other'?'Other costs':words(category),amount:0,ids:[]};group.amount+=row.amount/100;if(!group.ids.includes(row.inventory_id))group.ids.push(row.inventory_id);costGroups.set(category,group);}
  const validationGroups=new Map();for(const row of validations.results.filter(row=>sourceIds.has(row.asset_id))){const group=validationGroups.get(row.status)||{value:row.status,label:words(row.status),count:0,ids:[]};group.count+=row.count;for(const asset of summary.assets)if(asset.sourceId===row.asset_id&&!group.ids.includes(asset.id))group.ids.push(asset.id);validationGroups.set(row.status,group);}
- return {...summary,boardType,boardTypes,costs:[...costGroups.values()],recordedCost:scopedCosts.reduce((sum,row)=>sum+row.amount/100,0),validations:[...validationGroups.values()]};
+ return {...summary,boardType,boardTypes:filterOptions.boardType,filters:activeFilters,filterOptions,selectedFilters:selectedSummaryFilters(activeFilters,filterOptions),projectTotal:projectSummary.total,costs:[...costGroups.values()],recordedCost:scopedCosts.reduce((sum,row)=>sum+row.amount/100,0),validations:[...validationGroups.values()]};
 }

@@ -4,6 +4,8 @@ import {DatabaseSync} from 'node:sqlite';
 import {inventorySummary,projectInventorySummary} from '../app/inventory-summary.mjs';
 import {DEFAULT_DICTIONARIES} from '../app/inventory-dictionaries.mjs';
 import {readDictionaries} from '../app/dictionary-store.mjs';
+import {emptySummaryFilters,changeSummaryFilter,summaryFilterOptions} from '../app/inventory-summary-filters.mjs';
+import {summaryNarrative,inventorySummaryPdf} from '../app/inventory-summary-pdf.mjs';
 const now=Date.UTC(2026,10,18,8);
 const a={inventoryDbId:1,id:101,projectId:1,street:'Airport display',owner:'Vendor A',mediaType:'large-format',priority:'A',status:'selected',faces:2,installations:0,lat:-6.8,lng:39.2,width:4,height:8,hasPhoto:1,registrationNumber:'KM001',locationAddress:{lat:-6.8,lng:39.2,status:'complete',region:' DAR ES SALAAM Region ',district:'Ilala'}};
 const b={inventoryDbId:2,id:102,projectId:2,street:'Shared wall',owner:'Vendor B',mediaType:'wall-wrap',priority:'D',faces:3,lat:-6.7,lng:39.1,hasPhoto:1,flightStatus:'flighted',flightExpiry:now+86400000};
@@ -54,4 +56,34 @@ test('board type selection scopes totals, costs, validations and drill-down IDs 
  const empty=await projectInventorySummary(db,1,now,'unknown-type');
  assert.equal(empty.total,0);assert.equal(empty.recordedCost,0);assert.deepEqual(empty.validations,[]);assert.equal(empty.boardTypes.length,2);
  assert.equal((await projectInventorySummary(db,1,now)).total,2);
+});
+
+test('vendor and cascading geography selections scope every total and exclude missing or stale locations',async()=>{
+ const {db,sql}=fixture();await readDictionaries(db);
+ const record={...a,locationAddress:{...a.locationAddress,local:'Kipawa',village:'Airport'}};
+ sql.prepare('UPDATE inventory SET data=? WHERE id=1').run(JSON.stringify(record));
+ const all=await projectInventorySummary(db,1,now),asset=all.assets[0];
+ const filters={vendor:'Vendor A',region:asset.region,district:asset.districtKey,local:asset.localKey,village:asset.villageKey};
+ const selected=await projectInventorySummary(db,1,now,'large-format',filters);
+ assert.equal(selected.total,1);assert.equal(selected.projectTotal,2);assert.equal(selected.faces,2);assert.equal(selected.recordedCost,120);
+ assert.deepEqual(selected.validations.flatMap(row=>row.ids),[1]);assert.equal(selected.selectedFilters.length,6);
+ assert.deepEqual(selected.filterOptions.local.map(row=>row.label),['Kipawa']);assert.deepEqual(selected.filterOptions.village.map(row=>row.label),['Airport']);
+ const missing=await projectInventorySummary(db,1,now,'',{local:'__missing__'});assert.deepEqual(missing.assets.map(row=>row.id),[2]);
+ const changed=changeSummaryFilter({...emptySummaryFilters(),...filters},'region','region:arusha');
+ assert.equal(changed.vendor,'Vendor A');for(const key of ['district','local','village'])assert.equal(changed[key],'');
+ assert.deepEqual(summaryFilterOptions(all.assets,{vendor:'Vendor B'}).district.map(row=>row.value),['__missing__']);
+ sql.prepare('UPDATE inventory SET data=? WHERE id=1').run(JSON.stringify({...record,lat:-7}));
+ assert.equal((await projectInventorySummary(db,1,now,'',filters)).total,0);
+});
+
+test('PDF report contains a filtered narrative and produces a valid multi-page document for populated and empty scopes',async()=>{
+ const {db}=fixture();await readDictionaries(db);
+ const data=await projectInventorySummary(db,1,now,'large-format');
+ assert.match(summaryNarrative(data)[0],/1 of 2 project assets/);
+ assert.match(summaryNarrative(data).join(' '),/TZS 120/);
+ const bytes=await inventorySummaryPdf(data,'Test Campaign');
+ assert.equal(Buffer.from(bytes).subarray(0,5).toString(),'%PDF-');
+ assert.match(Buffer.from(bytes).toString('latin1'),/\/Count 4/);
+ const empty=await projectInventorySummary(db,1,now,'unknown');assert.match(summaryNarrative(empty)[0],/No assets match/);
+ assert.ok((await inventorySummaryPdf(empty,'Empty project')).length>1000);
 });
