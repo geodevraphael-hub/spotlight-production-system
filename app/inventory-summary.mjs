@@ -30,7 +30,7 @@ export function inventorySummary(records,schedules,projectId,bookings=new Map(),
   booked:assets.filter(asset=>asset.booked).length,available:assets.filter(asset=>!asset.booked).length,photos:assets.filter(asset=>asset.photo).length,locationReady:assets.filter(asset=>asset.locationReady).length,
   facets:{types:facet('type','typeLabel'),vendors:facet('vendor','vendor'),priorities:facet('priority','priorityLabel'),regions:facet('region','regionLabel'),statuses:facet('status','statusLabel'),flights:facet('flight','flightLabel')},quality};
 }
-export async function projectInventorySummary(db,projectId,now=Date.now()){
+export async function projectInventorySummary(db,projectId,now=Date.now(),boardType=''){
  const member=`(EXISTS(SELECT 1 FROM inventory_projects ip WHERE ip.inventory_id=i.id AND ip.project_id=?) OR COALESCE(json_extract(i.data,'$.projectId'),1)=?)`;
  const [records,schedules,bookings,dictionaries,costs,validations]=await Promise.all([
   db.prepare(`SELECT i.id inventoryDbId,json_extract(i.data,'$.id') id,json_extract(i.data,'$.projectId') projectId,
@@ -47,8 +47,12 @@ export async function projectInventorySummary(db,projectId,now=Date.now()){
   db.prepare(`SELECT c.inventory_id,c.category,SUM(c.amount_minor) amount FROM actual_costs c JOIN inventory i ON i.id=c.inventory_id WHERE c.project_id=? AND ${member} GROUP BY c.inventory_id,c.category`).bind(projectId,projectId,projectId).all(),
   db.prepare(`SELECT v.asset_id,v.status,count(*) count FROM validation_assignments v WHERE v.project_id=? AND EXISTS(SELECT 1 FROM inventory i WHERE CAST(json_extract(i.data,'$.id') AS INTEGER)=v.asset_id AND ${member}) GROUP BY v.asset_id,v.status`).bind(projectId,projectId,projectId).all(),
  ]);
- const summary=inventorySummary(records.results.map(row=>({...row,sourceAttributes:JSON.parse(row.sourceAttributes||'{}'),locationAddress:row.locationAddress?JSON.parse(row.locationAddress):null})),schedules.results,projectId,bookings,dictionaries.dictionaries,now);
- const costGroups=new Map();for(const row of costs.results){const category=row.category==='transport'?'other':row.category,group=costGroups.get(category)||{value:category,label:category==='other'?'Other costs':words(category),amount:0,ids:[]};group.amount+=row.amount/100;if(!group.ids.includes(row.inventory_id))group.ids.push(row.inventory_id);costGroups.set(category,group);}
- const validationGroups=new Map();for(const row of validations.results){const group=validationGroups.get(row.status)||{value:row.status,label:words(row.status),count:0,ids:[]};group.count+=row.count;for(const asset of summary.assets)if(asset.sourceId===row.asset_id&&!group.ids.includes(asset.id))group.ids.push(asset.id);validationGroups.set(row.status,group);}
- return {...summary,costs:[...costGroups.values()],recordedCost:costs.results.reduce((sum,row)=>sum+row.amount/100,0),validations:[...validationGroups.values()]};
+ const allRecords=records.results.map(row=>({...row,sourceAttributes:JSON.parse(row.sourceAttributes||'{}'),locationAddress:row.locationAddress?JSON.parse(row.locationAddress):null}));
+ const boardTypes=[...new Map(allRecords.map(row=>[row.mediaType||'__missing__',{value:row.mediaType||'__missing__',label:dictionaryLabel(dictionaries.dictionaries,'mediaType',row.mediaType)||'Not recorded'}])).values()].sort((a,b)=>a.label.localeCompare(b.label));
+ const summary=inventorySummary(allRecords.filter(row=>!boardType||(row.mediaType||'__missing__')===boardType),schedules.results,projectId,bookings,dictionaries.dictionaries,now);
+ const selectedIds=new Set(summary.assets.map(asset=>asset.id)),sourceIds=new Set(summary.assets.map(asset=>asset.sourceId));
+ const scopedCosts=costs.results.filter(row=>selectedIds.has(row.inventory_id));
+ const costGroups=new Map();for(const row of scopedCosts){const category=row.category==='transport'?'other':row.category,group=costGroups.get(category)||{value:category,label:category==='other'?'Other costs':words(category),amount:0,ids:[]};group.amount+=row.amount/100;if(!group.ids.includes(row.inventory_id))group.ids.push(row.inventory_id);costGroups.set(category,group);}
+ const validationGroups=new Map();for(const row of validations.results.filter(row=>sourceIds.has(row.asset_id))){const group=validationGroups.get(row.status)||{value:row.status,label:words(row.status),count:0,ids:[]};group.count+=row.count;for(const asset of summary.assets)if(asset.sourceId===row.asset_id&&!group.ids.includes(asset.id))group.ids.push(asset.id);validationGroups.set(row.status,group);}
+ return {...summary,boardType,boardTypes,costs:[...costGroups.values()],recordedCost:scopedCosts.reduce((sum,row)=>sum+row.amount/100,0),validations:[...validationGroups.values()]};
 }

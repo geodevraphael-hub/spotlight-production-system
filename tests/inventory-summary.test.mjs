@@ -5,8 +5,8 @@ import {inventorySummary,projectInventorySummary} from '../app/inventory-summary
 import {DEFAULT_DICTIONARIES} from '../app/inventory-dictionaries.mjs';
 import {readDictionaries} from '../app/dictionary-store.mjs';
 const now=Date.UTC(2026,10,18,8);
-const a={inventoryDbId:1,id:101,projectId:1,street:'Airport display',owner:'Vendor A',mediaType:'large-format',priority:'A',status:'selected',faces:2,installations:0,lat:-6,lng:39,width:4,height:8,hasPhoto:1,registrationNumber:'KM001',locationAddress:{lat:-6,lng:39,status:'complete',region:' DAR ES SALAAM Region ',district:'Ilala'}};
-const b={inventoryDbId:2,id:102,projectId:2,street:'Shared wall',owner:'Vendor B',mediaType:'wall-wrap',priority:'D',faces:3,lat:-6.1,lng:39.1,hasPhoto:1,flightStatus:'flighted',flightExpiry:now+86400000};
+const a={inventoryDbId:1,id:101,projectId:1,street:'Airport display',owner:'Vendor A',mediaType:'large-format',priority:'A',status:'selected',faces:2,installations:0,lat:-6.8,lng:39.2,width:4,height:8,hasPhoto:1,registrationNumber:'KM001',locationAddress:{lat:-6.8,lng:39.2,status:'complete',region:' DAR ES SALAAM Region ',district:'Ilala'}};
+const b={inventoryDbId:2,id:102,projectId:2,street:'Shared wall',owner:'Vendor B',mediaType:'wall-wrap',priority:'D',faces:3,lat:-6.7,lng:39.1,hasPhoto:1,flightStatus:'flighted',flightExpiry:now+86400000};
 test('summary counts unique physical assets, custom dictionaries, faces and zero installations correctly',()=>{
  const dictionaries={...DEFAULT_DICTIONARIES,mediaType:[['large-format','Large display'],['wall-wrap','Wall wrap']],priority:[...DEFAULT_DICTIONARIES.priority,['D','Priority D']]};
  const data=inventorySummary([a,b,a],[],1,new Map([[2,{bookingStatus:'booked'}]]),dictionaries,now);
@@ -40,4 +40,18 @@ test('project report uses compact projections, current membership and live dicti
  assert.equal(data.recordedCost,170);assert.deepEqual(data.costs.find(row=>row.value==='other').ids,[2]);assert.equal(data.validations.find(row=>row.value==='issue').count,1);
  assert.equal(data.booked,1);assert.equal(data.assets[1].flight,'unflighted');
  assert.ok(!JSON.stringify(data).includes('PRIVATE_PHOTO_MUST_NOT_BE_RETURNED'));assert.ok(!JSON.stringify(data).includes('Private asset'));
+});
+
+test('board type selection scopes totals, costs, validations and drill-down IDs while retaining project options',async()=>{
+ const {db,sql}=fixture();await readDictionaries(db);
+ sql.exec("UPDATE inventory_dictionaries SET label='Large display renamed' WHERE kind='mediaType' AND value='large-format'");
+ const filtered=await projectInventorySummary(db,1,now,'large-format');
+ assert.equal(filtered.boardType,'large-format');assert.equal(filtered.total,1);assert.equal(filtered.faces,2);
+ assert.equal(filtered.recordedCost,120);assert.deepEqual(filtered.costs.flatMap(row=>row.ids),[1]);
+ assert.deepEqual(filtered.validations.map(row=>row.value),['issue']);assert.equal(filtered.validations[0].count,1);
+ assert.equal(filtered.boardTypes.length,2);assert.equal(filtered.boardTypes.find(row=>row.value==='large-format').label,'Large display renamed');
+ for(const rows of Object.values(filtered.facets))assert.deepEqual(rows.flatMap(row=>row.ids),[1]);
+ const empty=await projectInventorySummary(db,1,now,'unknown-type');
+ assert.equal(empty.total,0);assert.equal(empty.recordedCost,0);assert.deepEqual(empty.validations,[]);assert.equal(empty.boardTypes.length,2);
+ assert.equal((await projectInventorySummary(db,1,now)).total,2);
 });

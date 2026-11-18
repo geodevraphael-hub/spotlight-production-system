@@ -38,7 +38,7 @@ export async function GET(request: Request) {
   // project (including viewers) may read it.
   if(section==='inventory-summary'){
     if(!['admin','creator','planner','viewer'].includes(user.role)||!(await access(user,projectId)))return reply({error:'Select an accessible project'},403);
-    try{return Response.json(await projectInventorySummary(env.DB,projectId),{headers:{...cors,'Cache-Control':'no-store'}});}catch{return reply({error:'Inventory summary could not be loaded. Please retry.'},500);}
+    try{return Response.json(await projectInventorySummary(env.DB,projectId,Date.now(),url.searchParams.get('boardType')||''),{headers:{...cors,'Cache-Control':'no-store'}});}catch{return reply({error:'Inventory summary could not be loaded. Please retry.'},500);}
   }
   if(section==='dashboard'){
     if(!(await access(user,projectId))) return reply({error:'Select an accessible project'},403);
