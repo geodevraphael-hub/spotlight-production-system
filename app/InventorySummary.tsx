@@ -3,6 +3,7 @@ import {useEffect,useMemo,useRef,useState} from 'react';
 import {ArrowUpRight,RefreshCw,X,Layers3,MapPin,Printer,ChevronLeft,ChevronRight} from 'lucide-react';
 import SearchSelect from './SearchSelect';
 import InventorySummaryPreview from './InventorySummaryPreview';
+import InventorySummaryCharts from './InventorySummaryCharts';
 import {SUMMARY_FILTERS,emptySummaryFilters,changeSummaryFilter} from './inventory-summary-filters.mjs';
 import './inventory-summary.css';
 const count=(value:number)=>Number(value||0).toLocaleString('en-GB');
@@ -63,6 +64,7 @@ export default function InventorySummary({projectId,projects,onProject,onOpenInv
  <div className="is-chart-grid"><Breakdown title="Priority" subtitle="Visibility priorities assigned to the inventory." rows={data.facets.priorities} total={data.total} onSelect={select('Priority')}/><Breakdown title="Inventory status" subtitle="Project inventory classifications." rows={data.facets.statuses} total={data.total} onSelect={select('Inventory status')}/></div>
  <div className="is-chart-grid"><section className="is-panel"><header><div><h2>Data completeness</h2><p>Categories can overlap: one asset may have several missing fields.</p></div></header><div className="is-quality">{data.quality.map((row:any)=><button key={row.value} onClick={()=>select('Data completeness')(row)}><span>{row.label}</span><strong data-warning={row.count>0}>{count(row.count)}</strong><ArrowUpRight size={14}/></button>)}</div></section>
  <section className="is-panel"><header><div><h2>Project operations</h2><p>Current project assets and their recorded work.</p></div></header><h3>Validation assignments</h3><div className="is-quality">{data.validations.map((row:any)=><button key={row.value} onClick={()=>open(`Validation · ${row.label}`,row.ids,`${count(row.count)} assignments on the matching assets. An asset may have more than one assignment.`)}><span>{row.label}</span><strong>{count(row.count)}</strong><ArrowUpRight size={14}/></button>)}{!data.validations.length&&<p className="is-empty">No validation assignments recorded.</p>}</div><h3>Recorded costs</h3><div className="is-quality">{data.costs.map((row:any)=><button key={row.value} onClick={()=>open(`Recorded costs · ${row.label}`,row.ids,`${money(row.amount)} recorded against these current project assets.`)}><span>{row.label}</span><strong>{money(row.amount)}</strong><ArrowUpRight size={14}/></button>)}{!data.costs.length&&<p className="is-empty">No project cost entries recorded.</p>}</div></section></div>
+ <InventorySummaryCharts data={data} onOpen={open}/>
  <footer className="is-report-footer"><span>{project?.name} · {count(data.total)} assets · Snapshot in East Africa Time</span><button onClick={()=>onOpenInventory(all,Object.values(filters).some(Boolean)?'Filtered summary assets':'All project assets')}><MapPin size={15}/>Open project inventory<ArrowUpRight size={14}/></button></footer>
  {preview&&<InventorySummaryPreview data={data} projectName={project?.name} onClose={()=>setPreview(false)}/>}
  {detail&&<AssetDetails key={detail.title} detail={detail} assets={data.assets} onClose={()=>setDetail(null)} onOpen={onOpenInventory}/>}
