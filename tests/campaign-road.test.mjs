@@ -57,3 +57,22 @@ test('road failure rolls back every pole, membership and receipt',async()=>{
  const {db,sql}=await fixture();sql.exec("CREATE TRIGGER simulate_failure BEFORE INSERT ON inventory WHEN json_extract(NEW.data,'$.roadStretch.index')=3 BEGIN SELECT RAISE(ABORT,'simulated');END");
  await assert.rejects(()=>saveRoad(db,admin,road()),/No partial/);assert.equal(sql.prepare('SELECT count(*) n FROM inventory').get().n,2);assert.equal(sql.prepare('SELECT count(*) n FROM road_mapping_requests').get().n,0);assert.equal(sql.prepare('SELECT count(*) n FROM activity_write_context').get().n,0);sql.close();
 });
+import {roadStretchList,updateRoadStretch} from '../app/road-stretch-edit.mjs';
+test('road edits preserve identities and verified GPS, reject stale edits, and restrict access',async()=>{
+ const {db,raw,sql}=await fixture();await saveRoad(db,admin,road());
+ const first=sql.prepare('SELECT * FROM inventory WHERE id>2 ORDER BY id LIMIT 1').get(),item=JSON.parse(first.data);item.positionVerified=true;item.positionSource='field-gps';item.lat=-6.2;item.photoUrl='kept-photo';sql.prepare('UPDATE inventory SET data=? WHERE id=?').run(JSON.stringify(item),first.id);
+ const {roads}=await roadStretchList(raw,admin,1);assert.equal(roads.length,1);assert.equal(roads[0].verified,1);
+ const edit={...road(),roadId:id,version:roads[0].version,name:'Updated Road',anchors:[{lat:-6.12,lng:39.1},{lat:-6.121,lng:39.102}]};
+ await assert.rejects(()=>updateRoadStretch(db,{...admin,role:'viewer'},edit));
+ await assert.rejects(()=>updateRoadStretch(db,admin,{...edit,count:9}),/pole count/);
+ const result=await updateRoadStretch(db,admin,edit);assert.equal(result.moved,7);assert.equal(result.verifiedPreserved,1);assert.equal(sql.prepare('SELECT count(*) n FROM inventory').get().n,10);
+ const kept=JSON.parse(sql.prepare('SELECT data FROM inventory WHERE id=?').get(first.id).data);assert.equal(kept.lat,-6.2);assert.equal(kept.photoUrl,'kept-photo');assert.equal(kept.id,item.id);assert.equal(kept.roadStretch.name,'Updated Road');
+ await assert.rejects(()=>updateRoadStretch(db,admin,edit),/changed elsewhere/);
+ sql.prepare('INSERT INTO inventory_projects VALUES(?,2,1,1)').run(first.id);assert.equal((await roadStretchList(raw,creator,1)).roads.length,0);sql.close();
+});
+test('road edit failures roll back all poles',async()=>{
+ const {db,raw,sql}=await fixture();await saveRoad(db,admin,road());const {roads}=await roadStretchList(raw,admin,1);const before=sql.prepare('SELECT data FROM inventory ORDER BY id').all();
+ sql.exec("CREATE TRIGGER reject_road_update BEFORE UPDATE ON inventory WHEN json_extract(NEW.data,'$.roadStretch.index')=3 BEGIN SELECT RAISE(ABORT,'simulated');END");
+ await assert.rejects(()=>updateRoadStretch(db,admin,{...road(),roadId:id,version:roads[0].version,name:'Changed'}),/no partial/);
+ assert.deepEqual(sql.prepare('SELECT data FROM inventory ORDER BY id').all(),before);sql.close();
+});
