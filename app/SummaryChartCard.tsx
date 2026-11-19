@@ -1,0 +1,7 @@
+"use client";
+import {useState} from 'react';
+export default function SummaryChartCard({title,rows,onSelect,children}:any){
+ const [type,setType]=useState('default');
+ const max=Math.max(1,...rows.map((row:any)=>Number(row.chartValue??row.count??row.ids?.length??0)));
+ return <section className="is-panel is-switchable-chart"><div className="is-chart-choice"><label><span>Chart type</span><select aria-label={`${title} chart type`} value={type} onChange={event=>setType(event.target.value)}><option value="default">Original chart</option><option value="bars">Horizontal bars</option><option value="columns">Columns</option><option value="table">Data table</option></select></label></div><div hidden={type!=='default'}>{children}</div>{type!=='default'&&<><header><div><h2>{title}</h2><p>Select a category to view its matching assets.</p></div></header><div className={`is-alternate-chart is-alternate-${type}`}>{rows.map((row:any,index:number)=>{const value=Number(row.chartValue??row.count??row.ids?.length??0);return <button key={row.value??row.key??index} onClick={()=>onSelect(row)} aria-label={`${row.label}: ${value.toLocaleString('en-GB')}. View matching assets`}><span>{row.label}</span><strong>{value.toLocaleString('en-GB')}</strong>{type!=='table'&&<div><i style={type==='columns'?{height:`${value/max*100}%`}:{width:`${value/max*100}%`}}/></div>}</button>;})}{!rows.length&&<p>No records in this selection.</p>}</div></>}</section>;
+}
