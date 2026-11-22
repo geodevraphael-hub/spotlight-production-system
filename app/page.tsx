@@ -1,36 +1,22 @@
 "use client";
 import useImageCache,{invalidateImageCache} from './useImageCache';
 import DeleteProjectModal from './DeleteProjectModal';
-import Settings from './Settings';
 import {DEFAULT_DICTIONARIES} from './inventory-dictionaries.mjs';
 import SearchSelect from './SearchSelect';
 
-import { useEffect, useMemo, useRef, useState } from "react";
-import Operations from './Operations';
-import InventorySummaryReport from './InventorySummary';
-import Dashboard from './Dashboard';
-import RoadStretch from './RoadStretch';
-import PoleAssignment from './PoleAssignment';
-import SharedLamppostPhoto from './SharedLamppostPhoto';
-import ImportReview from './ImportReview';
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
+import type { ReactNode } from 'react';
 import WorkspaceDock from './WorkspaceDock';
-import ReportBuilder from './ReportBuilder';
-import PlanningBillboard from './PlanningBillboard';
-import PlanningDecision, { type DecisionSettings } from './PlanningDecision';
+import type { DecisionSettings } from './PlanningDecision';
 import { defaultDecision, decisionSettings } from './planning-decision.mjs';
 import { markerSize, markerHtml, markerState } from './map-symbols.mjs';
 import { InventorySummary, PlanSelectionButton, PlanningMapLegend } from './PlannerUI';
-import InventoryTable,{InventoryControls} from './InventoryTable';
-import {CentralProjects,CentralMemberships,CentralMapContext} from './CentralMap';
 import {centralProjectView} from './central-map.mjs';
 import {validGpsCoordinates} from './tanzania-map.mjs';
-import CentralAssignment from './CentralAssignment';
-import ProjectRemoval from './ProjectRemoval';
 import './central-map.css';
-import InventoryBulkEdit from './InventoryBulkEdit';
-import AssetOverview from './AssetOverview';
 import {assetPriority,installationCount,registrationNumber,mediaGroup,attributeLabel,isTransportAttribute} from './asset-register.mjs';
 import {emptyGeoFilters,matchesGeography,inventoryGeography} from './inventory-workflow.mjs';
+import { mapCsvHeaders, normalizeCsvHeader, parseCsvDimensions, parseCsvNumber } from './csv-import.mjs';
 import './operations.css';
 import {
   BarChart3,
@@ -71,6 +57,32 @@ import type {
   TileLayer,
 } from "leaflet";
 import "leaflet/dist/leaflet.css";
+
+// Keep infrequently used workspaces and dialogs out of the initial map bundle.
+const Operations = lazy(() => import('./Operations'));
+const InventorySummaryReport = lazy(() => import('./InventorySummary'));
+const Dashboard = lazy(() => import('./Dashboard'));
+const RoadStretch = lazy(() => import('./RoadStretch'));
+const PoleAssignment = lazy(() => import('./PoleAssignment'));
+const SharedLamppostPhoto = lazy(() => import('./SharedLamppostPhoto'));
+const ImportReview = lazy(() => import('./ImportReview'));
+const ReportBuilder = lazy(() => import('./ReportBuilder'));
+const PlanningBillboard = lazy(() => import('./PlanningBillboard'));
+const PlanningDecision = lazy(() => import('./PlanningDecision'));
+const Settings = lazy(() => import('./Settings'));
+const InventoryTable = lazy(() => import('./InventoryTable'));
+const InventoryControls = lazy(() => import('./InventoryTable').then((module) => ({ default: module.InventoryControls })));
+const CentralProjects = lazy(() => import('./CentralMap').then((module) => ({ default: module.CentralProjects })));
+const CentralMemberships = lazy(() => import('./CentralMap').then((module) => ({ default: module.CentralMemberships })));
+const CentralMapContext = lazy(() => import('./CentralMap').then((module) => ({ default: module.CentralMapContext })));
+const CentralAssignment = lazy(() => import('./CentralAssignment'));
+const ProjectRemoval = lazy(() => import('./ProjectRemoval'));
+const InventoryBulkEdit = lazy(() => import('./InventoryBulkEdit'));
+const AssetOverview = lazy(() => import('./AssetOverview'));
+
+function Deferred({ children, label = 'Loading…' }: { children: ReactNode; label?: string }) {
+  return <Suspense fallback={<div className="deferred-panel" role="status">{label}</div>}>{children}</Suspense>;
+}
 
 const DISTRICT_RENAMES: Record<string, string> = {
   Kariakooo: "Gaden",
@@ -332,28 +344,15 @@ function parseCsvRows(text: string) {
 }
 
 function normalizeHeader(value: string) {
-  return value
-    .trim()
-    .toLowerCase()
-    .replace(/[_/-]+/g, " ")
-    .replace(/[^\p{L}\p{N}\s]+/gu, "")
-    .replace(/\s+/g, " ");
+  return normalizeCsvHeader(value);
 }
 
 function parseNumber(value: string) {
-  const cleaned = String(value ?? "").replace(/,/g, "").match(/-?\d+(\.\d+)?/)?.[0] ?? "";
-  const numeric = Number(cleaned);
-  return Number.isFinite(numeric) ? numeric : 0;
+  return parseCsvNumber(value);
 }
 
 function parseDimensions(value: string) {
-  const parts = String(value ?? "")
-    .toLowerCase()
-    .replace(/[×*]/g, "x")
-    .split("x")
-    .map(parseNumber)
-    .filter((item) => item > 0);
-  return { width: parts[0] ?? 0, height: parts[1] ?? 0 };
+  return parseCsvDimensions(value);
 }
 
 function csvEscape(value: string | number) {
@@ -762,6 +761,7 @@ export default function Home() {
   const tileRef = useRef<TileLayer | null>(null);
   const labelsRef = useRef<TileLayer | null>(null);
   const markersRef = useRef<Map<number, LeafletMarker>>(new Map());
+  const markerRenderGenerationRef = useRef(0);
   const extentFitTimerRef = useRef<number | null>(null);
   const leafletRef = useRef<any>(null);
   const lastExtentFitRef = useRef("");
@@ -1805,6 +1805,8 @@ export default function Home() {
   }
 
   useEffect(() => {
+    const generation = ++markerRenderGenerationRef.current;
+    let frame = 0;
     if (!mapRef.current || !mapReady) return;
     const L = leafletRef.current;
     if (!L) return;
@@ -1825,7 +1827,7 @@ export default function Home() {
         markersRef.current.delete(id);
       }
     });
-    renderedAssets.forEach((item) => {
+    const upsertMarker = (item: Billboard) => {
       let marker = markersRef.current.get(item.id);
       if (!marker) {
         const { hitWidth, hitHeight } = markerSize(item);
@@ -1921,7 +1923,21 @@ export default function Home() {
         element.setAttribute("aria-label", ariaLabel);
         markerAny._spotlightAriaLabel = ariaLabel;
       }
-    });
+    };
+    // Paint the active feature first, then yield between small batches. This
+    // keeps panning, zooming and selection responsive even for large projects.
+    const activeIndex = renderedAssets.findIndex((item) => item.id === selected?.id || (inventoryScope && item.id === inventoryFocusedId));
+    if (activeIndex >= 0) upsertMarker(renderedAssets[activeIndex]);
+    const queue = activeIndex < 0 ? renderedAssets : renderedAssets.filter((_, index) => index !== activeIndex);
+    let cursor = 0;
+    const renderBatch = () => {
+      if (generation !== markerRenderGenerationRef.current) return;
+      const end = Math.min(cursor + 72, queue.length);
+      while (cursor < end) upsertMarker(queue[cursor++]);
+      if (cursor < queue.length) frame = requestAnimationFrame(renderBatch);
+    };
+    frame = requestAnimationFrame(renderBatch);
+    return () => cancelAnimationFrame(frame);
   }, [visibleAssets, selected?.id, mapReady, mapViewportRevision, editingPosition, shortlist, planningScope,inventoryScope,inventoryFocusedId,inventoryView]);
 
   useEffect(() => {
@@ -2839,38 +2855,7 @@ export default function Home() {
       const parsedRows = parseCsvRows(text);
       const headers = parsedRows.shift() ?? [];
       const rows = parsedRows;
-      const normalized = headers.map(normalizeHeader);
-      const aliases: Record<string, string[]> = {
-        street: ["street", "street name", "road", "road name", "route", "name", "site", "billboard", "billboard name", "location name", "jina la eneo", "mtaa"],
-        district: ["area", "district", "location", "region", "ward"],
-        from: ["from", "road from", "route from", "start", "origin"],
-        to: ["to", "road to", "route to", "end", "destination"],
-        latitude: ["latitude", "lat", "gps latitude", "gps lat", "y", "y coordinate"],
-        longitude: ["longitude", "lng", "lon", "long", "gps longitude", "gps long", "x", "x coordinate"],
-        width: ["width", "width m", "w"],
-        height: ["height", "height m", "h"],
-        dimensions: ["dimensions", "dimension", "size", "format", "format size"],
-        faces: ["faces", "face", "number of faces"],
-        owner: ["owner", "vendor", "supplier"],
-        priority: ["priority", "priority level"],
-        registrationNumber: ["registration number", "registration no", "reg number"],
-        installations: ["installation", "installations", "number of installations"],
-        mediaGroup: ["media group"],
-        mediaType: ["type", "board type", "billboard type", "media type", "format type", "screen type"],
-        status: ["status", "selection status", "selected", "planning status"],
-        photoUrl: ["photo url", "image url", "photo", "image", "photo_url", "image_url", "picture url", "media url"],
-        rental: ["rental", "rental price", "space price", "space rental price"],
-        printing: ["printing", "printing price"],
-        transport: ["transport", "transport price"],
-        flighting: ["flighting", "flighting price", "installation price"],
-      };
-      const automatic: Record<string, string> = {};
-      Object.entries(aliases).forEach(([field, names]) => {
-        const normalizedNames = names.map(normalizeHeader);
-        const match = normalized.findIndex((header) => normalizedNames.includes(header) || normalizedNames.some((name) => header.includes(name)));
-        if (match >= 0) automatic[field] = headers[match];
-      });
-      setCsvMap(automatic);
+      setCsvMap(mapCsvHeaders(headers));
       setCsvImport({ headers, rows });
       return;
     }
@@ -3362,7 +3347,7 @@ export default function Home() {
         {canPlan&&<button aria-current={activeTab==='reports'?'page':undefined} className={activeTab==='reports'?'tab-btn tab-btn--active':'tab-btn'} onClick={()=>{if(!currentProjectId&&projects[0])setCurrentProjectId(projects[0].id);setActiveTab('reports');}}><FileDown size={16}/> Reports</button>}
       </WorkspaceDock>
       {projectToDelete&&<DeleteProjectModal key={projectToDelete.id} project={projectToDelete} onClose={()=>setProjectToDelete(null)} onDelete={confirmDeleteProject}/>}
-      {activeTab === "settings" && user?.role === "admin" && <Settings section={settingsSection} onSection={setSettingsSection} onChanged={data=>setDictionaries(data.dictionaries)} userManagement={<section className="admin-page">
+      {activeTab === "settings" && user?.role === "admin" && <Deferred label="Loading settings…"><Settings section={settingsSection} onSection={setSettingsSection} onChanged={data=>setDictionaries(data.dictionaries)} userManagement={<section className="admin-page">
                 <div className="admin-page-head admin-page-head--bar">
                   <div>
                     <span className="eyebrow">Administration</span>
@@ -3384,19 +3369,19 @@ export default function Home() {
                   ))}
                   {!users.length && <div className="empty-state">No users yet. Add your first team member.</div>}
                 </div>
-              </section>}/> }
+              </section>}/></Deferred>}
 
-      {activeTab==='reports'&&canPlan&&<ReportBuilder key={currentProjectId} projectId={currentProjectId} readOnly={!canPlan}/>}
+      {activeTab==='reports'&&canPlan&&<Deferred label="Loading reports…"><ReportBuilder key={currentProjectId} projectId={currentProjectId} readOnly={!canPlan}/></Deferred>}
 
-      {activeTab==='operations'&&canView&&<Operations key={`${currentProjectId}:${operationsSection}`} initialSection={operationsSection} projectId={currentProjectId} boards={billboards} role={user?.role||''}/>}
-      {importReview&&<ImportReview dictionaries={dictionaries} items={importReview} existing={billboards} onCancel={()=>setImportReview(null)} onImport={finishReviewedImport}/>}
+      {activeTab==='operations'&&canView&&<Deferred label="Loading operations…"><Operations key={`${currentProjectId}:${operationsSection}`} initialSection={operationsSection} projectId={currentProjectId} boards={billboards} role={user?.role||''}/></Deferred>}
+      {importReview&&<Deferred label="Preparing import review…"><ImportReview dictionaries={dictionaries} items={importReview} existing={billboards} onCancel={()=>setImportReview(null)} onImport={finishReviewedImport}/></Deferred>}
       <div className={`workspace planning-workspace${inventoryScope ? " inventory-workspace" : ""}${centralScope?" central-workspace":""}${planningScope ? " planner-desk" : ""}${planOpen && planningScope ? " planning-workspace--review" : ""}${activeTab !== "planner" ? " workspace--hidden" : ""}`} aria-hidden={activeTab !== "planner"}
         data-inventory-view={inventoryScope?inventoryView:undefined}
         style={inventoryScope?{"--inventory-map-share":`${inventoryMapShare}fr`,"--inventory-table-share":`${100-inventoryMapShare}fr`} as React.CSSProperties:undefined}>
-        {centralScope&&<CentralProjects boards={centralFilterBoards} flightFilter={mapFlightFilter} projects={projects} value={centralProject} loading={loading}
+        {centralScope&&<Deferred label="Loading project map…"><CentralProjects boards={centralFilterBoards} flightFilter={mapFlightFilter} projects={projects} value={centralProject} loading={loading}
           onChange={(value:string)=>{setCentralProject(value);setAllProjectsProjectFilter("All projects");setSelected(null);setInventoryFocusedId(null);setShowSelectedOnly(false);}}
-          onOpen={(id:number)=>{setSelected(null);setCurrentProjectId(id);}}/>}
-        {inventoryScope&&<InventoryControls summaryFilter={summaryFilterLabel} onClearSummary={()=>{setSummaryAssetIds(null);setSummaryFilterLabel("");}} enrichmentPending={enrichmentPending} excludeFabricated={excludeFabricated} onExcludeFabricated={()=>setExcludeFabricated(value=>!value)} dictionaries={dictionaries} central={centralScope} boards={centralScope?centralAllBoards:billboards} rows={filtered} evidence={inventoryEvidence} geo={inventoryGeo} onGeo={setInventoryGeo}
+          onOpen={(id:number)=>{setSelected(null);setCurrentProjectId(id);}}/></Deferred>}
+        {inventoryScope&&<Deferred label="Preparing inventory controls…"><InventoryControls summaryFilter={summaryFilterLabel} onClearSummary={()=>{setSummaryAssetIds(null);setSummaryFilterLabel("");}} enrichmentPending={enrichmentPending} excludeFabricated={excludeFabricated} onExcludeFabricated={()=>setExcludeFabricated(value=>!value)} dictionaries={dictionaries} central={centralScope} boards={centralScope?centralAllBoards:billboards} rows={filtered} evidence={inventoryEvidence} geo={inventoryGeo} onGeo={setInventoryGeo}
           geoLoading={inventoryGeoLoading} geoError={inventoryGeoError} loading={loading} error={projectLoadError}
           type={boardTypeFilter} onType={setBoardTypeFilter} status={availability} onStatus={setAvailability}
           flight={mapFlightFilter} onFlight={setMapFlightFilter} vendor={inventoryVendor} onVendor={setInventoryVendor}
@@ -3406,13 +3391,13 @@ export default function Home() {
           onAdd={()=>{setInventoryView('split');resetAssetDraft();setAddOpen(true);}} onImport={(file:File)=>{setInventoryView('split');importInventory(file);}} onTemplate={downloadCsvTemplate}
           canManage={canManage} isAdmin={user?.role==='admin'} projectFilter={allProjectsProjectFilter}
           onProject={setAllProjectsProjectFilter} projectNames={null}
-          view={inventoryView} onView={(view:string)=>{setInventoryView(view);setSelected(null);}} message={importMessage}/>}
-        {centralScope&&<CentralMapContext name={centralProject==="all"?"All projects":centralProject==="unassigned"?"Unassigned":projects.find(p=>String(p.id)===centralProject)?.name??"Project"}
+          view={inventoryView} onView={(view:string)=>{setInventoryView(view);setSelected(null);}} message={importMessage}/></Deferred>}
+        {centralScope&&<Deferred label="Loading map context…"><CentralMapContext name={centralProject==="all"?"All projects":centralProject==="unassigned"?"Unassigned":projects.find(p=>String(p.id)===centralProject)?.name??"Project"}
           visible={visibleAssets.length} total={filtered.length} selected={projectShortlist.length} onlySelected={showSelectedOnly} loading={loading}
           onOnlySelected={()=>setShowSelectedOnly(!showSelectedOnly)} onClear={()=>{setProjectShortlist([]);setShowSelectedOnly(false);}}
           onAssign={openCentralAssignment}
           onRemove={openProjectRemoval}
-          onFit={()=>fitMapToBillboardExtent(visibleAssets,true)}/>}
+          onFit={()=>fitMapToBillboardExtent(visibleAssets,true)}/></Deferred>}
         <aside className={sidebarOpen ? "sidebar" : "sidebar sidebar--closed"}>
           <div className="sidebar-inner">
             <section className="sidebar-head">
@@ -3692,7 +3677,7 @@ export default function Home() {
             </div>
           )}
 
-          {selected && planningContext && <PlanningBillboard key={selected.id}
+          {selected && planningContext && <Deferred label="Loading billboard planner…"><PlanningBillboard key={selected.id}
             board={selected} costs={selectedPlanCosts} inPlan={shortlist.includes(selected.id)}
             type={mediaTypeLabel(selected.mediaType)} image={billboardImageUrl(selected)}
             flightStatus={flightByAssetId.get(selected.id)?.flight_status ?? selected.flightStatus ?? "unflighted"}
@@ -3702,7 +3687,7 @@ export default function Home() {
             onClose={() => setSelected(null)}
             onLocate={() => { mapRef.current?.flyTo([selected.lat, selected.lng], 18); setSelected(null); }}
             onPhoto={() => { setViewingPhoto(billboardImageUrl(selected)); setPhotoViewerOpen(true); }}
-          />}
+          /></Deferred>}
           {selected && !planningContext && !(inventoryScope&&editingPosition) && (
             <article ref={inventoryDetailRef} className={`detail-card detail-card--asset${inventoryScope?" inventory-detail":""}`}
               role={inventoryScope?"dialog":undefined} aria-label={inventoryScope?`${selected.street} details`:undefined}
@@ -3737,9 +3722,11 @@ export default function Home() {
                   <button key={key} aria-pressed={inventoryDetailCategory===key} onClick={()=>{setInventoryDetailCategory(key);inventoryDetailRef.current?.querySelector(".inventory-detail-content")?.scrollTo({top:0});}}>{title}</button>)}
               </nav>}
               <div className={inventoryScope?"inventory-detail-content":"detail-content-legacy"}>
-              <AssetOverview dictionaries={dictionaries} board={selected} type={mediaTypeLabel(selected.mediaType)} flight={markerState(selected)}
-                selection={statusLabel(selected.status)} onEdit={inventoryScope&&canEditInventoryAttributes?()=>{setBulkEditBoards([selected]);setSelected(null);}:undefined}/>
-              {centralScope&&<CentralMemberships board={selected} onOpen={(id:number)=>{setSelected(null);setCurrentProjectId(id);}}/>}
+              <Deferred label="Loading billboard details…">
+                <AssetOverview dictionaries={dictionaries} board={selected} type={mediaTypeLabel(selected.mediaType)} flight={markerState(selected)}
+                  selection={statusLabel(selected.status)} onEdit={inventoryScope&&canEditInventoryAttributes?()=>{setBulkEditBoards([selected]);setSelected(null);}:undefined}/>
+                {centralScope&&<CentralMemberships board={selected} onOpen={(id:number)=>{setSelected(null);setCurrentProjectId(id);}}/>}
+              </Deferred>
               {canPlan && !centralScope && (
                 <section className="flight-card">
                   <div className="flight-card-head">
@@ -4280,7 +4267,7 @@ export default function Home() {
           onPointerDown={event=>{event.currentTarget.setPointerCapture(event.pointerId);}}
           onPointerMove={event=>{if(!event.currentTarget.hasPointerCapture(event.pointerId))return;const parent=event.currentTarget.parentElement!;const box=parent.getBoundingClientRect();const controls=parent.querySelector(".inventory-controls")?.getBoundingClientRect().height??0;setInventoryMapShare(Math.max(25,Math.min(65,100*(event.clientY-box.top-controls)/(box.height-controls-10))));}}
           onPointerUp={event=>event.currentTarget.releasePointerCapture(event.pointerId)}><span/></div>}
-        {inventoryScope&&<InventoryTable dictionaries={dictionaries} central={centralScope} boards={centralScope?centralAllBoards:billboards} rows={filtered} evidence={inventoryEvidence} loading={loading}
+        {inventoryScope&&<Deferred label="Loading inventory table…"><InventoryTable dictionaries={dictionaries} central={centralScope} boards={centralScope?centralAllBoards:billboards} rows={filtered} evidence={inventoryEvidence} loading={loading}
           onSharedPhoto={!centralScope&&canEditInventoryAttributes?(items:Billboard[])=>setSharedPhotoBoards(items):undefined}
           onVerifyGps={!centralScope&&user?.role==='admin'?()=>{void ensureUsersLoaded();setSelected(null);setPoleBoards(billboards.filter(b=>projectShortlist.includes(b.id)&&estimatedPole(b)));}:undefined}
           onRemove={user?.role==="admin"?openProjectRemoval:undefined}
@@ -4288,7 +4275,7 @@ export default function Home() {
           onLocate={(item:Billboard)=>focusItem(item,false)} focusedId={inventoryFocusedId} focusRevision={inventoryFocusRevision} onReset={resetFilters}
           onAssign={()=>centralScope?openCentralAssignment():setAssignProjectOpen(true)} canAssign={canManage||centralScope} onBulkEdit={()=>{setSelected(null);setBulkEditBoards(billboards.filter(item=>projectShortlist.includes(item.id)));}} canManage={canEditInventoryAttributes} isAdmin={user?.role==='admin'}
           projectName={isAllProjectsMap?'All projects':projects.find(p=>p.id===currentProjectId)?.name??'Current project'}
-          projectFilter={allProjectsProjectFilter} onProject={setAllProjectsProjectFilter} projectNames={isAllProjectsMap?allProjectNames:null}/>}
+          projectFilter={allProjectsProjectFilter} onProject={setAllProjectsProjectFilter} projectNames={isAllProjectsMap?allProjectNames:null}/></Deferred>}
       </div>
 
           {addUserOpen && (
@@ -4422,27 +4409,27 @@ export default function Home() {
             </>
           )}
 
-      {roadOpen&&inventoryScope&&canManage&&<RoadStretch key={currentProjectId} projectId={currentProjectId} projectName={projects.find(p=>p.id===currentProjectId)?.name}
-        center={projectBillboards[0]} onClose={()=>setRoadOpen(false)} onSaved={(result:any)=>{setRoadOpen(false);setProjectLoadRevision(v=>v+1);setPlanningRevision(v=>v+1);setImportMessage(result.updated?`${result.name} updated: ${result.moved} estimated poles repositioned; ${result.verifiedPreserved} field GPS locations preserved.`:`${result.count} estimated lamp-post locations added for ${result.name}. Field GPS verification is required.`);}}/>}
-      {sharedPhotoBoards&&inventoryScope&&canEditInventoryAttributes&&<SharedLamppostPhoto boards={sharedPhotoBoards} projectId={currentProjectId} onClose={()=>setSharedPhotoBoards(null)} onSaved={(result:any)=>{const changedIds=new Set(sharedPhotoBoards.filter(item=>result.assetIds?.includes(item.inventoryDbId)).map(item=>item.id));setSharedPhotoBoards(null);setProjectShortlist(current=>current.filter(id=>!changedIds.has(id)));setProjectLoadRevision(value=>value+1);setImportMessage(`One shared photo attached to ${result.updated} lamp posts on ${result.road}.`);window.setTimeout(()=>setImportMessage(''),3500);}}/>}
-      {poleBoards&&user?.role==='admin'&&<PoleAssignment key={currentProjectId} boards={poleBoards} projectId={currentProjectId} projectName={projects.find(p=>p.id===currentProjectId)?.name} users={fieldUsers} onClose={()=>setPoleBoards(null)} onSaved={(result:any)=>{setPoleBoards(null);setProjectShortlist([]);setProjectLoadRevision(v=>v+1);setImportMessage(`${result.assigned} poles assigned for GPS verification. ${result.alreadyAssigned} already assigned to this field user.`);}}/>}
-      {inventoryScope&&user?.role==="admin"&&projectRemovalBoards&&<ProjectRemoval boards={projectRemovalBoards} projects={projects}
+      {roadOpen&&inventoryScope&&canManage&&<Deferred label="Opening road-stretch tool…"><RoadStretch key={currentProjectId} projectId={currentProjectId} projectName={projects.find(p=>p.id===currentProjectId)?.name}
+        center={projectBillboards[0]} onClose={()=>setRoadOpen(false)} onSaved={(result:any)=>{setRoadOpen(false);setProjectLoadRevision(v=>v+1);setPlanningRevision(v=>v+1);setImportMessage(result.updated?`${result.name} updated: ${result.moved} estimated poles repositioned; ${result.verifiedPreserved} field GPS locations preserved.`:`${result.count} estimated lamp-post locations added for ${result.name}. Field GPS verification is required.`);}}/></Deferred>}
+      {sharedPhotoBoards&&inventoryScope&&canEditInventoryAttributes&&<Deferred label="Preparing photo assignment…"><SharedLamppostPhoto boards={sharedPhotoBoards} projectId={currentProjectId} onClose={()=>setSharedPhotoBoards(null)} onSaved={(result:any)=>{const changedIds=new Set(sharedPhotoBoards.filter(item=>result.assetIds?.includes(item.inventoryDbId)).map(item=>item.id));setSharedPhotoBoards(null);setProjectShortlist(current=>current.filter(id=>!changedIds.has(id)));setProjectLoadRevision(value=>value+1);setImportMessage(`One shared photo attached to ${result.updated} lamp posts on ${result.road}.`);window.setTimeout(()=>setImportMessage(''),3500);}}/></Deferred>}
+      {poleBoards&&user?.role==='admin'&&<Deferred label="Loading pole assignments…"><PoleAssignment key={currentProjectId} boards={poleBoards} projectId={currentProjectId} projectName={projects.find(p=>p.id===currentProjectId)?.name} users={fieldUsers} onClose={()=>setPoleBoards(null)} onSaved={(result:any)=>{setPoleBoards(null);setProjectShortlist([]);setProjectLoadRevision(v=>v+1);setImportMessage(`${result.assigned} poles assigned for GPS verification. ${result.alreadyAssigned} already assigned to this field user.`);}}/></Deferred>}
+      {inventoryScope&&user?.role==="admin"&&projectRemovalBoards&&<Deferred label="Preparing project removal…"><ProjectRemoval boards={projectRemovalBoards} projects={projects}
         initialProjectId={centralScope?Number(centralProject)||0:currentProjectId} lockedProject={!centralScope}
         hiddenCount={projectRemovalBoards.filter(item=>!filtered.some(row=>row.id===item.id)).length}
         onClose={()=>setProjectRemovalBoards(null)} onSaved={(result:any)=>{
           setProjectRemovalBoards(null);setProjectShortlist([]);setShowSelectedOnly(false);setSelected(null);
           setProjectLoadRevision(value=>value+1);setPlanningRevision(value=>value+1);
           setImportMessage(`${result.removed} billboard${result.removed===1?"":"s"} removed from ${result.project.name}. Central inventory and other projects preserved.${result.skipped?` ${result.skipped} not linked; skipped.`:""}`);
-        }}/>}
-      {centralScope&&user?.role==="admin"&&centralAssignmentBoards&&<CentralAssignment boards={centralAssignmentBoards} projects={projects}
+        }}/></Deferred>}
+      {centralScope&&user?.role==="admin"&&centralAssignmentBoards&&<Deferred label="Preparing project assignment…"><CentralAssignment boards={centralAssignmentBoards} projects={projects}
         hiddenCount={centralAssignmentBoards.filter(item=>!filtered.some(row=>row.id===item.id)).length}
         onClose={()=>setCentralAssignmentBoards(null)} onSaved={(result:any)=>{
           setCentralAssignmentBoards(null);setProjectShortlist([]);setShowSelectedOnly(false);setSelected(null);
           setProjects(current=>current.some(p=>p.id===result.project.id)?current:[...current,result.project]);
           setProjectLoadRevision(value=>value+1);setPlanningRevision(value=>value+1);
           setImportMessage(`${result.assigned} billboard${result.assigned===1?"":"s"} added to ${result.project.name}. ${result.alreadyAssigned?`${result.alreadyAssigned} already linked. `:""}Current project memberships preserved.`);
-        }}/>}
-      {inventoryScope&&canEditInventoryAttributes&&bulkEditBoards&&<InventoryBulkEdit dictionaries={dictionaries} boards={bulkEditBoards} projectId={currentProjectId}
+        }}/></Deferred>}
+      {inventoryScope&&canEditInventoryAttributes&&bulkEditBoards&&<Deferred label="Preparing bulk edit…"><InventoryBulkEdit dictionaries={dictionaries} boards={bulkEditBoards} projectId={currentProjectId}
         projectName={centralScope?'All projects':projects.find(p=>p.id===currentProjectId)?.name??'Current project'}
         hiddenCount={bulkEditBoards.filter(item=>!filtered.some(row=>row.id===item.id)).length}
         onClose={()=>setBulkEditBoards(null)}
@@ -4452,8 +4439,8 @@ export default function Home() {
           setPlanningRevision(value=>value+1);
           setBulkEditBoards(null);
           setImportMessage(`${result.changedCount} billboard${result.changedCount===1?'':'s'} updated. ${result.unchangedCount} unchanged. Changes recorded in Activity history.`);
-        }}/>}
-      {planningScope && decisionOpen && <PlanningDecision boards={filtered} allBoards={planningInventory} costs={planningCosts} selected={planningShortlist} settings={decision} onSettings={setDecision}
+        }}/></Deferred>}
+      {planningScope && decisionOpen && <Deferred label="Preparing planning recommendations…"><PlanningDecision boards={filtered} allBoards={planningInventory} costs={planningCosts} selected={planningShortlist} settings={decision} onSettings={setDecision}
         onClose={()=>setDecisionOpen(false)} onLocate={board=>{setDecisionOpen(false);focusItem(board as Billboard);}}
         onAdd={ids=>{
           const additions=ids.filter(id=>planningInventory.some(board=>board.id===id));
@@ -4461,7 +4448,7 @@ export default function Home() {
           setPlanningCosts(current=>{const next={...current};for(const id of additions){const board=planningInventory.find(item=>item.id===id)!;next[id]={
             rental:String(current[id]?.rental??board.rentalPrice??""),printing:String(current[id]?.printing??board.printingPrice??""),
             transport:String(current[id]?.transport??board.transportPrice??""),flighting:String(current[id]?.flighting??board.flightingPrice??"")};}return next;});
-        }}/>}
+        }}/></Deferred>}
 
       {activeTab === "flighting" && canPlan && (
         <div className="workspace flighting-workspace">
@@ -4872,11 +4859,11 @@ export default function Home() {
         </div>
       )}
 
-      {activeTab==='inventory-summary'&&canView&&<InventorySummaryReport projectId={currentProjectId} projects={projects} onProject={setCurrentProjectId} onOpenInventory={(ids:number[],label:string)=>{
+      {activeTab==='inventory-summary'&&canView&&<Deferred label="Loading inventory summary…"><InventorySummaryReport projectId={currentProjectId} projects={projects} onProject={setCurrentProjectId} onOpenInventory={(ids:number[],label:string)=>{
         resetFilters();dashboardInventoryFilters.current={ids,label};setSummaryAssetIds(ids);setSummaryFilterLabel(label);
         setMapPurpose(user?.role==='planner'?'planning':'inventory');setPlanOpen(false);setInventoryView('split');setSelected(null);setActiveTab('planner');
-      }}/>}
-      {activeTab === "dashboard" && canSeeDashboard && <Dashboard projectId={currentProjectId} projects={projects} onProject={setCurrentProjectId}
+      }}/></Deferred>}
+      {activeTab === "dashboard" && canSeeDashboard && <Deferred label="Loading dashboard…"><Dashboard projectId={currentProjectId} projects={projects} onProject={setCurrentProjectId}
         onNavigate={(destination:string,filters:any={})=>{
           // Viewers can only reach the read-only inventory; other dashboard tiles are inert for them.
           if(user?.role==='viewer'){
@@ -4892,7 +4879,7 @@ export default function Home() {
           }
           if(destination==='field'&&!canManage){setActiveTab('operations');setOperationsSection('issues');return;}
           setActiveTab(destination as typeof activeTab);
-        }}/>}
+        }}/></Deferred>}
 
       {activeTab === "field" && canManage && (
         <div className="workspace field-workspace field-workspace--command">

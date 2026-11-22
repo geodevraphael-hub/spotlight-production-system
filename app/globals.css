@@ -6414,6 +6414,7 @@ body { background: var(--soft); color: var(--ink); }
 }
 
 .topbar-actions > .header-board-type {width:clamp(180px,18vw,260px);flex:0 1 clamp(180px,18vw,260px);}
+.deferred-panel {display:flex;align-items:center;justify-content:center;min-height:48px;padding:12px 16px;color:var(--muted,#64748b);font-size:13px;}
 @media(max-width:760px){
  .topbar-actions:has(>.header-board-type){display:flex;flex-wrap:wrap;}
  .topbar-actions:has(>.header-board-type)>.project-select{width:auto;flex:1 1 calc(60% - 8px);}

@@ -5,6 +5,7 @@ import {useMemo,useState} from 'react';
 import {inventoryFingerprint} from './inventory-fingerprint.mjs';
 import {validGpsCoordinates} from './tanzania-map.mjs';
 import {validateRegisterFields} from './asset-register.mjs';
+import {normalizeCsvHeader} from './csv-import.mjs';
 export default function ImportReview({dictionaries=DEFAULT_DICTIONARIES,items,existing,onCancel,onImport}:{dictionaries?:typeof DEFAULT_DICTIONARIES;items:any[];existing:any[];onCancel:()=>void;onImport:(items:any[])=>Promise<void>}) {
  const [rows,setRows]=useState(items.map(item=>({...item,include:true})));
  const [busy,setBusy]=useState(false),[error,setError]=useState('');
@@ -20,15 +21,29 @@ export default function ImportReview({dictionaries=DEFAULT_DICTIONARIES,items,ex
    seen.add(key);return '';
   });
  },[rows,existing]);
- const update=(index:number,key:string,value:any)=>setRows(current=>current.map((row,position)=>position===index?{...row,[key]:value}:row));
+ const update=(index:number,key:string,value:any)=>setRows(current=>current.map((row,position)=>{
+  if(position!==index)return row;
+  if(key!=='width'&&key!=='height')return {...row,[key]:value};
+  const numeric=value===''?'':Number(value);
+  const next={...row,[key]:numeric};
+  const width=key==='width'?numeric:row.width,height=key==='height'?numeric:row.height;
+  const attributes={...(row.sourceAttributes||{})};
+  const matching=(name:string)=>Object.keys(attributes).filter(header=>normalizeCsvHeader(header)===name||normalizeCsvHeader(header)===`${name} m`);
+  for(const header of matching(key))attributes[header]=String(value);
+  const dimensionHeaders=Object.keys(attributes).filter(header=>['dimension','dimensions','size','format','format size'].includes(normalizeCsvHeader(header)));
+  for(const header of dimensionHeaders)attributes[header]=width!==''&&height!==''?`${width}x${height}`:'';
+  next.sourceAttributes=attributes;
+  return next;
+ }));
  const ready=rows.filter((row,index)=>row.include&&!problems[index]);
- const fields=[['street','Name'],['lat','Latitude'],['lng','Longitude'],['registrationNumber','Registration number'],['priority','Priority A / B / C'],['installations','Installations'],['mediaGroup','Media group'],['photoUrl','Photo URL']];
+ const fields=[['street','Name'],['lat','Latitude'],['lng','Longitude'],['width','Width (m)','number'],['height','Height (m)','number'],['registrationNumber','Registration number'],['priority','Priority A / B / C'],['installations','Installations'],['mediaGroup','Media group'],['photoUrl','Photo URL']];
  return <div className="import-review-backdrop"><section className="import-review" role="dialog" aria-modal="true" aria-label="Review import">
   <header className="ops-heading"><div><h2>Review before importing</h2><p>{ready.length} ready · {rows.length-ready.length} excluded or need attention. Correct values or exclude rows. Leave registration blank until KM provides it.</p></div><button onClick={onCancel} disabled={busy} aria-label="Close import review">Close</button></header>
   {error&&<p role="alert" className="ops-error">{error}</p>}
-  <div className="ops-table"><table><thead><tr><th>Import</th><th>Row</th>{fields.map(([key,title])=><th key={key}>{title}</th>)}<th>Media type</th><th>Review</th></tr></thead><tbody>
+  <div className="ops-table"><table><thead><tr><th>Import</th><th>Row</th>{fields.map(([key,title])=><th key={key}>{title}</th>)}<th>Dimensions (W × H)</th><th>Media type</th><th>Review</th></tr></thead><tbody>
    {rows.map((row,index)=><tr key={index}><td><input type="checkbox" disabled={busy} aria-label={`Include row ${index+2}`} checked={row.include} onChange={event=>update(index,'include',event.target.checked)}/></td><td>{index+2}</td>
-    {fields.map(([key,title])=><td key={key}><input disabled={busy} aria-label={`${title} row ${index+2}`} value={typeof row[key]==='number'&&Number.isNaN(row[key])?'':row[key]??''} onChange={event=>update(index,key,event.target.value)}/></td>)}
+    {fields.map(([key,title,type])=><td key={key}><input disabled={busy} type={type||'text'} min={type==='number'?0:undefined} max={type==='number'?100:undefined} step={type==='number'?'any':undefined} aria-label={`${title} row ${index+2}`} value={typeof row[key]==='number'&&Number.isNaN(row[key])?'':row[key]??''} onChange={event=>update(index,key,event.target.value)}/></td>)}
+    <td>{Number(row.width)>0&&Number(row.height)>0?`${row.width} × ${row.height} m`:'Not recorded'}</td>
     <td><SearchSelect disabled={busy} aria-label={`Type row ${index+2}`} value={row.mediaType} onChange={event=>update(index,'mediaType',event.target.value)}>{['lamp-post','large-format','digital-screen','fabricated-banner'].map(type=><option key={type}>{type}</option>)}</SearchSelect></td><td>{problems[index]||'Ready'}</td></tr>)}
   </tbody></table></div>
   <footer><button className="text-button" disabled={busy} onClick={()=>setRows(current=>current.map((row,index)=>({...row,include:!problems[index]})))}>Exclude flagged rows</button><button className="primary-button" disabled={busy||!ready.length||rows.some((row,index)=>row.include&&problems[index])} onClick={async()=>{setBusy(true);setError('');try{await onImport(ready.map(({include,...row})=>validateRegisterFields(row)));}catch(error){setError(error instanceof Error?error.message:'Import failed');}finally{setBusy(false);}}}>{busy?'Importing…':`Import ${ready.length} billboards`}</button></footer>

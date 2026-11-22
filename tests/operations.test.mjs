@@ -13,6 +13,22 @@ import {assignCentralInventory} from '../app/central-assignment.mjs';
 import {removeProjectInventory} from '../app/project-removal.mjs';
 import {groupLamppostsByRoad,validateSharedLampposts} from '../app/shared-lampposts.mjs';
 import {roadPreview} from '../app/campaign-road.mjs';
+import {mapCsvHeaders,parseCsvDimensions,parseCsvNumber} from '../app/csv-import.mjs';
+
+test('CSV mapping prioritizes exact dimension fields and avoids one-letter substring collisions',()=>{
+  assert.deepEqual(mapCsvHeaders(['Billboard Name','Rows','Photo','Dimensions','Width','Height']),{
+    street:'Billboard Name',dimensions:'Dimensions',width:'Width',height:'Height',photoUrl:'Photo',
+  });
+  assert.deepEqual(mapCsvHeaders(['Height Front','Height Back','Width Front','Width Back']),{});
+  assert.deepEqual(mapCsvHeaders(['Location Name']),{street:'Location Name'});
+});
+
+test('CSV dimension parsing preserves width-first values and decimal units',()=>{
+  assert.deepEqual(parseCsvDimensions('8 × 12 m'),{width:8,height:12});
+  assert.deepEqual(parseCsvDimensions('18.5*4.25'),{width:18.5,height:4.25});
+  assert.equal(parseCsvNumber('1,234.5'),1234.5);
+  assert.equal(parseCsvNumber('1,5'),1.5);
+});
 
 test('shared lamp-post photos group same road in either direction and reject mixed roads or asset types',()=>{
   const first={mediaType:'lamp-post',from:'Airport',to:'Kariakoo',street:'Pole 01'};
