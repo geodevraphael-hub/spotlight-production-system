@@ -13,7 +13,7 @@ import {assignCentralInventory} from '../app/central-assignment.mjs';
 import {removeProjectInventory} from '../app/project-removal.mjs';
 import {groupLamppostsByRoad,validateSharedLampposts} from '../app/shared-lampposts.mjs';
 import {roadPreview} from '../app/campaign-road.mjs';
-import {mapCsvHeaders,parseCsvDimensions,parseCsvNumber} from '../app/csv-import.mjs';
+import {mapCsvHeaders,parseCsvDimensions,parseCsvDimensionMeters,parseCsvNumber} from '../app/csv-import.mjs';
 
 test('CSV mapping prioritizes exact dimension fields and avoids one-letter substring collisions',()=>{
   assert.deepEqual(mapCsvHeaders(['Billboard Name','Rows','Photo','Dimensions','Width','Height']),{
@@ -26,6 +26,11 @@ test('CSV mapping prioritizes exact dimension fields and avoids one-letter subst
 test('CSV dimension parsing preserves width-first values and decimal units',()=>{
   assert.deepEqual(parseCsvDimensions('8 × 12 m'),{width:8,height:12});
   assert.deepEqual(parseCsvDimensions('18.5*4.25'),{width:18.5,height:4.25});
+  assert.deepEqual(parseCsvDimensions('2025'),{width:0,height:0});
+  assert.deepEqual(parseCsvDimensions('2000px × 4000px'),{width:0,height:0});
+  assert.equal(parseCsvDimensionMeters('10 m'),10);
+  assert.equal(parseCsvDimensionMeters('2000px'),0);
+  assert.equal(parseCsvDimensionMeters('2025'),0);
   assert.equal(parseCsvNumber('1,234.5'),1234.5);
   assert.equal(parseCsvNumber('1,5'),1.5);
 });

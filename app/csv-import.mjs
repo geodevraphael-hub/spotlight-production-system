@@ -22,14 +22,22 @@ export function parseCsvNumber(value) {
   return Number.isFinite(numeric) ? numeric : 0;
 }
 
+/** Parse a physical billboard dimension in metres, not a display resolution or year. */
+export function parseCsvDimensionMeters(value) {
+  const text = String(value ?? '').trim();
+  if (!text || /(?:px|pixels?|mm|cm|ft|feet|in|inch|inches)\b/i.test(text)) return 0;
+  const match = text.match(/^\s*([+-]?(?:\d[\d.,]*|[.,]\d+))\s*(?:m|met(?:er|re)s?)?\s*$/i);
+  if (!match) return 0;
+  const numeric = parseCsvNumber(match[1]);
+  return numeric > 0 && numeric <= 500 ? numeric : 0;
+}
+
 export function parseCsvDimensions(value) {
-  const parts = String(value ?? '')
-    .trim()
-    .toLowerCase()
-    .replace(/[×*]/g, 'x')
-    .split(/\s*x\s*/)
-    .map(parseCsvNumber);
-  return { width: parts[0] > 0 ? parts[0] : 0, height: parts[1] > 0 ? parts[1] : 0 };
+  const match = String(value ?? '').match(/^\s*([^x×*]+?)\s*(?:x|×|\*)\s*([^x×*]+?)\s*$/i);
+  if (!match) return { width: 0, height: 0 };
+  const width = parseCsvDimensionMeters(match[1]);
+  const height = parseCsvDimensionMeters(match[2]);
+  return width > 0 && height > 0 ? { width, height } : { width: 0, height: 0 };
 }
 
 const CSV_ALIASES = {

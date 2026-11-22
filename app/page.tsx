@@ -16,7 +16,7 @@ import {validGpsCoordinates} from './tanzania-map.mjs';
 import './central-map.css';
 import {assetPriority,installationCount,registrationNumber,mediaGroup,attributeLabel,isTransportAttribute} from './asset-register.mjs';
 import {emptyGeoFilters,matchesGeography,inventoryGeography} from './inventory-workflow.mjs';
-import { mapCsvHeaders, normalizeCsvHeader, parseCsvDimensions, parseCsvNumber } from './csv-import.mjs';
+import { mapCsvHeaders, normalizeCsvHeader, parseCsvDimensionMeters, parseCsvDimensions, parseCsvNumber } from './csv-import.mjs';
 import './operations.css';
 import {
   BarChart3,
@@ -431,8 +431,10 @@ function applySourceAttributesToBillboard(item: Billboard, attrs: Record<string,
   const lat = parseNumber(sourceAttrValue(attrs, ["Latitude", "LATITUDE", "lat"], ""));
   const lng = parseNumber(sourceAttrValue(attrs, ["Longitude", "LONGITUDE", "lng", "lon"], ""));
   const photoUrl = sourceAttrValue(attrs, ["Photo URL", "PHOTO URL", "IMAGE URL", "Image URL", "photoUrl"], item.photoOriginalUrl || item.photoUrl || "");
-  const height = parseNumber(sourceAttrValue(attrs, ["HEIGHT (M)", "HEIGHT", "height"], ""));
-  const width = parseNumber(sourceAttrValue(attrs, ["WIDTH (M)", "WIDTH", "width"], ""));
+  const rawHeight = sourceAttrValue(attrs, ["HEIGHT (M)", "HEIGHT", "height"], "");
+  const rawWidth = sourceAttrValue(attrs, ["WIDTH (M)", "WIDTH", "width"], "");
+  const height = parseCsvDimensionMeters(rawHeight);
+  const width = parseCsvDimensionMeters(rawWidth);
   const faces = parseNumber(sourceAttrValue(attrs, ["FACES", "faces"], ""));
   const lampPosts = parseNumber(sourceAttrValue(attrs, ["LAMP POSTS", "LAMPPOSTS", "lampPosts"], ""));
   const mediaType = sourceAttrValue(attrs, ["MEDIA TYPE", "TYPE", "BOARD TYPE", "mediaType"], "");
@@ -453,8 +455,8 @@ function applySourceAttributesToBillboard(item: Billboard, attrs: Record<string,
     brackets: sourceAttrValue(attrs, ["BRACKETS", "brackets"], item.brackets),
     arrangement: sourceAttrValue(attrs, ["ARRANGEMENT", "ORIENTATION", "orientation"], item.arrangement),
     advert: sourceAttrValue(attrs, ["CURRENT ADVERT", "ADVERT", "advert"], item.advert),
-    height: height || dimension.height || item.height,
-    width: width || dimension.width || item.width,
+    height: rawHeight ? height : (dimension.height || item.height),
+    width: rawWidth ? width : (dimension.width || item.width),
     faces: faces || item.faces,
     lampPosts: lampPosts || item.lampPosts,
     lat: lat || item.lat,
@@ -2935,8 +2937,8 @@ export default function Home() {
       from: "—",
       to: "—",
       brackets: "—",
-      height: parseNumber(value(row, "height")) || dimensions.height,
-      width: parseNumber(value(row, "width")) || dimensions.width,
+      height: parseCsvDimensionMeters(value(row, "height")) || dimensions.height,
+      width: parseCsvDimensionMeters(value(row, "width")) || dimensions.width,
       occupied: false,
       advert: "No advert recorded",
       faces: parseNumber(value(row, "faces")) || 1,
