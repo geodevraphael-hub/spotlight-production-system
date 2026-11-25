@@ -12,6 +12,7 @@ import { defaultDecision, decisionSettings } from './planning-decision.mjs';
 import { markerSize, markerHtml, markerState } from './map-symbols.mjs';
 import { InventorySummary, PlanSelectionButton, PlanningMapLegend } from './PlannerUI';
 import {centralProjectView} from './central-map.mjs';
+import {groupLamppostRoutes,uniqueImageReferences} from './lamppost-routes.mjs';
 import {validGpsCoordinates} from './tanzania-map.mjs';
 import './central-map.css';
 import {assetPriority,installationCount,registrationNumber,mediaGroup,attributeLabel,isTransportAttribute} from './asset-register.mjs';
@@ -1346,11 +1347,14 @@ export default function Home() {
           lat: item.lat,
           lng: item.lng,
           assetId: item.id,
+          mediaType: item.mediaType,
+          photoSharedAt: Number(item.photoSharedAt)||0,
+          faceCount: Number(item.faces)||0,
           area: item.district || "Unassigned area",
           source: "Inventory",
         };
       })
-      .filter(Boolean) as Array<{ id: string; title: string; subtitle: string; image: string; originalImage: string; lat: number; lng: number; assetId: number | null; area: string; source: string }>;
+      .filter(Boolean) as Array<{ id: string; title: string; subtitle: string; image: string; originalImage: string; lat: number; lng: number; assetId: number | null; mediaType: string; photoSharedAt: number; faceCount: number; area: string; source: string }>;
     const fromCollections = fieldCollections
       .map((collection) => {
         const data = collection.data ?? {};
@@ -1366,17 +1370,32 @@ export default function Home() {
           lat: collection.latitude,
           lng: collection.longitude,
           assetId: null as number | null,
+          mediaType: normalizeMediaType(String(data.media_type||data.mediaType||data.type||'')),
+          photoSharedAt: Number(collection.created_at)||0,
+          faceCount: 0,
           area: String(data.district || data.area || data.region || collection.mission_name || "Unassigned area"),
           source: "Field collection",
         };
       })
-      .filter(Boolean) as Array<{ id: string; title: string; subtitle: string; image: string; originalImage: string; lat: number; lng: number; assetId: number | null; area: string; source: string }>;
+      .filter(Boolean) as Array<{ id: string; title: string; subtitle: string; image: string; originalImage: string; lat: number; lng: number; assetId: number | null; mediaType: string; photoSharedAt: number; faceCount: number; area: string; source: string }>;
     return [...fromInventory, ...fromCollections];
   }, [billboards, fieldCollections]);
 
+  const imageLibraryRouteGroups = useMemo(() => {
+    const imageByAssetId=new Map(imageLibraryItems.filter(item=>item.source==='Inventory'&&item.assetId!==null).map(item=>[item.assetId!,item]));
+    return groupLamppostRoutes(billboards)
+      .map(route=>{
+        const photos=uniqueImageReferences(route.boards.map(board=>imageByAssetId.get(board.id)).filter(Boolean))
+          .sort((a,b)=>b.photoSharedAt-a.photoSharedAt);
+        return { ...route, poleCount:route.boards.length, faceCount:route.boards.reduce((sum,board)=>sum+(Number(board.faces)||0),0),
+          areas:[...new Set(route.boards.map(board=>board.district).filter(Boolean))], photos, photo:photos[0] };
+      })
+      .filter(route=>route.photos.length>0);
+  },[billboards,imageLibraryItems]);
+
   const imageLibraryGroups = useMemo(() => {
     const grouped = new Map<string, typeof imageLibraryItems>();
-    imageLibraryItems.forEach((item) => {
+    imageLibraryItems.filter(item=>item.mediaType!=='lamp-post'||item.source!=='Inventory').forEach((item) => {
       const area = item.area?.trim() || "Unassigned area";
       const items = grouped.get(area) ?? [];
       items.push(item);
@@ -1481,6 +1500,21 @@ export default function Home() {
       easeLinearity: 0.18,
       animate: !window.matchMedia("(prefers-reduced-motion: reduce)").matches,
     });
+  }
+
+  function focusLampPostRoute(route: { boards: Billboard[] }) {
+    const located=route.boards.filter(item=>validGpsCoordinates(item.lat,item.lng));
+    if(!located.length){setImportMessage('This route has no recorded GPS positions to show on the map.');return;}
+    resetFilters();
+    setMapPurpose(user?.role==='planner'?'planning':'inventory');
+    setPlanOpen(false);
+    setInventoryView('split');
+    setSelected(null);
+    setActiveTab('planner');
+    window.setTimeout(()=>{
+      const coordinates=located.map(item=>[Number(item.lat),Number(item.lng)] as [number,number]);
+      mapRef.current?.flyToBounds(coordinates,{padding:[56,56],maxZoom:17,duration:.9,animate:!window.matchMedia('(prefers-reduced-motion: reduce)').matches});
+    },180);
   }
 
   function generateAssetId() {
@@ -4806,16 +4840,49 @@ export default function Home() {
             <div className="library-head">
               <div>
                 <span className="eyebrow">Image library</span>
-                <h2>{imageLibraryGroups.length} areas · {imageLibraryItems.length} linked images</h2>
-                <p>Browse billboard image links grouped by area, then preview or jump back to the map.</p>
+                <h2>{imageLibraryRouteGroups.length} lamp-post routes · {billboards.filter(item=>item.mediaType==='lamp-post').length} lamp posts</h2>
+                <p>Shared route photos appear once with the road name and pole total. Other asset and field photos stay grouped by area.</p>
               </div>
               <button className="text-button" onClick={() => setActiveTab("planner")}>Back to map</button>
             </div>
-            {!imageLibraryItems.length && (
+            {!imageLibraryRouteGroups.length&&!imageLibraryGroups.length && (
               <div className="empty-state library-empty">
                 No image links yet.
                 <small>Add Photo URL values during CSV import, manual billboard entry, or field collection.</small>
               </div>
+            )}
+            {!!imageLibraryRouteGroups.length&&(
+              <section className="image-library-area image-library-route-area">
+                <div className="image-library-area-head">
+                  <div><span className="eyebrow">Lamp-post routes</span><h3>One route record, not one card per pole</h3></div>
+                  <strong>{imageLibraryRouteGroups.length} route{imageLibraryRouteGroups.length===1?'':'s'} · {imageLibraryRouteGroups.reduce((sum,route)=>sum+route.photos.length,0)} distinct image{imageLibraryRouteGroups.reduce((sum,route)=>sum+route.photos.length,0)===1?'':'s'}</strong>
+                </div>
+                <div className="image-library-route-list">
+                  {imageLibraryRouteGroups.map(route=>(
+                    <article className="image-library-route-row" key={route.key}>
+                      <button className="image-library-route-photo" type="button" onClick={()=>{setViewingPhoto(route.photo.image);setPhotoViewerOpen(true);}} aria-label={`Preview shared photo for ${route.label}`}>
+                        <img decoding="async" src={route.photo.image} alt={`${route.label} lamp-post route`} loading="lazy" onError={markImageFailed}/>
+                        <span><Eye size={14}/> Preview route photo</span>
+                        <em>Image unavailable</em>
+                      </button>
+                      <div className="image-library-route-copy">
+                        <span className="eyebrow">{route.recorded?'Lamp-post route':'Route needs a road name'}</span>
+                        <h3>{route.label}</h3>
+                        <div className="image-library-route-facts"><strong>{route.poleCount}</strong><span>lamp posts</span><strong>{route.faceCount}</strong><span>faces</span></div>
+                        <small>{route.areas.length?route.areas.join(' · '):'Area not recorded'} · {route.photos.length} distinct photo{route.photos.length===1?'':'s'}</small>
+                        {route.photos.length>1&&<details className="image-library-route-more">
+                          <summary>View {route.photos.length-1} other distinct photo{route.photos.length===2?'':'s'}</summary>
+                          <div>{route.photos.slice(1).map(photo=><button key={photo.id} type="button" onClick={()=>{setViewingPhoto(photo.image);setPhotoViewerOpen(true);}} aria-label={`Preview another ${route.label} photo`}><img decoding="async" loading="lazy" src={photo.image} alt={`${route.label} additional view`} onError={markImageFailed}/></button>)}</div>
+                        </details>}
+                      </div>
+                      <div className="image-library-route-actions">
+                        <button type="button" onClick={()=>focusLampPostRoute(route)}><MapPin size={15}/> Map route</button>
+                        <a href={route.photo.originalImage||route.photo.image} target="_blank" rel="noreferrer">Open photo URL</a>
+                      </div>
+                    </article>
+                  ))}
+                </div>
+              </section>
             )}
             <div className="image-library-groups">
               {imageLibraryGroups.map((group) => (
